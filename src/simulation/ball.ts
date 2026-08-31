@@ -9,37 +9,50 @@ export const launchBall = (
   state: GameState,
   carrier: Player,
   target: Position,
-  flight: "pass" | "kick" | "kickoff" | "lineout",
+  flight: "pass" | "kick" | "kickoff" | "lineout" | "grubber",
   intendedReceiverId: string | null,
   random: Random = Math.random,
 ) => {
-  const skill =
-    flight === "kick" || flight === "kickoff"
-      ? effectiveSkill(carrier, "kicking")
-      : effectiveSkill(carrier, "passing");
-  const error = (1 - skill) * (flight === "pass" || flight === "lineout" ? 5 : 18);
+  const isKicking =
+    flight === "kick" || flight === "kickoff" || flight === "grubber";
+  const skill = isKicking
+    ? effectiveSkill(carrier, "kicking")
+    : effectiveSkill(carrier, "passing");
+  const error =
+    (1 - skill) *
+    (flight === "pass" || flight === "lineout"
+      ? 5
+      : flight === "grubber"
+        ? 8
+        : 18);
   const actualTarget = {
     x: target.x + (random() - 0.5) * error,
     z: target.z + (random() - 0.5) * error,
   };
   const horizontalDistance = distance(carrier.position, actualTarget);
-  const duration = flight === "pass" || flight === "lineout" ? Math.max(0.35, horizontalDistance / 14) : 2.2;
+  const isGrubber = flight === "grubber";
+  const duration =
+    flight === "pass" || flight === "lineout"
+      ? Math.max(0.35, horizontalDistance / 14)
+      : isGrubber
+        ? Math.max(0.65, horizontalDistance / 16)
+        : 2.2;
   state.ball = {
-    position: { ...carrier.position, y: 1.25 },
+    position: { ...carrier.position, y: isGrubber ? 0.35 : 1.25 },
     velocity: {
       x: (actualTarget.x - carrier.position.x) / duration,
-      y: (GRAVITY * duration) / 2,
+      y: isGrubber ? 1.4 : (GRAVITY * duration) / 2,
       z: (actualTarget.z - carrier.position.z) / duration,
     },
     carrierId: null,
     flight,
     intendedReceiverId,
     lastTouchedTeam: carrier.team,
-    kickOrigin: flight === "kick" || flight === "kickoff" ? { ...carrier.position } : null,
-    bouncesRemaining: flight === "kick" || flight === "kickoff" ? 2 : 0,
+    kickOrigin: isKicking ? { ...carrier.position } : null,
+    bouncesRemaining: isGrubber ? 4 : isKicking ? 2 : 0,
   };
-  // Mark teammates ahead of kicker offside for kick and kickoff flights.
-  if (flight === "kick" || flight === "kickoff") {
+  // Mark teammates ahead of kicker offside for all kick flights.
+  if (isKicking) {
     const direction = attackDirection(carrier.team);
     for (const player of state.players) {
       player.kickOffside =

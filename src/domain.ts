@@ -50,7 +50,7 @@ export type PendingBallAction =
   | {
       kind: "kick";
       target: Position;
-      flight: "kick" | "kickoff" | "lineout";
+      flight: "kick" | "kickoff" | "lineout" | "grubber";
       remainingSeconds: number;
     };
 
@@ -84,7 +84,7 @@ export type Ball = {
   position: Position3;
   velocity: Position3;
   carrierId: string | null;
-  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | null;
+  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | "grubber" | null;
   intendedReceiverId: string | null;
   lastTouchedTeam: Team | null;
   kickOrigin: Position | null;

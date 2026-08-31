@@ -2,7 +2,11 @@ import type { Position } from "../domain.ts";
 
 export type BallAction =
   | { kind: "pass"; receiverId: string; clearance?: boolean }
-  | { kind: "kick"; target: Position; flight?: "kick" | "kickoff" | "lineout" };
+  | {
+      kind: "kick";
+      target: Position;
+      flight?: "kick" | "kickoff" | "lineout" | "grubber";
+    };
 
 export type Effort = "stand" | "jog" | "run" | "sprint";
 

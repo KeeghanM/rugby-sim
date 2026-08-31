@@ -137,16 +137,33 @@ const choosePassTarget = (
     )[0]
     ?.player;
 
-// Chooses a touch-finding clearance target downfield aiming for maximum distance.
+// Chooses a touch-finding clearance target downfield ensuring touchline is crossed safely before dead-ball line.
 const clearanceTarget = (player: Player, random: Random): Position => {
   const direction = attackDirection(player.team);
   const isBackThreeOrTen =
     player.role === ROLES.FullBack ||
     player.role === ROLES.FlyHalf ||
     player.role === ROLES.Wing;
-  const kickPower = isBackThreeOrTen
-    ? 48 + player.skills.kicking * 16 + random() * 8
-    : 35 + player.skills.kicking * 10 + random() * 6;
+  const kickSkill = effectiveSkill(player, "kicking");
+
+  // In rugby, clearance kicks aim to cross the touchline safely within the field of play (well before dead-ball line)
+  const targetTryLine =
+    direction === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
+  const maxSafeDistance = Math.max(
+    14,
+    Math.abs(targetTryLine - player.position.z) - 8,
+  );
+
+  const desiredDistance = isBackThreeOrTen
+    ? Math.min(maxSafeDistance, 36 + kickSkill * 18 + (random() - 0.5) * 8)
+    : Math.min(maxSafeDistance, 24 + kickSkill * 10 + (random() - 0.5) * 6);
+
+  // Rare severe overcooked miskick only possible on low kicking skill
+  const isMiskickOvercooked = random() < (1 - kickSkill) * 0.04;
+  const finalDistance = isMiskickOvercooked
+    ? desiredDistance + 24
+    : desiredDistance;
+
   const side =
     Math.abs(player.position.x) > 6
       ? Math.sign(player.position.x)
@@ -156,9 +173,9 @@ const clearanceTarget = (player: Player, random: Random): Position => {
   return {
     x: side * (PITCH.touchLines.right + 6),
     z: clamp(
-      player.position.z + direction * kickPower,
-      PITCH.deadBallLines.south + 2,
-      PITCH.deadBallLines.north - 2,
+      player.position.z + direction * finalDistance,
+      PITCH.tryLines.south - 5,
+      PITCH.tryLines.north + 5,
     ),
   };
 };
@@ -317,10 +334,41 @@ const chooseCarrierCommand = (
     return result;
   }
   if (canKick) {
-    result.ballAction = { kind: "kick", target: clearanceTarget(carrier, random) };
+    // If inside own 22 or deep fielding, kick for touch clearance
+    if (
+      insideOwnTwentyTwo(carrier.team, carrier.position.z) ||
+      carrier.role === ROLES.FullBack
+    ) {
+      result.ballAction = {
+        kind: "kick",
+        target: clearanceTarget(carrier, random),
+        flight: "kick",
+      };
+    } else {
+      // In midfield / attacking territory: 55% Grubber along turf, 45% Chip into space
+      const isGrubber = random() < 0.55;
+      const kickDistance = isGrubber ? 14 + random() * 8 : 18 + random() * 8;
+      const targetZ = clamp(
+        carrier.position.z + direction * kickDistance,
+        PITCH.tryLines.south + 2,
+        PITCH.tryLines.north - 2,
+      );
+      const targetX = clamp(
+        carrier.position.x + (random() - 0.5) * 4,
+        -30,
+        30,
+      );
+      result.ballAction = {
+        kind: "kick",
+        target: { x: targetX, z: targetZ },
+        flight: isGrubber ? "grubber" : "kick",
+      };
+    }
   } else {
     result.target = {
-      x: carrier.position.x + (defendersAhead[0]?.position.x >= carrier.position.x ? -6 : 6),
+      x:
+        carrier.position.x +
+        (defendersAhead[0]?.position.x >= carrier.position.x ? -6 : 6),
       z: carrier.position.z + direction * 10,
     };
   }
