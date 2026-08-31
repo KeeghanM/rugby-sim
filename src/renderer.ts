@@ -683,10 +683,35 @@ export const createRenderer = (
       applyZoomImmediate();
     },
     sync(game: GameState) {
+      const ruckPhase = game.phase.kind === "ruck" ? game.phase : null;
       for (const player of game.players) {
         const view = views.get(player.id);
         if (!view) continue;
-        view.mesh.position.set(player.position.x, 1, player.position.z);
+
+        const isTackledOrTackler =
+          ruckPhase !== null &&
+          (player.id === ruckPhase.tackledPlayerId ||
+            player.id === ruckPhase.tacklerId);
+        const isRuckCleaner =
+          ruckPhase !== null &&
+          (ruckPhase.attackers.includes(player.id) ||
+            ruckPhase.defenders.includes(player.id));
+
+        if (isTackledOrTackler) {
+          // Lie horizontal flat on the floor at the breakdown
+          view.mesh.rotation.x = Math.PI / 2;
+          view.mesh.position.set(player.position.x, 0.45, player.position.z);
+        } else if (isRuckCleaner) {
+          // Lean forward bound over the ruck
+          const leanDir = player.team === 0 ? 0.35 : -0.35;
+          view.mesh.rotation.x = leanDir;
+          view.mesh.position.set(player.position.x, 0.85, player.position.z);
+        } else {
+          // Upright stance
+          view.mesh.rotation.x = 0;
+          view.mesh.position.set(player.position.x, 1, player.position.z);
+        }
+
         view.material.emissiveColor =
           player.id === game.ball.carrierId
             ? Color3.FromHexString("#facc15")

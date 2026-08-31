@@ -128,7 +128,7 @@ const FORWARDS = new Set<Role>([
 const clampX = (x: number) =>
   Math.max(PITCH.touchLines.left + 1, Math.min(PITCH.touchLines.right - 1, x));
 const clampZ = (z: number) =>
-  Math.max(PITCH.tryLines.south + 1, Math.min(PITCH.tryLines.north - 1, z));
+  Math.max(PITCH.deadBallLines.south + 1, Math.min(PITCH.deadBallLines.north - 1, z));
 
 // Safely resolves player position slot index (0 to 14) even after substitutions (#16-23)
 export const getSlotIndex = (player: Player): number =>

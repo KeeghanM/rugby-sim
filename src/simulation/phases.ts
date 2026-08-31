@@ -1,7 +1,7 @@
 import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, ROLES, type Team } from "../domain.ts";
 import { getKickoffTarget, getLineoutTarget, getScrumTarget, isForward, LINEOUT_MEMBER_VARIANTS } from "../formations.ts";
 import { rollTeamFormations, TEAMS } from "../teams.ts";
-import { carryBall, launchBall } from "./ball.ts";
+import { carryBall, launchBall, startGoalLineDropout } from "./ball.ts";
 import {
   clamp,
   distance,
@@ -176,6 +176,24 @@ export const attemptTackle = (state: GameState, random: Random) => {
     tackler.tackleCooldown = 1.2;
     carrier.stamina = Math.max(0, carrier.stamina - 0.8);
     return false;
+  }
+
+  // In-goal contact: never form a ruck in in-goal!
+  const isAttackingInGoal =
+    carrier.team === 0
+      ? carrier.position.z >= PITCH.tryLines.north
+      : carrier.position.z <= PITCH.tryLines.south;
+  if (isAttackingInGoal) {
+    scoreTry(state, carrier.team);
+    return true;
+  }
+  const isDefendingInGoal =
+    carrier.team === 0
+      ? carrier.position.z <= PITCH.tryLines.south
+      : carrier.position.z >= PITCH.tryLines.north;
+  if (isDefendingInGoal) {
+    startGoalLineDropout(state, carrier.position.z);
+    return true;
   }
 
   // 3. Completed tackle: carrier brought down into a ruck

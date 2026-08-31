@@ -6,6 +6,7 @@ import {
   type Player,
   type Position,
 } from "../domain.ts";
+import { isForward } from "../formations.ts";
 import { TEAMS } from "../teams.ts";
 import { launchBall, updateBall } from "./ball.ts";
 import {
@@ -58,7 +59,7 @@ export const advanceDefensiveLine = (
     direction === 1 ? Math.max(limit, advanced) : Math.min(limit, advanced);
 };
 
-// Adds teammate separation and physical collision anti-clipping pushing between players and referee.
+// Adds teammate separation and physical collision pushing (disabled between bound ruck/scrum participants)
 const separatedVelocity = (
   state: GameState,
   player: Player,
@@ -68,10 +69,39 @@ const separatedVelocity = (
   let z = velocity.z;
   const isCarrier = player.id === state.ball.carrierId;
 
+  const ruckPhase = state.phase.kind === "ruck" ? state.phase : null;
+  const isScrum = state.phase.kind === "scrum";
+
+  const isPlayerRuckBound =
+    ruckPhase !== null &&
+    (ruckPhase.attackers.includes(player.id) ||
+      ruckPhase.defenders.includes(player.id) ||
+      player.id === ruckPhase.tackledPlayerId ||
+      player.id === ruckPhase.tacklerId);
+
+  const isPlayerScrumBound = isScrum && isForward(player);
+
   for (const other of state.players) {
     if (other.id === player.id) continue;
     const gap = distance(player.position, other.position);
     if (gap === 0) continue;
+
+    const isOtherRuckBound =
+      ruckPhase !== null &&
+      (ruckPhase.attackers.includes(other.id) ||
+        ruckPhase.defenders.includes(other.id) ||
+        other.id === ruckPhase.tackledPlayerId ||
+        other.id === ruckPhase.tacklerId);
+
+    const isOtherScrumBound = isScrum && isForward(other);
+
+    // Bound players in a ruck or scrum pack together without elastic repulsion pushing them apart
+    if (
+      (isPlayerRuckBound && isOtherRuckBound) ||
+      (isPlayerScrumBound && isOtherScrumBound)
+    ) {
+      continue;
+    }
 
     // Physical body anti-clipping collision radius (~0.9m - 1.2m based on player weight)
     const bodyRadius = (player.weight + other.weight) / 200;

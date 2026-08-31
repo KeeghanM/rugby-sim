@@ -64,7 +64,7 @@ export const launchBall = (
 };
 
 // Converts a ball crossing dead-ball line into defending goal-line dropout.
-const startGoalLineDropout = (state: GameState, z: number) => {
+export const startGoalLineDropout = (state: GameState, z: number) => {
   const defendingTeam: Team = z < 0 ? 0 : 1;
   state.ball = {
     position: { x: 0, y: 0.15, z: defendingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north },
