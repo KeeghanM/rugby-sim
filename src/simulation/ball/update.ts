@@ -59,15 +59,20 @@ export const updateBall = (
     const friction = Math.max(0, 1 - deltaSeconds * 1.8);
     state.ball.velocity.x *= friction;
     state.ball.velocity.z *= friction;
-    // Restart when rolling ball crosses dead-ball line.
+    // Restart when rolling ball crosses dead-ball line within touchlines (not in touch).
     if (
+      state.phase.kind !== "lineout" &&
+      Math.abs(state.ball.position.x) < PITCH.touchLines.right &&
       Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
     ) {
       startGoalLineDropout(state, state.ball.position.z);
       return;
     }
     // Award lineout when rolling kick crosses touchline.
-    if (Math.abs(state.ball.position.x) >= PITCH.touchLines.right) {
+    if (
+      state.phase.kind !== "lineout" &&
+      Math.abs(state.ball.position.x) >= PITCH.touchLines.right
+    ) {
       startLineout(
         state,
         state.ball.lastTouchedTeam ?? 0,
@@ -166,34 +171,26 @@ export const updateBall = (
     return;
   }
 
-  // Restart with goal-line dropout when flight crosses either dead-ball line.
+  // Restart with goal-line dropout when flight crosses dead-ball line within pitch width (not in touch).
   if (
+    state.phase.kind !== "lineout" &&
     (state.ball.flight === "kick" ||
       state.ball.flight === "kickoff" ||
       state.ball.flight === "dropGoal") &&
+    Math.abs(state.ball.position.x) < PITCH.touchLines.right &&
     Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
   ) {
     startGoalLineDropout(state, state.ball.position.z);
     return;
   }
 
-  // Start lineout when normal kick crosses either touchline.
+  // Start lineout when kick or pass crosses either touchline.
   if (
-    state.ball.flight === "kick" &&
-    Math.abs(state.ball.position.x) >= PITCH.touchLines.right
-  ) {
-    startLineout(
-      state,
-      state.ball.lastTouchedTeam ?? 0,
-      clamp(state.ball.position.z, PITCH.tryLines.south, PITCH.tryLines.north),
-      state.ball.position.x,
-    );
-    return;
-  }
-
-  // Passes or throws crossing touch cannot be recovered by pitch-clamped players.
-  if (
-    (state.ball.flight === "pass" || state.ball.flight === "lineout") &&
+    state.phase.kind !== "lineout" &&
+    (state.ball.flight === "kick" ||
+      state.ball.flight === "pass" ||
+      state.ball.flight === "lineout" ||
+      state.ball.flight === "grubber") &&
     Math.abs(state.ball.position.x) >= PITCH.touchLines.right
   ) {
     startLineout(
