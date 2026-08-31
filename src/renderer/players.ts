@@ -10,7 +10,7 @@ import {
 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState, Player } from "../domain.ts";
-import { PITCH } from "../domain.ts";
+import { PITCH, ROLES } from "../domain.ts";
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const clean = hex.replace("#", "");
@@ -498,11 +498,28 @@ export const syncPlayers = (
       (maulPhase.attackers.includes(player.id) ||
         maulPhase.defenders.includes(player.id));
 
-    // Player yaw rotation based on velocity or team attack direction
+    const lineoutPhase = game.phase.kind === "lineout" ? game.phase : null;
+
+    // Player yaw rotation based on velocity, role context, or team attack direction
     const speed = Math.hypot(player.velocity.x, player.velocity.z);
     let targetYaw = player.team === 0 ? 0 : Math.PI;
+
     if (speed > 0.2) {
       targetYaw = Math.atan2(player.velocity.x, player.velocity.z);
+    } else if (
+      lineoutPhase &&
+      player.team === lineoutPhase.throwingTeam &&
+      player.role === ROLES.Hooker
+    ) {
+      // Throwing hooker faces into the pitch across the touchline
+      targetYaw = player.position.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    } else if (
+      lineoutPhase &&
+      player.team !== lineoutPhase.throwingTeam &&
+      player.role === ROLES.Hooker
+    ) {
+      // Defending hooker faces towards the throwing hooker
+      targetYaw = player.position.x < 0 ? -Math.PI / 2 : Math.PI / 2;
     }
 
     // Smooth yaw rotation
