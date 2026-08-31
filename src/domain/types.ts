@@ -245,6 +245,7 @@ export type Substitute = {
   pod: Pod;
   speed: number;
   weight: number;
+  stamina?: number;
   skills: PlayerSkills;
   stats: PlayerStats;
   isUsed: boolean;

@@ -1,59 +1,57 @@
 import type { GameState } from "../../domain.ts";
 import { isForward } from "../../formations.ts";
 
-const formatRole = (role: string): string => {
-  switch (role) {
-    case "Loose Head":
+const getPlayerName = (number: number, role: string): string => {
+  switch (number) {
+    case 1:
       return "Loosehead Prop";
-    case "Tight Head":
-      return "Tighthead Prop";
-    case "Hooker":
+    case 2:
       return "Hooker";
-    case "Lock":
-      return "Lock / Second Row";
-    case "Open Side Flanker":
-      return "Openside Flanker";
-    case "Blind Side Flanker":
+    case 3:
+      return "Tighthead Prop";
+    case 4:
+      return "Lock (4)";
+    case 5:
+      return "Lock (5)";
+    case 6:
       return "Blindside Flanker";
-    case "Number Eight":
+    case 7:
+      return "Openside Flanker";
+    case 8:
       return "Number Eight";
-    case "Scrum Half":
+    case 9:
       return "Scrum Half";
-    case "Fly Half":
+    case 10:
       return "Fly Half";
-    case "Inside Centre":
+    case 11:
+      return "Left Wing";
+    case 12:
       return "Inside Centre";
-    case "Outside Centre":
+    case 13:
       return "Outside Centre";
-    case "Wing":
-      return "Wing";
-    case "Full Back":
+    case 14:
+      return "Right Wing";
+    case 15:
       return "Fullback";
+    case 16:
+      return "Reserve Prop";
+    case 17:
+      return "Reserve Hooker";
+    case 18:
+      return "Reserve Prop";
+    case 19:
+      return "Reserve Lock";
+    case 20:
+      return "Reserve Back Row";
+    case 21:
+      return "Reserve Scrum Half";
+    case 22:
+      return "Reserve Fly Half";
+    case 23:
+      return "Reserve Outside Back";
     default:
-      return role;
+      return role || `Player ${number}`;
   }
-};
-
-const getPositionGroup = (number: number): string => {
-  if (number === 1 || number === 3) return "Prop";
-  if (number === 2) return "Hooker";
-  if (number === 4 || number === 5) return "Lock";
-  if (number === 6 || number === 7) return "Flanker";
-  if (number === 8) return "No. 8";
-  if (number === 9) return "Halfback";
-  if (number === 10) return "Fly Half";
-  if (number === 12 || number === 13) return "Centre";
-  if (number === 11 || number === 14) return "Wing";
-  if (number === 15) return "Fullback";
-  return "Reserve";
-};
-
-const getPodLabel = (pod: string): string => {
-  if (pod === "left") return "Left Pod";
-  if (pod === "middle") return "Crash Pod";
-  if (pod === "right") return "Right Pod";
-  if (pod === "backline") return "Backline";
-  return pod;
 };
 
 const getOverall = (p: any): number => {
@@ -73,8 +71,12 @@ const getOvrClass = (ovr: number): string => {
   return "ovr-solid";
 };
 
-const getConditionInfo = (stamina: number) => {
-  const pct = Math.max(0, Math.min(100, Math.round(stamina)));
+const getConditionInfo = (stamina?: number, isSub = false, isUsed = false) => {
+  if (isSub && !isUsed) {
+    return { pct: 100, status: "Ready", barClass: "" };
+  }
+  const val = typeof stamina === "number" && !isNaN(stamina) ? stamina : 100;
+  const pct = Math.max(0, Math.min(100, Math.round(val)));
   let status = "Fresh";
   let barClass = "";
   if (pct < 35) {
@@ -154,15 +156,16 @@ export const syncManager = (
     if (managerRosterThead) {
       managerRosterThead.innerHTML = `
         <tr>
-          <th style="width: 38px; text-align: center;">#</th>
-          <th>Player / Role</th>
-          <th>Work Rate</th>
-          <th>Tackles</th>
-          <th>Tries</th>
-          <th>Breaks</th>
-          <th>Passing</th>
-          <th>Kicking</th>
-          <th>Discipline</th>
+          <th style="width: 36px; text-align: center;">#</th>
+          <th>Player</th>
+          <th style="text-align: right;">Distance</th>
+          <th style="text-align: right;">Carried</th>
+          <th style="text-align: center;">Tackles</th>
+          <th style="text-align: center;">Tries</th>
+          <th style="text-align: center;">Breaks</th>
+          <th style="text-align: center;">Passing</th>
+          <th style="text-align: center;">Kicking</th>
+          <th style="text-align: center;">Errors</th>
         </tr>`;
     }
 
@@ -177,55 +180,74 @@ export const syncManager = (
     const totalPens = sum((p: any) => p.stats.penaltiesConceded);
     const totalKnockOns = sum((p: any) => p.stats.knockOns);
     const setPieces: any = game.teamStats[selectedManagerTeam];
+    const totalTackles = totalTacklesMade + totalTacklesMissed;
     const tacklePct =
-      totalTacklesMade + totalTacklesMissed > 0
-        ? Math.round(
-            (totalTacklesMade / (totalTacklesMade + totalTacklesMissed)) * 100,
-          )
+      totalTackles > 0
+        ? Math.round((totalTacklesMade / totalTackles) * 100)
+        : 100;
+
+    const totalRucks = setPieces.rucksWon + setPieces.rucksLost;
+    const ruckPct =
+      totalRucks > 0
+        ? Math.round((setPieces.rucksWon / totalRucks) * 100)
+        : 100;
+    const totalScrums = setPieces.scrumsWon + setPieces.scrumsLost;
+    const scrumPct =
+      totalScrums > 0
+        ? Math.round((setPieces.scrumsWon / totalScrums) * 100)
+        : 100;
+    const totalLineouts = setPieces.lineoutsWon + setPieces.lineoutsLost;
+    const lineoutPct =
+      totalLineouts > 0
+        ? Math.round((setPieces.lineoutsWon / totalLineouts) * 100)
         : 100;
 
     managerTeamSummary.innerHTML = `
       <div class="summary-item">
-        <span class="summary-label">🏃 Work Rate & Territory</span>
+        <span class="summary-label">DISTANCE & CARRIES</span>
         <span class="summary-val">
           ${(totalDistM / 1000).toFixed(2)} km
           <span class="summary-sub">(${formatDist(totalCarriedM)} carry)</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">🛡️ Defensive Success</span>
+        <span class="summary-label">TACKLE COMPLETION</span>
         <span class="summary-val">
-          ${totalTacklesMade}/${totalTacklesMade + totalTacklesMissed}
-          <span class="group-tag" style="background:${tacklePct >= 85 ? "rgba(34,197,94,0.2)" : "rgba(234,179,8,0.2)"}; color:${tacklePct >= 85 ? "#4ade80" : "#facc15"}; border-color:transparent;">${tacklePct}%</span>
+          ${tacklePct}%
+          <span class="summary-sub">(${totalTacklesMade}/${totalTackles})</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">🏉 Attack Impact</span>
+        <span class="summary-label">SCORING & BREAKS</span>
         <span class="summary-val">
-          ${totalTries} ${totalTries === 1 ? "try" : "tries"}
-          <span class="summary-sub">· ${totalBreaks} breaks</span>
+          ${totalTries} ${totalTries === 1 ? "Try" : "Tries"}
+          <span class="summary-sub">(${totalBreaks} Line Breaks)</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">⚠️ Discipline & Handling</span>
+        <span class="summary-label">DISCIPLINE & HANDLING</span>
         <span class="summary-val">
-          ${totalPens} pens
-          <span class="summary-sub">· ${totalKnockOns} knock-ons</span>
+          ${totalPens} Pens
+          <span class="summary-sub">(${totalKnockOns} Knock-ons)</span>
         </span>
       </div>
-      <div class="summary-item" style="grid-column: 1 / -1;">
-        <span class="summary-label">⚖️ Set Piece & Breakdown Contests Won</span>
-        <span class="summary-val" style="font-size: 0.82rem; color: #cbd5e1; gap: 0.8rem;">
-          <span>Rucks: <strong style="color:#f8fafc;">${setPieces.rucksWon}/${setPieces.rucksWon + setPieces.rucksLost}</strong></span>
-          <span>Mauls: <strong style="color:#f8fafc;">${setPieces.maulsWon}/${setPieces.maulsWon + setPieces.maulsLost}</strong></span>
-          <span>Scrums: <strong style="color:#f8fafc;">${setPieces.scrumsWon}/${setPieces.scrumsWon + setPieces.scrumsLost}</strong></span>
-          <span>Lineouts: <strong style="color:#f8fafc;">${setPieces.lineoutsWon}/${setPieces.lineoutsWon + setPieces.lineoutsLost}</strong></span>
+      <div class="summary-item" style="grid-column: 1 / -1; background: rgba(0,0,0,0.2); padding: 0.5rem 0.8rem; border-radius: 0.4rem; border: 1px solid rgba(255,255,255,0.06);">
+        <span class="summary-label" style="font-size: 0.68rem; margin-bottom: 0.15rem;">SET PIECE & BREAKDOWN RETENTION</span>
+        <span class="summary-val" style="font-size: 0.82rem; color: #cbd5e1; gap: 1.4rem;">
+          <span>Ruck: <strong style="color:#f8fafc;">${setPieces.rucksWon}/${totalRucks} (${ruckPct}%)</strong></span>
+          <span>Scrum: <strong style="color:#f8fafc;">${setPieces.scrumsWon}/${totalScrums} (${scrumPct}%)</strong></span>
+          <span>Lineout: <strong style="color:#f8fafc;">${setPieces.lineoutsWon}/${totalLineouts} (${lineoutPct}%)</strong></span>
+          <span>Maul: <strong style="color:#f8fafc;">${setPieces.maulsWon}/${setPieces.maulsWon + setPieces.maulsLost}</strong></span>
         </span>
       </div>`;
 
     const renderStatRow = (player: any, isSub = false) => {
       const s = player.stats;
       const opacity = isSub && !player.isUsed ? "opacity: 0.65;" : "";
+      const tacklesTotal = s.tacklesMade + s.tacklesMissed;
+      const pTacklePct =
+        tacklesTotal > 0 ? Math.round((s.tacklesMade / tacklesTotal) * 100) : 0;
+
       return `
         <tr style="${opacity}">
           <td style="text-align: center;">
@@ -233,53 +255,50 @@ export const syncManager = (
           </td>
           <td>
             <div class="player-role-title">
-              ${formatRole(player.role)}
-              <span class="group-tag">${getPositionGroup(player.number)}</span>
-              <span class="player-pod-badge">${getPodLabel(player.pod)}</span>
+              ${getPlayerName(player.number, player.role)}
             </div>
           </td>
-          <td>
-            <span style="font-family:ui-monospace, monospace; font-weight:700; color:#e2e8f0;">${formatDist(s.distanceCovered)}</span>
-            <span style="color:#38bdf8; font-size:0.75rem; font-family:ui-monospace, monospace; margin-left: 0.3rem;">(${formatDist(s.distanceCarried)})</span>
+          <td style="text-align: right;">
+            <span class="stat-num">${formatDist(s.distanceCovered)}</span>
           </td>
-          <td>
-            <span style="font-family:ui-monospace, monospace; font-weight:700; color:#f8fafc;">${s.tacklesMade}</span>
-            <span style="color:#94a3b8; font-size:0.75rem;">/${s.tacklesMade + s.tacklesMissed}</span>
+          <td style="text-align: right;">
+            ${s.distanceCarried > 0 ? `<span class="stat-num" style="color:#38bdf8;">${formatDist(s.distanceCarried)}</span>` : `<span class="stat-zero">-</span>`}
           </td>
-          <td>
-            ${s.triesScored > 0 ? `<span class="stat-highlight-gold">🏉 ${s.triesScored}</span>` : `<span style="color:#475569;">-</span>`}
+          <td style="text-align: center;">
+            ${tacklesTotal > 0 ? `<span class="stat-num">${s.tacklesMade}/${tacklesTotal}</span> <span class="stat-sub">(${pTacklePct}%)</span>` : `<span class="stat-zero">-</span>`}
           </td>
-          <td>
-            ${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#475569;">-</span>`}
+          <td style="text-align: center;">
+            ${s.triesScored > 0 ? `<span class="stat-highlight-gold">${s.triesScored}</span>` : `<span class="stat-zero">-</span>`}
           </td>
-          <td>
-            <span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span>
+          <td style="text-align: center;">
+            ${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">${s.lineBreaks}</span>` : `<span class="stat-zero">-</span>`}
           </td>
-          <td>
-            ${s.totalKicks > 0 ? `<span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span>` : `<span style="color:#475569;">-</span>`}
+          <td style="text-align: center;">
+            ${s.totalPasses > 0 ? `<span class="stat-num">${s.successfulPasses}/${s.totalPasses}</span>` : `<span class="stat-zero">-</span>`}
           </td>
-          <td>
-            <span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? "color:#ef4444;" : s.knockOns > 0 ? "color:#f87171;" : "color:#64748b;"}">
-              ${s.penaltiesConceded}p · ${s.knockOns}k
-            </span>
+          <td style="text-align: center;">
+            ${s.totalKicks > 0 ? `<span class="stat-num">${s.successfulKicks}/${s.totalKicks}</span>` : `<span class="stat-zero">-</span>`}
+          </td>
+          <td style="text-align: center;">
+            ${s.penaltiesConceded > 0 || s.knockOns > 0 ? `<span class="stat-num" style="${s.penaltiesConceded > 0 ? "color:#ef4444;" : "color:#f87171;"}">${s.penaltiesConceded}p / ${s.knockOns}k</span>` : `<span class="stat-zero">0</span>`}
           </td>
         </tr>`;
     };
 
     managerRosterTbody.innerHTML = `
-      <tr class="section-divider-row"><td colspan="9">Starting XV (1 - 15)</td></tr>
+      <tr class="section-divider-row"><td colspan="10">Starting XV</td></tr>
       ${teamPlayers.map((p: any) => renderStatRow(p)).join("")}
-      <tr class="section-divider-row"><td colspan="9">Finishing Reserves (16 - 23)</td></tr>
+      <tr class="section-divider-row"><td colspan="10">Finishing Reserves</td></tr>
       ${benchSubs.map((s: any) => renderStatRow(s, true)).join("")}`;
   } else {
     // --- SQUAD & CONDITION VIEW ---
     if (managerRosterThead) {
       managerRosterThead.innerHTML = `
         <tr>
-          <th style="width: 38px; text-align: center;">#</th>
-          <th>Player / Role</th>
+          <th style="width: 36px; text-align: center;">#</th>
+          <th>Player</th>
           <th>Physicals</th>
-          <th>Overall Rating</th>
+          <th>Rating</th>
           <th>Match Condition</th>
         </tr>`;
     }
@@ -299,28 +318,28 @@ export const syncManager = (
 
     managerTeamSummary.innerHTML = `
       <div class="summary-item">
-        <span class="summary-label">📋 Tactical Shape</span>
+        <span class="summary-label">TACTICAL SYSTEM</span>
         <span class="summary-val">
           ${teamDef.name}
           <span class="summary-sub">(${game.formations[selectedManagerTeam].openAttack})</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">💪 Pack Power</span>
+        <span class="summary-label">FORWARD PACK POWER</span>
         <span class="summary-val">
           ${packWeight} kg
           <span class="summary-sub">(${avgFwdWeight} kg avg)</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">⚡ Defensive Line Speed</span>
+        <span class="summary-label">DEFENSIVE LINE SPEED</span>
         <span class="summary-val">
           ${teamDef.lineSpeed.toFixed(1)} m/s
           <span class="summary-sub">(${game.formations[selectedManagerTeam].openDefence})</span>
         </span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">📊 Play Tendencies</span>
+        <span class="summary-label">PLAY TENDENCIES</span>
         <span class="summary-val" style="font-size: 0.76rem; color: #cbd5e1;">
           <span style="color:#60a5fa;">Carry ${cPct}%</span> ·
           <span style="color:#4ade80;">Pass ${pPct}%</span> ·
@@ -338,13 +357,13 @@ export const syncManager = (
     const renderRosterRow = (player: any, isSub = false) => {
       const ovr = getOverall(player);
       const ovrClass = getOvrClass(ovr);
-      const cond = getConditionInfo(player.stamina);
+      const cond = getConditionInfo(player.stamina, isSub, player.isUsed);
       const opacity = isSub && !player.isUsed ? "opacity: 0.7;" : "";
 
       const statusBadge = isSub
         ? player.isUsed
-          ? `<span class="group-tag" style="background:rgba(148,163,184,0.15); color:#94a3b8; border-color:transparent;">Subbed On</span>`
-          : `<span class="group-tag" style="background:rgba(34,197,94,0.15); color:#4ade80; border-color:rgba(34,197,94,0.3);">Ready</span>`
+          ? `<span class="group-tag" style="background:rgba(148,163,184,0.15); color:#94a3b8; border-color:transparent; margin-left: 0.4rem;">Subbed On</span>`
+          : `<span class="group-tag" style="background:rgba(34,197,94,0.15); color:#4ade80; border-color:rgba(34,197,94,0.3); margin-left: 0.4rem;">Ready</span>`
         : "";
 
       return `
@@ -354,15 +373,13 @@ export const syncManager = (
           </td>
           <td>
             <div class="player-role-title">
-              ${formatRole(player.role)}
-              <span class="group-tag">${getPositionGroup(player.number)}</span>
-              <span class="player-pod-badge">${getPodLabel(player.pod)}</span>
+              ${getPlayerName(player.number, player.role)}
               ${statusBadge}
             </div>
           </td>
           <td>
-            <span style="font-weight:700; color:#f8fafc;">${Math.round(player.weight)} kg</span>
-            <span style="color:#94a3b8; font-size:0.75rem; margin-left: 0.35rem;">· ${player.speed.toFixed(1)} m/s</span>
+            <span class="stat-num">${Math.round(player.weight)} kg</span>
+            <span class="stat-sub" style="margin-left: 0.35rem;">· ${player.speed.toFixed(1)} m/s</span>
           </td>
           <td>
             <span class="ovr-badge ${ovrClass}">OVR ${ovr}</span>
@@ -382,9 +399,9 @@ export const syncManager = (
     };
 
     managerRosterTbody.innerHTML = `
-      <tr class="section-divider-row"><td colspan="5">Starting XV (1 - 15)</td></tr>
+      <tr class="section-divider-row"><td colspan="5">Starting XV</td></tr>
       ${teamPlayers.map((p: any) => renderRosterRow(p)).join("")}
-      <tr class="section-divider-row"><td colspan="5">Finishing Reserves (16 - 23)</td></tr>
+      <tr class="section-divider-row"><td colspan="5">Finishing Reserves</td></tr>
       ${benchSubs.map((s: any) => renderRosterRow(s, true)).join("")}`;
   }
 };

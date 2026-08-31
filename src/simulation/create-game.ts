@@ -92,6 +92,7 @@ export const createGame = (
         pod: bench.pod,
         speed: profile.speed,
         weight: profile.weight,
+        stamina: 100,
         skills: profile.skills,
         stats: createInitialStats(),
         isUsed: false,
