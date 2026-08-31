@@ -1,5 +1,7 @@
 import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, type Team } from "../domain.ts";
+import { isForward } from "../formations.ts";
 import { clamp, distance, effectiveSkill, GRAVITY } from "./math.ts";
+import { startScrum } from "./phases.ts";
 import type { Random } from "./types.ts";
 
 // Launches ball toward target with skill-based error and ballistic velocity.
@@ -84,6 +86,20 @@ export const carryBall = (state: GameState, player: Player) => {
   state.ball.kickOrigin = null;
   state.ball.bouncesRemaining = 0;
   for (const teammate of state.players) teammate.kickOffside = false;
+
+  // Track possession team, phase count, and establish gainline at the catcher's position
+  const isRestartCatch =
+    state.phase.kind === "kickoff" ||
+    state.phase.kind === "lineout" ||
+    state.phase.kind === "scrum";
+  if (player.team !== state.possessionTeam || isRestartCatch) {
+    state.possessionTeam = player.team;
+    state.phaseCount = 1;
+    state.possessionOriginZ = player.position.z;
+    state.gainLineZ = player.position.z;
+    state.distanceGained = 0;
+  }
+
   // Initialize defending team line relative to carrier upon possession change
   const direction = attackDirection(player.team);
   const defendingTeam = otherTeam(player.team);
@@ -96,6 +112,7 @@ export const carryBall = (state: GameState, player: Player) => {
 
 // Converts a kick crossing touch into a forming opposition lineout.
 const startLineout = (state: GameState, kickingTeam: Team, z: number, x: number) => {
+  const throwingTeam = otherTeam(kickingTeam);
   state.ball = {
     position: { x: Math.sign(x) * PITCH.touchLines.right, y: 0.15, z },
     velocity: { x: 0, y: 0, z: 0 },
@@ -107,11 +124,16 @@ const startLineout = (state: GameState, kickingTeam: Team, z: number, x: number)
     bouncesRemaining: 0,
   };
   state.pendingClearanceKickerId = null;
+  state.possessionTeam = throwingTeam;
+  state.phaseCount = 1;
+  state.possessionOriginZ = z;
+  state.gainLineZ = z;
+  state.distanceGained = 0;
   state.phase = {
     kind: "lineout",
     stage: "forming",
     position: { x: Math.sign(x) * PITCH.touchLines.right, z },
-    throwingTeam: otherTeam(kickingTeam),
+    throwingTeam,
     elapsed: 0,
   };
 };
@@ -203,6 +225,31 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
     return;
   }
 
+  // Check for pass interceptions by alert opposing defenders in the passing channel (excluding pack forwards bound in scrums/rucks)
+  if (state.ball.flight === "pass" && state.ball.position.y <= 2.1) {
+    const interceptor = state.players
+      .filter(
+        (p) =>
+          p.team !== state.ball.lastTouchedTeam &&
+          p.ruckRecoverySeconds === 0 &&
+          (state.phase.kind !== "scrum" || !isForward(p)) &&
+          distance(p.position, state.ball.position) <= 1.25,
+      )
+      .sort(
+        (a, b) =>
+          distance(a.position, state.ball.position) -
+          distance(b.position, state.ball.position),
+      )[0];
+    if (interceptor) {
+      const handleSkill = effectiveSkill(interceptor, "handling");
+      // Clean interception catches ball directly into counter-attack
+      if (random() < handleSkill * 0.45) {
+        carryBall(state, interceptor);
+        return;
+      }
+    }
+  }
+
   const catchable = state.ball.flight === "pass" || state.ball.flight === "lineout" || state.ball.velocity.y <= 0;
   // Attempt a catch only once ball type and height permit it.
   if (catchable && state.ball.position.y <= 2.2) {
@@ -216,13 +263,9 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
       .sort((a, b) => distance(a.position, state.ball.position) - distance(b.position, state.ball.position))[0];
     // Resolve handling outcome when eligible catcher reaches ball.
     if (catcher) {
-      // Drop ball loose when handling check fails.
+      // Knock-on: fumble forward on failed handling check awards scrum to opposition
       if (random() < (1 - effectiveSkill(catcher, "handling")) * 0.25) {
-        state.ball.position.x = clamp(state.ball.position.x + (random() - 0.5) * 3, PITCH.touchLines.left, PITCH.touchLines.right);
-        state.ball.position.y = 0.15;
-        state.ball.velocity = { x: 0, y: 0, z: 0 };
-        state.ball.flight = null;
-        state.ball.intendedReceiverId = null;
+        startScrum(state, otherTeam(catcher.team), catcher.position);
         return;
       }
       catcher.stamina = clamp(catcher.stamina - 0.15, 0, 100);

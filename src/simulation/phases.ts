@@ -1,6 +1,6 @@
 import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, ROLES, type Team } from "../domain.ts";
-import { getKickoffTarget, getLineoutTarget, isForward, LINEOUT_MEMBER_VARIANTS } from "../formations.ts";
-import { TEAMS } from "../teams.ts";
+import { getKickoffTarget, getLineoutTarget, getScrumTarget, isForward, LINEOUT_MEMBER_VARIANTS } from "../formations.ts";
+import { rollTeamFormations, TEAMS } from "../teams.ts";
 import { carryBall, launchBall } from "./ball.ts";
 import {
   clamp,
@@ -107,6 +107,9 @@ const startRuck = (
   // Reverse phase direction only when contact reaches current touch-side limit.
   if (carrier.position.x <= -25) state.attackFlow[carrier.team] = 1;
   if (carrier.position.x >= 25) state.attackFlow[carrier.team] = -1;
+  // Roll dynamic tactical structures for next phase with team default preference
+  state.formations[0] = rollTeamFormations(0, random);
+  state.formations[1] = rollTeamFormations(1, random);
 };
 
 // Attempts nearest eligible defender's tackle against carrier.
@@ -130,7 +133,12 @@ export const attemptTackle = (state: GameState, random: Random) => {
   if (!tackler) return false;
   tackler.tackleCooldown = 0.5;
   tackler.stamina = Math.max(0, tackler.stamina - 1.5);
-  // Decisive tackle: contact in range immediately brings down carrier into a ruck
+  // Low tackling skill / high fatigue introduces occasional slipped tackle / broken tackle
+  if (random() < (1 - effectiveSkill(tackler, "tackling")) * 0.18) {
+    tackler.tackleCooldown = 1.0;
+    return false;
+  }
+  // Decisive tackle: contact brings down carrier into a ruck
   startRuck(state, carrier, tackler, random);
   return true;
 };
@@ -164,10 +172,32 @@ const executeRuckPlay = (state: GameState, random: Random) => {
   // Wait when winning team has no available distributor.
   if (!distributor) return;
 
+  // Place distributor right at the base of the ruck to collect ball from ground
+  const teamDir = attackDirection(team);
+  distributor.position.x = phase.position.x;
+  distributor.position.z = clamp(
+    phase.position.z - teamDir * 0.75,
+    PITCH.deadBallLines.south + 1,
+    PITCH.deadBallLines.north - 1,
+  );
+
   // Start short recovery clock for everyone who committed body weight to ruck.
   for (const player of state.players) {
     if (player.ruckRecoverySeconds > 0) player.ruckRecoverySeconds = 3;
   }
+
+  // Update attack phase count and move gainline to this ruck mark
+  if (team === state.possessionTeam) {
+    state.phaseCount += 1;
+    state.gainLineZ = phase.position.z;
+  } else {
+    state.possessionTeam = team;
+    state.phaseCount = 1;
+    state.possessionOriginZ = phase.position.z;
+    state.gainLineZ = phase.position.z;
+    state.distanceGained = 0;
+  }
+
   // Give ball to nearest runner for pick-and-go.
   if (phase.play === "pickAndGo") {
     const runner = state.players
@@ -182,15 +212,15 @@ const executeRuckPlay = (state: GameState, random: Random) => {
       runner.stamina = clamp(runner.stamina - 0.3, 0, 100);
       carryBall(state, runner);
     }
-  // Launch box kick from distributor when selected.
+  // Launch contestable box kick downfield from distributor.
   } else if (phase.play === "boxKick") {
     distributor.stamina = clamp(distributor.stamina - 0.8, 0, 100);
     launchBall(
       state,
       distributor,
       {
-        x: clamp(distributor.position.x + (random() - 0.5) * 10, -30, 30),
-        z: distributor.position.z + attackDirection(team) * 25,
+        x: clamp(distributor.position.x + (random() - 0.5) * 12, -30, 30),
+        z: distributor.position.z + attackDirection(team) * (28 + random() * 8),
       },
       "kick",
       null,
@@ -360,24 +390,38 @@ export const updateKickoff = (
   const phase = state.phase;
   // Ignore update outside kickoff phase.
   if (phase.kind !== "kickoff") return;
-  // Wait until all players reach kickoff formation.
+  // Wait until key players reach kickoff formation or forming timeout expires
   if (phase.stage === "forming") {
-    // Enter ready stage once every player reaches target.
-    if (
-      state.players.every(
-        (player) =>
-          distance(
-            player.position,
-            getKickoffTarget(
-              player,
-              phase.kickingTeam,
-              phase.reason,
-              TEAMS[phase.kickingTeam].formations.kickoffAttack,
-              TEAMS[player.team].formations.kickoffDefence,
-            ),
-          ) <= 1,
-      )
-    ) {
+    phase.readyForSeconds += deltaSeconds;
+    const kicker = state.players.find(
+      (player) =>
+        player.team === phase.kickingTeam && player.role === ROLES.FlyHalf,
+    );
+    const kickerTarget = kicker
+      ? getKickoffTarget(
+          kicker,
+          phase.kickingTeam,
+          phase.reason,
+          state.formations[phase.kickingTeam].kickoffAttack,
+          state.formations[kicker.team].kickoffDefence,
+        )
+      : null;
+    const kickerReady =
+      kicker && kickerTarget && distance(kicker.position, kickerTarget) <= 2.2;
+
+    const inPlaceCount = state.players.filter((player) => {
+      const target = getKickoffTarget(
+        player,
+        phase.kickingTeam,
+        phase.reason,
+        state.formations[phase.kickingTeam].kickoffAttack,
+        state.formations[player.team].kickoffDefence,
+      );
+      return distance(player.position, target) <= 2.5;
+    }).length;
+
+    // Transition to ready once kicker is set and team is largely formed, or after timeout
+    if ((kickerReady && inPlaceCount >= 22) || phase.readyForSeconds >= 12) {
       phase.stage = "ready";
       phase.readyForSeconds = 0;
     }
@@ -435,9 +479,9 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
     (player) => player.team === phase.throwingTeam && player.role === ROLES.Hooker,
   );
   const throwingMembers =
-    LINEOUT_MEMBER_VARIANTS[TEAMS[phase.throwingTeam].formations.lineoutMembers];
+    LINEOUT_MEMBER_VARIANTS[state.formations[phase.throwingTeam].lineoutMembers];
   const defendingMembers =
-    LINEOUT_MEMBER_VARIANTS[TEAMS[otherTeam(phase.throwingTeam)].formations.lineoutMembers];
+    LINEOUT_MEMBER_VARIANTS[state.formations[otherTeam(phase.throwingTeam)].lineoutMembers];
 
   // Check if hooker and the forwards in the two rows are in position at the mark
   const hookerTarget = hooker
@@ -445,8 +489,8 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
         hooker,
         phase.position,
         phase.throwingTeam,
-        TEAMS[phase.throwingTeam].formations.lineoutMembers,
-        TEAMS[phase.throwingTeam].formations.lineoutNonParticipants,
+        state.formations[phase.throwingTeam].lineoutMembers,
+        state.formations[phase.throwingTeam].lineoutNonParticipants,
       )
     : null;
   const hookerReady = hooker && hookerTarget && distance(hooker.position, hookerTarget) <= 2.0;
@@ -458,7 +502,7 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
       return members.includes(player.number);
     })
     .every((player) => {
-      const formation = TEAMS[player.team].formations;
+      const formation = state.formations[player.team];
       const target = getLineoutTarget(
         player,
         phase.position,
@@ -504,17 +548,319 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
   }
 };
 
-// Awards try and resets phase for opposition kickoff.
+// Awards try and transitions to conversion kick attempt.
 export const scoreTry = (state: GameState, team: Team) => {
   state.scores[team] += 5;
+  const carrier = state.players.find((p) => p.id === state.ball.carrierId);
+  const tryX = clamp(carrier?.position.x ?? 0, -28, 28);
+  const tryZ = team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
   state.ball.carrierId = null;
   state.ball.flight = null;
   state.pendingClearanceKickerId = null;
+  state.formations[0] = rollTeamFormations(0);
+  state.formations[1] = rollTeamFormations(1);
   state.phase = {
-    kind: "kickoff",
-    stage: "forming",
-    kickingTeam: otherTeam(team),
-    readyForSeconds: 0,
-    reason: "try",
+    kind: "conversion",
+    stage: "setup",
+    position: { x: tryX, z: tryZ },
+    kickingTeam: team,
+    elapsed: 0,
   };
+};
+
+// Simulates conversion kick after try
+export const updateConversion = (state: GameState, deltaSeconds: number, random: Random) => {
+  const phase = state.phase;
+  if (phase.kind !== "conversion") return;
+  phase.elapsed += deltaSeconds;
+
+  const kicker =
+    state.players.find(
+      (p) => p.team === phase.kickingTeam && p.role === ROLES.FlyHalf,
+    ) ?? state.players.find((p) => p.team === phase.kickingTeam);
+
+  if (phase.stage === "setup") {
+    if (phase.elapsed < 2.0) return;
+    phase.stage = "kick";
+    phase.elapsed = 0;
+    return;
+  }
+
+  if (phase.stage === "kick") {
+    if (phase.elapsed < 1.0) return;
+    if (!kicker) return;
+    const teamDir = attackDirection(phase.kickingTeam);
+    const targetTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+    const anglePenalty = (Math.abs(phase.position.x) / 35) * 0.32;
+    const kickSkill = effectiveSkill(kicker, "kicking");
+    const successChance = clamp(
+      0.92 - anglePenalty + kickSkill * 0.15,
+      0.45,
+      0.98,
+    );
+    const isSuccess = random() < successChance;
+
+    if (isSuccess) {
+      state.scores[phase.kickingTeam] += 2;
+    }
+    kicker.stamina = clamp(kicker.stamina - 0.5, 0, 100);
+    launchBall(
+      state,
+      kicker,
+      {
+        x: isSuccess
+          ? (random() - 0.5) * 2
+          : (Math.sign(phase.position.x) || 1) * 8,
+        z: targetTryLine + teamDir * 6,
+      },
+      "kick",
+      null,
+      random,
+    );
+    state.phase = {
+      kind: "kickoff",
+      stage: "forming",
+      kickingTeam: otherTeam(phase.kickingTeam),
+      readyForSeconds: 0,
+      reason: "try",
+    };
+  }
+};
+
+// Starts a penalty award for non-offending team
+export const startPenalty = (
+  state: GameState,
+  awardedTeam: Team,
+  position: Position,
+) => {
+  const targetTryLine =
+    awardedTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+  const distToTryLine = Math.abs(targetTryLine - position.z);
+  const choice =
+    distToTryLine <= 38 && Math.abs(position.x) <= 22 ? "goal" : "touch";
+  state.ball = {
+    position: { x: position.x, y: 0.15, z: position.z },
+    velocity: { x: 0, y: 0, z: 0 },
+    carrierId: null,
+    flight: null,
+    intendedReceiverId: null,
+    lastTouchedTeam: awardedTeam,
+    kickOrigin: null,
+    bouncesRemaining: 0,
+  };
+  state.pendingClearanceKickerId = null;
+  state.possessionTeam = awardedTeam;
+  state.phaseCount = 1;
+  state.possessionOriginZ = position.z;
+  state.gainLineZ = position.z;
+  state.distanceGained = 0;
+  state.phase = {
+    kind: "penalty",
+    stage: "decision",
+    position: { ...position },
+    awardedTeam,
+    choice,
+    elapsed: 0,
+  };
+};
+
+// Executes penalty kick for touch or goal
+export const updatePenalty = (
+  state: GameState,
+  deltaSeconds: number,
+  random: Random,
+) => {
+  const phase = state.phase;
+  if (phase.kind !== "penalty") return;
+  phase.elapsed += deltaSeconds;
+
+  const kicker =
+    state.players.find(
+      (p) => p.team === phase.awardedTeam && p.role === ROLES.FlyHalf,
+    ) ?? state.players.find((p) => p.team === phase.awardedTeam);
+
+  if (phase.stage === "decision") {
+    if (phase.elapsed < 1.8) return;
+    phase.stage = "executing";
+    phase.elapsed = 0;
+    return;
+  }
+
+  if (phase.stage === "executing") {
+    if (!kicker) return;
+    const teamDir = attackDirection(phase.awardedTeam);
+    if (phase.choice === "goal") {
+      const targetTryLine =
+        phase.awardedTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+      const kickSkill = effectiveSkill(kicker, "kicking");
+      const anglePenalty = (Math.abs(phase.position.x) / 35) * 0.28;
+      const isSuccess =
+        random() < clamp(0.9 - anglePenalty + kickSkill * 0.15, 0.4, 0.96);
+      if (isSuccess) {
+        state.scores[phase.awardedTeam] += 3;
+      }
+      kicker.stamina = clamp(kicker.stamina - 0.5, 0, 100);
+      launchBall(
+        state,
+        kicker,
+        {
+          x: isSuccess
+            ? (random() - 0.5) * 2
+            : (Math.sign(phase.position.x) || 1) * 8,
+          z: targetTryLine + teamDir * 6,
+        },
+        "kick",
+        null,
+        random,
+      );
+      state.phase = {
+        kind: "kickoff",
+        stage: "forming",
+        kickingTeam: otherTeam(phase.awardedTeam),
+        readyForSeconds: 0,
+        reason: "try",
+      };
+      return;
+    }
+    // Touch kick: find touch downfield for lineout restart
+    const touchX = Math.sign(phase.position.x || 1) * PITCH.touchLines.right;
+    const touchZ = clamp(
+      phase.position.z + teamDir * (28 + random() * 12),
+      PITCH.tryLines.south + 5,
+      PITCH.tryLines.north - 5,
+    );
+    launchBall(
+      state,
+      kicker,
+      { x: touchX * 1.05, z: touchZ },
+      "kick",
+      null,
+      random,
+    );
+    state.phase = { kind: "openPlay" };
+  }
+};
+
+// Starts a scrum restart at mark awarded to non-offending team
+export const startScrum = (state: GameState, feedingTeam: Team, position: Position) => {
+  // Clamp scrum mark safely inside touchlines and try lines
+  const markX = clamp(position.x, -22, 22);
+  const markZ = clamp(position.z, PITCH.tryLines.south + 8, PITCH.tryLines.north - 8);
+  state.ball = {
+    position: { x: markX, y: 0.15, z: markZ },
+    velocity: { x: 0, y: 0, z: 0 },
+    carrierId: null,
+    flight: null,
+    intendedReceiverId: null,
+    lastTouchedTeam: otherTeam(feedingTeam),
+    kickOrigin: null,
+    bouncesRemaining: 0,
+  };
+  state.pendingClearanceKickerId = null;
+  state.possessionTeam = feedingTeam;
+  state.phaseCount = 1;
+  state.possessionOriginZ = markZ;
+  state.gainLineZ = markZ;
+  state.distanceGained = 0;
+  state.formations[0] = rollTeamFormations(0);
+  state.formations[1] = rollTeamFormations(1);
+  state.phase = {
+    kind: "scrum",
+    stage: "forming",
+    position: { x: markX, z: markZ },
+    feedingTeam,
+    elapsed: 0,
+    winningTeam: null,
+  };
+};
+
+// Simulates scrum engagement, contest, and ball channeling to the base
+export const updateScrum = (state: GameState, deltaSeconds: number, random: Random) => {
+  const phase = state.phase;
+  if (phase.kind !== "scrum") return;
+  phase.elapsed += deltaSeconds;
+
+  // Check if 8-man forward packs are set at the mark
+  const forwardsReady = state.players
+    .filter((p) => isForward(p))
+    .every((p) => {
+      const target = getScrumTarget(
+        p,
+        phase.position,
+        phase.feedingTeam,
+        state.formations[p.team].scrumAttack,
+        state.formations[p.team].scrumDefence,
+      );
+      return distance(p.position, target) <= 2.0;
+    });
+
+  if (phase.stage === "forming") {
+    if (!forwardsReady && phase.elapsed < 14) return;
+    phase.stage = "set";
+    phase.elapsed = 0;
+    return;
+  }
+
+  // Packs engage! Scrum push contest determines clean heel or turnover against head
+  if (phase.stage === "set") {
+    if (phase.elapsed < 1.2) return;
+    const feedingPackWeight = state.players
+      .filter((p) => p.team === phase.feedingTeam && isForward(p))
+      .reduce((sum, p) => sum + effectiveWeight(p), 0);
+    const defendingPackWeight = state.players
+      .filter((p) => p.team !== phase.feedingTeam && isForward(p))
+      .reduce((sum, p) => sum + effectiveWeight(p), 0);
+
+    // Feeding team has hooker feed advantage (~85% retention)
+    const turnoverRoll = random();
+    const turnoverThreshold = clamp(
+      0.12 + (defendingPackWeight - feedingPackWeight) / 400,
+      0.05,
+      0.35,
+    );
+    phase.winningTeam =
+      turnoverRoll < turnoverThreshold
+        ? otherTeam(phase.feedingTeam)
+        : phase.feedingTeam;
+    phase.stage = "channeling";
+    phase.elapsed = 0;
+    return;
+  }
+
+  // Ball channels to #8 / #9 at the base, then cleanly releases into open play
+  if (phase.stage === "channeling") {
+    if (phase.elapsed < 1.0) return;
+    const winningTeam = phase.winningTeam ?? phase.feedingTeam;
+    const nine = state.players.find(
+      (p) => p.team === winningTeam && p.role === ROLES.ScrumHalf,
+    );
+    const eight = state.players.find(
+      (p) => p.team === winningTeam && p.role === ROLES.NumberEight,
+    );
+
+    // Unbind pack forwards cleanly
+    for (const player of state.players) {
+      if (isForward(player)) player.ruckRecoverySeconds = 1.0;
+    }
+
+    // 25% chance of #8 pick-and-go from the base, otherwise 9 passes out to first receiver (10)
+    if (eight && random() < 0.25) {
+      carryBall(state, eight);
+    } else if (nine) {
+      const ten = state.players.find(
+        (p) => p.team === winningTeam && p.role === ROLES.FlyHalf,
+      );
+      if (ten) {
+        nine.stamina = clamp(nine.stamina - 0.2, 0, 100);
+        launchBall(state, nine, ten.position, "pass", ten.id, random);
+      } else {
+        carryBall(state, nine);
+      }
+    } else if (eight) {
+      carryBall(state, eight);
+    }
+    for (const player of state.players) player.laneX = player.position.x;
+    state.phase = { kind: "openPlay" };
+  }
 };

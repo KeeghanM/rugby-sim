@@ -1,5 +1,7 @@
 import {
   Color3,
+  Color4,
+  CreateBox,
   CreateCylinder,
   CreateDashedLines,
   CreateGround,
@@ -9,6 +11,7 @@ import {
   HemisphericLight,
   Matrix,
   StandardMaterial,
+  UniversalCamera,
   Vector3,
 } from "@babylonjs/core";
 import { Engine } from "@babylonjs/core/Engines/engine";
@@ -17,19 +20,27 @@ import type { GameState } from "./domain.ts";
 import { PITCH } from "./domain.ts";
 import { TEAMS } from "./teams.ts";
 
+export type CameraMode = "ball" | "halfway" | "free";
+
 const createPitch = (scene: Scene) => {
   const ground = CreateGround(
     "ground",
     { width: PITCH.width, height: PITCH.totalLength },
     scene,
   );
+  ground.position.y = 0.02;
   const groundMaterial = new StandardMaterial("ground-material", scene);
   groundMaterial.diffuseColor = Color3.FromHexString("#3f9b0b");
+  groundMaterial.specularColor = Color3.Black();
   ground.material = groundMaterial;
 
   const mark = (name: string, from: Vector3, to: Vector3, dashed = false) => {
     const line = dashed
-      ? CreateDashedLines(name, { points: [from, to], dashSize: 1, gapSize: 1 }, scene)
+      ? CreateDashedLines(
+          name,
+          { points: [from, to], dashSize: 1, gapSize: 1 },
+          scene,
+        )
       : CreateLines(name, { points: [from, to] }, scene);
     line.color = Color3.White();
   };
@@ -73,6 +84,245 @@ const createPitch = (scene: Scene) => {
   along("right-five-metre-line", PITCH.fiveMetreLines.right, true);
   along("left-fifteen-metre-line", PITCH.fifteenMetreLines.left, true);
   along("right-fifteen-metre-line", PITCH.fifteenMetreLines.right, true);
+
+  createGoalPosts(scene);
+};
+
+const createGoalPosts = (scene: Scene) => {
+  const postMat = new StandardMaterial("goalPostMat", scene);
+  postMat.diffuseColor = Color3.FromHexString("#ffffff");
+  postMat.specularColor = Color3.FromHexString("#cbd5e1");
+
+  const padMat = new StandardMaterial("postPadMat", scene);
+  padMat.diffuseColor = Color3.FromHexString("#272626");
+
+  const buildPostSet = (name: string, z: number) => {
+    // Left upright (height 14m, x = -2.8)
+    const leftUpright = CreateCylinder(
+      `${name}-left`,
+      { diameter: 0.18, height: 14 },
+      scene,
+    );
+    leftUpright.position.set(-2.8, 7, z);
+    leftUpright.material = postMat;
+
+    // Right upright (height 14m, x = +2.8)
+    const rightUpright = CreateCylinder(
+      `${name}-right`,
+      { diameter: 0.18, height: 14 },
+      scene,
+    );
+    rightUpright.position.set(2.8, 7, z);
+    rightUpright.material = postMat;
+
+    // Crossbar at y = 3.0m, width 5.6m
+    const crossbar = CreateCylinder(
+      `${name}-crossbar`,
+      { diameter: 0.16, height: 5.6 },
+      scene,
+    );
+    crossbar.rotation.z = Math.PI / 2;
+    crossbar.position.set(0, 3, z);
+    crossbar.material = postMat;
+
+    // Protective foam pads at bottom of uprights (height 1.8m)
+    const leftPad = CreateCylinder(
+      `${name}-left-pad`,
+      { diameter: 0.55, height: 1.8 },
+      scene,
+    );
+    leftPad.position.set(-2.8, 0.9, z);
+    leftPad.material = padMat;
+
+    const rightPad = CreateCylinder(
+      `${name}-right-pad`,
+      { diameter: 0.55, height: 1.8 },
+      scene,
+    );
+    rightPad.position.set(2.8, 0.9, z);
+    rightPad.material = padMat;
+  };
+
+  // South goal posts at South Try Line (z = -50)
+  buildPostSet("south-posts", PITCH.tryLines.south);
+  // North goal posts at North Try Line (z = +50)
+  buildPostSet("north-posts", PITCH.tryLines.north);
+};
+
+const createEnvironment = (scene: Scene) => {
+  // Extended ground beyond pitch — large low-poly apron
+  const extended = CreateGround(
+    "extended-ground",
+    { width: 520, height: 520 },
+    scene,
+  );
+  extended.position.y = -0.18;
+  const extMat = new StandardMaterial("ext-ground-mat", scene);
+  extMat.diffuseColor = Color3.FromHexString("#2a5d12");
+  extMat.specularColor = Color3.Black();
+  extended.material = extMat;
+
+  // Outer concrete / mud ring
+  const outer = CreateGround(
+    "outer-ground",
+    { width: 700, height: 700 },
+    scene,
+  );
+  outer.position.y = -0.35;
+  const outerMat = new StandardMaterial("outer-ground-mat", scene);
+  outerMat.diffuseColor = Color3.FromHexString("#3a3f3a");
+  outerMat.specularColor = Color3.Black();
+  outer.material = outerMat;
+
+  // Skybox — large inverted box with solid sky color
+  const skybox = CreateBox("skyBox", { size: 2000 }, scene);
+  const skyMat = new StandardMaterial("skyBox-mat", scene);
+  skyMat.backFaceCulling = false;
+  skyMat.disableLighting = true;
+  skyMat.emissiveColor = Color3.FromHexString("#87ceeb");
+  skyMat.diffuseColor = Color3.FromHexString("#87ceeb");
+  skybox.material = skyMat;
+  skybox.infiniteDistance = true;
+  skybox.isPickable = false;
+
+  scene.clearColor = new Color4(0.53, 0.81, 0.92, 1);
+  scene.ambientColor = new Color3(0.9, 0.9, 0.95);
+
+  // Low-poly stadium — four stands + floodlights
+  const standMat = new StandardMaterial("stand-mat", scene);
+  standMat.diffuseColor = Color3.FromHexString("#475569");
+  standMat.specularColor = Color3.FromHexString("#1e293b");
+  standMat.specularPower = 8;
+
+  const standUpperMat = new StandardMaterial("stand-upper-mat", scene);
+  standUpperMat.diffuseColor = Color3.FromHexString("#64748b");
+  standUpperMat.specularColor = Color3.Black();
+
+  const createStand = (
+    name: string,
+    width: number,
+    height: number,
+    depth: number,
+    pos: Vector3,
+    mat: StandardMaterial,
+  ) => {
+    const m = CreateBox(name, { width, height, depth }, scene);
+    m.position.copyFrom(pos);
+    m.material = mat;
+    return m;
+  };
+
+  // South / North stands (behind dead-ball lines)
+  createStand("stand-south", 200, 18, 28, new Vector3(0, 9, -78), standMat);
+  createStand("stand-north", 200, 18, 28, new Vector3(0, 9, 78), standMat);
+  // West / East stands (along touch lines)
+  createStand("stand-west", 28, 16, 170, new Vector3(-58, 8, 0), standMat);
+  createStand("stand-east", 28, 16, 170, new Vector3(58, 8, 0), standMat);
+  // Upper rim tiers — low-poly step
+  createStand(
+    "stand-south-upper",
+    190,
+    6,
+    8,
+    new Vector3(0, 18, -84),
+    standUpperMat,
+  );
+  createStand(
+    "stand-north-upper",
+    190,
+    6,
+    8,
+    new Vector3(0, 18, 84),
+    standUpperMat,
+  );
+  createStand(
+    "stand-west-upper",
+    8,
+    5,
+    160,
+    new Vector3(-64, 16, 0),
+    standUpperMat,
+  );
+  createStand(
+    "stand-east-upper",
+    8,
+    5,
+    160,
+    new Vector3(64, 16, 0),
+    standUpperMat,
+  );
+
+  // Floodlight poles + heads at four corners
+  const poleMat = new StandardMaterial("pole-mat", scene);
+  poleMat.diffuseColor = Color3.FromHexString("#cbd5e1");
+  poleMat.specularColor = Color3.Black();
+  const lightMat = new StandardMaterial("light-mat", scene);
+  lightMat.emissiveColor = Color3.FromHexString("#fef9c3");
+  lightMat.diffuseColor = Color3.FromHexString("#fef9c3");
+  lightMat.disableLighting = true;
+  const polePositions = [
+    new Vector3(-68, 0, -66),
+    new Vector3(68, 0, -66),
+    new Vector3(-68, 0, 66),
+    new Vector3(68, 0, 66),
+  ];
+  for (let i = 0; i < polePositions.length; i++) {
+    const base = polePositions[i];
+    const pole = CreateCylinder(
+      `pole-${i}`,
+      { height: 38, diameter: 1.1 },
+      scene,
+    );
+    pole.position.set(base.x, 19, base.z);
+    pole.material = poleMat;
+    const head = CreateBox(
+      `light-${i}`,
+      { width: 4.5, height: 1.4, depth: 3 },
+      scene,
+    );
+    head.position.set(base.x, 38.5, base.z);
+    head.material = lightMat;
+  }
+
+  // Low perimeter wall around outer ground
+  const wallMat = new StandardMaterial("wall-mat", scene);
+  wallMat.diffuseColor = Color3.FromHexString("#334155");
+  wallMat.specularColor = Color3.Black();
+  const wallY = 1.2;
+  const wallH = 2.4;
+  const wallT = 1.2;
+  createStand(
+    "wall-south",
+    560,
+    wallH,
+    wallT,
+    new Vector3(0, wallY, -260),
+    wallMat,
+  );
+  createStand(
+    "wall-north",
+    560,
+    wallH,
+    wallT,
+    new Vector3(0, wallY, 260),
+    wallMat,
+  );
+  createStand(
+    "wall-west",
+    wallT,
+    wallH,
+    560,
+    new Vector3(-260, wallY, 0),
+    wallMat,
+  );
+  createStand(
+    "wall-east",
+    wallT,
+    wallH,
+    560,
+    new Vector3(260, wallY, 0),
+    wallMat,
+  );
 };
 
 export const createRenderer = (
@@ -81,11 +331,61 @@ export const createRenderer = (
   state: GameState,
 ) => {
   const scene = new Scene(engine);
-  const camera = new FreeCamera("camera", new Vector3(0, 85, -85), scene);
-  camera.setTarget(Vector3.Zero());
-  camera.attachControl(canvas, true);
+  createEnvironment(scene);
+
+  // Cameras — three modes, one active at a time. Rendering only.
+  const halfwayCam = new FreeCamera(
+    "halfwayCam",
+    new Vector3(0, 85, -85),
+    scene,
+  );
+  halfwayCam.setTarget(Vector3.Zero());
+  // halfway fixed: no keyboard movement, mouse drag still rotates but we keep it minimal
+  halfwayCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
+
+  const ballCam = new FreeCamera("ballCam", new Vector3(0, 55, -65), scene);
+  ballCam.setTarget(Vector3.Zero());
+  ballCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
+
+  const freeCam = new UniversalCamera(
+    "freeCam",
+    new Vector3(0, 85, -85),
+    scene,
+  );
+  freeCam.setTarget(Vector3.Zero());
+  freeCam.speed = 1.1;
+  freeCam.angularSensibility = 3000;
+  // Babylon default keys: W/S up/down, A/D left/right — remap to WASD explicitly
+  freeCam.keysUp = [87]; // W
+  freeCam.keysDown = [83]; // S
+  freeCam.keysLeft = [65]; // A
+  freeCam.keysRight = [68]; // D
+  // ensure inertia doesn't feel floaty
+  (freeCam as unknown as { inertia: number }).inertia = 0.5;
+
+  let cameraMode: CameraMode = "halfway";
+  let zoom = 1;
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 2.3;
+  const BASE_HALFWAY_DIST = 85;
+  const BASE_BALL_HEIGHT = 42;
+  const BASE_BALL_BACK = 58;
+  const BASE_FREE_FOV = 0.8;
+
+  const cameras: Record<CameraMode, FreeCamera | UniversalCamera> = {
+    halfway: halfwayCam,
+    ball: ballCam,
+    free: freeCam,
+  };
+
+  // start with halfway
+  scene.activeCamera = halfwayCam;
+  halfwayCam.attachControl(canvas, true);
+
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
-  light.intensity = 0.7;
+  light.intensity = 0.92;
+  light.groundColor = Color3.FromHexString("#dbeafe");
+
   createPitch(scene);
 
   const views = new Map(
@@ -96,23 +396,70 @@ export const createRenderer = (
         scene,
       );
       const material = new StandardMaterial(`${player.id}-material`, scene);
-      material.diffuseColor = Color3.FromHexString(
-        TEAMS[player.team].color,
-      );
+      material.diffuseColor = Color3.FromHexString(TEAMS[player.team].color);
       mesh.material = material;
       return [player.id, { mesh, material }] as const;
     }),
   );
+  const refMesh = CreateCylinder(
+    "referee",
+    { diameter: 0.85, height: 1.95 },
+    scene,
+  );
+  const refMat = new StandardMaterial("referee-material", scene);
+  refMat.diffuseColor = Color3.FromHexString("#84cc16");
+  refMat.emissiveColor = Color3.FromHexString("#365314");
+  refMesh.material = refMat;
+
+  // Semi-transparent glowing gain line ribbon across pitch width
+  const gainLinePlane = CreateGround(
+    "gainLinePlane",
+    { width: PITCH.width, height: 0.7 },
+    scene,
+  );
+  gainLinePlane.position.y = 0.035;
+  const gainLineMat = new StandardMaterial("gainLineMat", scene);
+  gainLineMat.diffuseColor = Color3.FromHexString("#f59e0b");
+  gainLineMat.emissiveColor = Color3.FromHexString("#d97706");
+  gainLineMat.alpha = 0.45;
+  gainLinePlane.material = gainLineMat;
+
   const ball = CreateSphere("ball", { diameter: 0.45 }, scene);
   const ballMaterial = new StandardMaterial("ball-material", scene);
   ballMaterial.diffuseColor = Color3.FromHexString("#f5f5dc");
   ball.material = ballMaterial;
   const scoreboard = document.getElementById("scoreboard");
 
-  const speedSlider = document.getElementById("speed-slider") as HTMLInputElement | null;
+  const speedSlider = document.getElementById(
+    "speed-slider",
+  ) as HTMLInputElement | null;
   const speedDisplay = document.getElementById("speed-display");
-  const debugToggle = document.getElementById("debug-toggle") as HTMLInputElement | null;
+  const debugToggle = document.getElementById(
+    "debug-toggle",
+  ) as HTMLInputElement | null;
   const debugOverlay = document.getElementById("debug-overlay");
+  const uiControls = document.getElementById("ui-controls");
+  const controlsToggleBtn = document.getElementById("controls-toggle-btn");
+
+  // TV Scoreboard Bug Elements
+  const tvTeam0Name = document.getElementById("tv-team0-name");
+  const tvTeam0Score = document.getElementById("tv-team0-score");
+  const tvTeam1Name = document.getElementById("tv-team1-name");
+  const tvTeam1Score = document.getElementById("tv-team1-score");
+  const tvClock = document.getElementById("tv-clock");
+  const tvHalf = document.getElementById("tv-half");
+  const tvPhasePill = document.getElementById("tv-phase-pill");
+  const tvMeters = document.getElementById("tv-meters");
+  const tvStatus = document.getElementById("tv-status");
+
+  if (controlsToggleBtn && uiControls) {
+    controlsToggleBtn.addEventListener("click", () => {
+      uiControls.classList.toggle("collapsed");
+      controlsToggleBtn.textContent = uiControls.classList.contains("collapsed")
+        ? "Open ⚙"
+        : "Minimize";
+    });
+  }
 
   let simulationSpeed = 1;
   let debugMode = false;
@@ -150,44 +497,266 @@ export const createRenderer = (
     debugOverlay.appendChild(ballCard);
   }
 
+  // Camera UI wiring
+  const zoomSlider = document.getElementById(
+    "zoom-slider",
+  ) as HTMLInputElement | null;
+  const zoomDisplay = document.getElementById("zoom-display");
+  const camButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
+  );
+
+  const updateCamButtons = () => {
+    for (const b of camButtons) {
+      b.classList.toggle("active", b.dataset.cam === cameraMode);
+    }
+  };
+  const updateZoomDisplay = () => {
+    if (zoomDisplay) zoomDisplay.textContent = `${zoom.toFixed(1)}×`;
+    if (
+      zoomSlider &&
+      parseFloat(zoomSlider.value).toFixed(1) !== zoom.toFixed(1)
+    ) {
+      zoomSlider.value = String(zoom);
+    }
+  };
+
+  const applyZoomImmediate = () => {
+    if (cameraMode === "halfway") {
+      const d = BASE_HALFWAY_DIST * zoom;
+      halfwayCam.position.set(0, d, -d);
+      halfwayCam.setTarget(Vector3.Zero());
+    } else if (cameraMode === "free") {
+      // free zoom = FOV dolly; smaller FOV = zoom in
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
+      freeCam.fov = fov;
+    }
+    // ball zoom applied per-frame via offset scale in sync()
+    updateZoomDisplay();
+  };
+
+  const setCameraMode = (mode: CameraMode) => {
+    if (mode === cameraMode) return;
+    // detach all
+    for (const c of Object.values(cameras)) c.detachControl();
+    cameraMode = mode;
+    const next = cameras[mode];
+    scene.activeCamera = next;
+    next.attachControl(canvas, true);
+    if (mode === "halfway") {
+      const d = BASE_HALFWAY_DIST * zoom;
+      halfwayCam.position.set(0, d, -d);
+      halfwayCam.setTarget(Vector3.Zero());
+    } else if (mode === "free") {
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
+      freeCam.fov = fov;
+    }
+    // ball snap on switch to avoid lerp from far away
+    if (mode === "ball") {
+      const bx = state.ball.position.x;
+      const bz = state.ball.position.z;
+      ballCam.position.set(
+        bx,
+        BASE_BALL_HEIGHT * zoom,
+        bz - BASE_BALL_BACK * zoom,
+      );
+      ballCam.setTarget(new Vector3(bx, 0, bz));
+    }
+    updateCamButtons();
+    updateZoomDisplay();
+  };
+
+  for (const btn of camButtons) {
+    btn.addEventListener("click", () => {
+      const m = btn.dataset.cam as CameraMode | undefined;
+      if (m === "ball" || m === "halfway" || m === "free") setCameraMode(m);
+    });
+  }
+  if (zoomSlider) {
+    zoomSlider.addEventListener("input", () => {
+      zoom = Math.min(
+        ZOOM_MAX,
+        Math.max(ZOOM_MIN, parseFloat(zoomSlider.value) || 1),
+      );
+      applyZoomImmediate();
+    });
+  }
+  // wheel zoom for all modes
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      // prevent page scroll and Babylon default if any
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0011;
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta));
+      applyZoomImmediate();
+    },
+    { passive: false },
+  );
+  // C to cycle cameras
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "c" || e.key === "C") {
+      const order: CameraMode[] = ["halfway", "ball", "free"];
+      const idx = order.indexOf(cameraMode);
+      setCameraMode(order[(idx + 1) % order.length]);
+    }
+    // Q/E vertical for free cam
+    if (cameraMode === "free") {
+      if (e.key === "q" || e.key === "Q") {
+        freeCam.position.y = Math.max(2, freeCam.position.y - 3);
+      } else if (e.key === "e" || e.key === "E") {
+        freeCam.position.y = Math.min(180, freeCam.position.y + 3);
+      }
+    }
+  });
+
+  // Continuous Q/E handling for hold
+  const heldKeys = new Set<string>();
+  window.addEventListener("keydown", (e) => heldKeys.add(e.key.toLowerCase()));
+  window.addEventListener("keyup", (e) => heldKeys.delete(e.key.toLowerCase()));
+
+  // cached vectors to avoid alloc per frame
+  const ballTarget = new Vector3(0, 0, 0);
+  const desiredBallPos = new Vector3(0, 0, 0);
   const tempWorld = new Vector3();
   const tempProj = new Vector3();
+
+  // initial zoom display
+  updateZoomDisplay();
+  applyZoomImmediate();
 
   return {
     scene,
     getSimulationSpeed: () => simulationSpeed,
     isDebugMode: () => debugMode,
+    getCameraMode: () => cameraMode,
+    setCameraMode,
+    getZoom: () => zoom,
+    setZoom: (v: number) => {
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
+      applyZoomImmediate();
+    },
     sync(game: GameState) {
       for (const player of game.players) {
         const view = views.get(player.id);
         if (!view) continue;
         view.mesh.position.set(player.position.x, 1, player.position.z);
-        view.material.emissiveColor = player.id === game.ball.carrierId
-          ? Color3.FromHexString("#facc15")
-          : Color3.Black();
+        view.material.emissiveColor =
+          player.id === game.ball.carrierId
+            ? Color3.FromHexString("#facc15")
+            : Color3.Black();
       }
       ball.position.set(
         game.ball.position.x,
         game.ball.position.y,
         game.ball.position.z,
       );
+      refMesh.position.set(game.referee.position.x, 1, game.referee.position.z);
 
+      // Semi-transparent gain line on turf
+      const showGainLine =
+        game.phase.kind === "openPlay" || game.phase.kind === "ruck";
+      gainLinePlane.setEnabled(showGainLine);
+      if (showGainLine) {
+        gainLinePlane.position.z = game.gainLineZ;
+      }
+
+      // Camera per-frame behaviour
+      if (cameraMode === "ball") {
+        // Follow ball with smooth lerp. Target stays on ground under ball.
+        ballTarget.set(game.ball.position.x, 0, game.ball.position.z);
+        desiredBallPos.set(
+          ballTarget.x,
+          BASE_BALL_HEIGHT * zoom,
+          ballTarget.z - BASE_BALL_BACK * zoom,
+        );
+        // clamp X so camera doesn't drift too far outside stands at extreme wings
+        desiredBallPos.x *= 0.35;
+        // lerp position and target for smoothness
+        Vector3.LerpToRef(
+          ballCam.position,
+          desiredBallPos,
+          0.07,
+          ballCam.position,
+        );
+        const curTarget = ballCam.getTarget();
+        const nextTarget = Vector3.Lerp(curTarget, ballTarget, 0.09);
+        ballCam.setTarget(nextTarget);
+      } else if (cameraMode === "free") {
+        // held Q/E vertical nudge per frame (WASD handled by Babylon inputs)
+        if (heldKeys.has("q"))
+          freeCam.position.y = Math.max(2, freeCam.position.y - 0.22);
+        if (heldKeys.has("e"))
+          freeCam.position.y = Math.min(180, freeCam.position.y + 0.22);
+      }
+
+      // Format match clock and status string
+      const mins = Math.floor(game.matchClockSeconds / 60)
+        .toString()
+        .padStart(2, "0");
+      const secs = Math.floor(game.matchClockSeconds % 60)
+        .toString()
+        .padStart(2, "0");
+      const halfText =
+        game.half === "fullTime"
+          ? "Full Time"
+          : game.half === 2
+            ? "2nd Half"
+            : "1st Half";
+      const shortHalf =
+        game.half === "fullTime" ? "FT" : game.half === 2 ? "2ND" : "1ST";
+      const clockStr = `${mins}:${secs} (${halfText})`;
       const baseScore = `${TEAMS[0].name} ${game.scores[0]} - ${game.scores[1]} ${TEAMS[1].name}`;
+
+      const p = game.phase;
+      let topLevelStatus = "OPEN PLAY";
+      if (p.kind === "openPlay") topLevelStatus = "OPEN PLAY";
+      else if (p.kind === "ruck") topLevelStatus = "RUCK";
+      else if (p.kind === "lineout") topLevelStatus = "LINEOUT";
+      else if (p.kind === "scrum") topLevelStatus = "SCRUM";
+      else if (p.kind === "kickoff") {
+        topLevelStatus =
+          p.reason === "goalLineDropout" ? "DROP OUT" : "KICKOFF";
+      } else if (p.kind === "conversion") topLevelStatus = "CONVERSION";
+      else if (p.kind === "penalty") topLevelStatus = "PENALTY";
+
+      let phaseDesc: string;
+      if (p.kind === "openPlay") phaseDesc = "Open play";
+      else if (p.kind === "ruck")
+        phaseDesc = `Ruck ${p.stage} - ${p.tempo} ${p.play}${p.counterRuck ? " - counter ruck" : ""}`;
+      else if (p.kind === "lineout") phaseDesc = `Lineout ${p.stage}`;
+      else if (p.kind === "scrum") phaseDesc = `Scrum ${p.stage}`;
+      else if (p.kind === "kickoff") {
+        phaseDesc =
+          p.reason === "goalLineDropout"
+            ? `Goal-line dropout ${p.stage}`
+            : `${p.reason === "try" ? "Try - " : p.reason === "halfTime" ? "Half-time - " : ""}Kickoff ${p.stage}`;
+      } else if (p.kind === "conversion") phaseDesc = `Conversion ${p.stage}`;
+      else if (p.kind === "penalty")
+        phaseDesc = `Penalty ${p.choice} ${p.stage}`;
+      else phaseDesc = (p as { kind: string }).kind;
+
+      // Update TV broadcast bug
+      if (tvTeam0Name) tvTeam0Name.textContent = TEAMS[0].name.toUpperCase();
+      if (tvTeam0Score) tvTeam0Score.textContent = game.scores[0].toString();
+      if (tvTeam1Name) tvTeam1Name.textContent = TEAMS[1].name.toUpperCase();
+      if (tvTeam1Score) tvTeam1Score.textContent = game.scores[1].toString();
+      if (tvClock) tvClock.textContent = `${mins}:${secs}`;
+      if (tvHalf) tvHalf.textContent = shortHalf;
+      if (tvPhasePill) tvPhasePill.textContent = `PHASE ${game.phaseCount}`;
+      if (tvMeters) {
+        const sign = game.distanceGained >= 0 ? "+" : "";
+        tvMeters.textContent = `${sign}${game.distanceGained.toFixed(0)}m`;
+      }
+      if (tvStatus) tvStatus.textContent = topLevelStatus;
+
       if (scoreboard) {
         if (debugMode) {
-          const phase =
-            game.phase.kind === "openPlay"
-              ? "Open play"
-              : game.phase.kind === "ruck"
-                ? `Ruck ${game.phase.stage} - ${game.phase.tempo} ${game.phase.play}${game.phase.counterRuck ? " - counter ruck" : ""}`
-                : game.phase.kind === "lineout"
-                  ? `Lineout ${game.phase.stage}`
-                  : game.phase.reason === "goalLineDropout"
-                    ? `Goal-line dropout ${game.phase.stage}`
-                    : `${game.phase.reason === "try" ? "Try - " : ""}Kickoff ${game.phase.stage}`;
-          scoreboard.textContent = `${baseScore} | ${phase}`;
+          const gainPrefix = game.distanceGained >= 0 ? "+" : "";
+          const phaseMetrics = `Phase ${game.phaseCount} (${gainPrefix}${game.distanceGained.toFixed(0)}m)`;
+          scoreboard.textContent = `${clockStr} | ${baseScore} | ${phaseMetrics} | ${phaseDesc}`;
         } else {
-          scoreboard.textContent = baseScore;
+          scoreboard.textContent = `${clockStr} | ${baseScore}`;
         }
       }
 
@@ -200,10 +769,15 @@ export const createRenderer = (
 
       debugOverlay.style.display = "block";
 
+      const activeCam = scene.activeCamera as
+        | FreeCamera
+        | UniversalCamera
+        | null;
+      if (!activeCam) return;
       const transformMatrix = scene.getTransformMatrix();
       const renderWidth = engine.getRenderWidth();
       const renderHeight = engine.getRenderHeight();
-      const viewport = camera.viewport.toGlobal(renderWidth, renderHeight);
+      const viewport = activeCam.viewport.toGlobal(renderWidth, renderHeight);
 
       for (const player of game.players) {
         const card = playerCards.get(player.id);

@@ -16,6 +16,8 @@ export type OpenAttackFormation = "balanced" | "tightPods" | "wide";
 export type OpenDefenceFormation = "connected" | "narrow" | "wide";
 export type LineoutMembers = 4 | 5 | 6 | 7;
 export type LineoutNonParticipants = "backline" | "split" | "maulDefence";
+export type ScrumAttackFormation = "openSide" | "blindSide" | "splitBacks";
+export type ScrumDefenceFormation = "drift" | "manOnMan" | "blitz";
 
 export const ATTACK_FORMATION: readonly Slot[] = [
   { role: ROLES.LooseHead, pod: "left", x: -14, z: -3 },
@@ -133,21 +135,27 @@ export const isForward = (player: Pick<Player, "role">) => FORWARDS.has(player.r
 export const getKickoffTarget = (
   player: Player,
   kickingTeam: Team,
-  reason: "matchStart" | "try" | "goalLineDropout",
+  reason: "matchStart" | "try" | "goalLineDropout" | "halfTime",
   attackFormation: KickoffAttackFormation,
   defenceFormation: KickoffDefenceFormation,
 ): Position => {
   const slot = ATTACK_FORMATION[player.number - 1];
-  // Place goal-line dropout teams around their own line and receiving side near 22.
+  // For goal-line dropouts, all kicking team players MUST be in-goal behind their own try line
   if (reason === "goalLineDropout") {
     const direction = attackDirection(kickingTeam);
     const tryLine = kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
-    const depth = player.team === kickingTeam
-      ? 1 + (player.number % 3)
-      : 22 + (player.number % 4) * 2;
+    const isKicker = player.role === ROLES.FlyHalf && player.team === kickingTeam;
+    // Kicking team stands in-goal behind the try line
+    if (player.team === kickingTeam) {
+      return {
+        x: isKicker ? 0 : slot.x,
+        z: tryLine - direction * (isKicker ? 0.5 : 1.8 + (player.number % 3) * 1.2),
+      };
+    }
+    // Receiving team stands out on the pitch (18m-26m from goal line)
     return {
-      x: player.role === ROLES.FlyHalf && player.team === kickingTeam ? 0 : slot.x,
-      z: tryLine + direction * depth,
+      x: slot.x,
+      z: tryLine + direction * (18 + (player.number % 4) * 2),
     };
   }
   // Hold kicking side just behind halfway for normal restarts.
@@ -177,30 +185,52 @@ export const getOpenPlayTarget = (
   const ballDirection = attackDirection(carrier.team);
   if (player.team === carrier.team) {
     const slot = OPEN_ATTACK_FORMATIONS[attackFormation][player.number - 1];
-    const x =
-      player.role === ROLES.ScrumHalf
-        ? carrier.position.x + 4
-        : player.role === ROLES.FlyHalf
-          ? carrier.position.x + 9
-          : player.laneX;
+    // Fullback on attack always holds deep sweeping cover behind the backline
+    if (player.role === ROLES.FullBack) {
+      return {
+        x: clampX(carrier.position.x * 0.35),
+        z: clampZ(carrier.position.z - ballDirection * 18),
+      };
+    }
+    // Scrum-half tracks close behind ball carrier
+    if (player.role === ROLES.ScrumHalf) {
+      return {
+        x: clampX(carrier.position.x + (carrier.position.x >= 0 ? -3 : 3)),
+        z: clampZ(carrier.position.z - ballDirection * 2.5),
+      };
+    }
+    // Fly-half positions as first receiver
+    if (player.role === ROLES.FlyHalf) {
+      return {
+        x: clampX(carrier.position.x + (carrier.position.x >= 0 ? -8 : 8)),
+        z: clampZ(carrier.position.z - ballDirection * 5),
+      };
+    }
+    // All other attacking players stay spread across their assigned pitch channels
     return {
-      x: clampX(x),
+      x: clampX(slot.x + carrier.position.x * 0.2),
       z: clampZ(carrier.position.z + slot.z * ballDirection),
     };
   }
 
+  // Fullback on defence stays deep (22m-27m) to sweep kicks and tackle line breaks
   if (player.role === ROLES.FullBack) {
     const variant = OPEN_DEFENCE_VARIANTS[defenceFormation];
     return {
-      x: clampX(carrier.position.x * 0.55),
+      x: clampX(carrier.position.x * 0.45),
       z: clampZ(carrier.position.z + ballDirection * variant.fullbackDepth),
     };
   }
 
+  // Defending line stays spread across the width of the pitch on the offside line
+  const slotX = DEFENCE_X[player.number - 1] ?? 0;
   return {
-    x: clampX(player.laneX * OPEN_DEFENCE_VARIANTS[defenceFormation].width),
+    x: clampX(
+      slotX * OPEN_DEFENCE_VARIANTS[defenceFormation].width +
+        carrier.position.x * 0.15,
+    ),
     z: clampZ(
-      defensiveLineZ ?? carrier.position.z + ballDirection * 3.5,
+      defensiveLineZ ?? carrier.position.z + ballDirection * 0.5,
     ),
   };
 };
@@ -279,11 +309,11 @@ export const getLineoutTarget = (
     };
   }
 
-  // Scrum-halves stand as lineout receivers near the base of the tunnel
+  // Scrum-halves (9) stand outside the lineout: throwing 9 in pocket (5m back, 15m in), defending 9 with backline (10m back)
   if (player.role === ROLES.ScrumHalf) {
     return {
-      x: touchSide * Math.max(16, 30 - memberCount * 2.0 + 2),
-      z: clampZ(mark.z + (throwing ? -teamDir * 2.5 : teamDir * 2.5)),
+      x: touchSide * 18,
+      z: clampZ(mark.z + (throwing ? -teamDir * 4.5 : teamDir * 10)),
     };
   }
 
@@ -296,4 +326,89 @@ export const getLineoutTarget = (
     x: clampX(ATTACK_FORMATION[player.number - 1].x * width),
     z: clampZ(mark.z + (throwing ? -teamDir * depth : teamDir * depth)),
   };
+};
+
+// Computes 3-4-1 pack coordinates for forwards and backline variants for backs at scrums
+export const getScrumTarget = (
+  player: Player,
+  mark: Position,
+  feedingTeam: Team,
+  attackFormation: ScrumAttackFormation = "openSide",
+  defenceFormation: ScrumDefenceFormation = "drift",
+): Position => {
+  const isFeeding = player.team === feedingTeam;
+  const teamDir = attackDirection(player.team);
+  const openSideDir = mark.x < 0 ? 1 : -1;
+
+  // 8 Forwards form 3-4-1 pack head-to-head at mark
+  if (player.role === ROLES.LooseHead) {
+    return { x: mark.x - 1.0, z: clampZ(mark.z - teamDir * 0.6) };
+  }
+  if (player.role === ROLES.Hooker) {
+    return { x: mark.x, z: clampZ(mark.z - teamDir * 0.6) };
+  }
+  if (player.role === ROLES.TightHead) {
+    return { x: mark.x + 1.0, z: clampZ(mark.z - teamDir * 0.6) };
+  }
+  if (player.role === ROLES.Lock && player.number === 4) {
+    return { x: mark.x - 0.5, z: clampZ(mark.z - teamDir * 1.8) };
+  }
+  if (player.role === ROLES.Lock) {
+    return { x: mark.x + 0.5, z: clampZ(mark.z - teamDir * 1.8) };
+  }
+  if (player.role === ROLES.BlindSideFlanker) {
+    return { x: mark.x - 1.6, z: clampZ(mark.z - teamDir * 2.0) };
+  }
+  if (player.role === ROLES.OpenSideFlanker) {
+    return { x: mark.x + 1.6, z: clampZ(mark.z - teamDir * 2.0) };
+  }
+  if (player.role === ROLES.NumberEight) {
+    return { x: mark.x, z: clampZ(mark.z - teamDir * 3.0) };
+  }
+
+  // Scrum-half positions: feeding 9 at base of scrum on open side; defending 9 on blind side
+  if (player.role === ROLES.ScrumHalf) {
+    return isFeeding
+      ? { x: clampX(mark.x + openSideDir * 2.0), z: clampZ(mark.z - teamDir * 3.2) }
+      : { x: clampX(mark.x - openSideDir * 2.2), z: clampZ(mark.z + teamDir * 3.2) };
+  }
+
+  // Backs (10, 11, 12, 13, 14, 15) must stay 5m back from hindmost foot (8m from mark)
+  const offsideDist = 8.0;
+
+  if (isFeeding) {
+    // Attack backline variants
+    if (attackFormation === "blindSide") {
+      if (player.role === ROLES.FlyHalf) return { x: clampX(mark.x - openSideDir * 6), z: clampZ(mark.z - teamDir * offsideDist) };
+      if (player.role === ROLES.Wing && player.number === 11) return { x: clampX(mark.x - openSideDir * 14), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+      if (player.role === ROLES.FullBack) return { x: clampX(mark.x - openSideDir * 10), z: clampZ(mark.z - teamDir * (offsideDist + 5)) };
+      if (player.role === ROLES.InsideCentre) return { x: clampX(mark.x + openSideDir * 8), z: clampZ(mark.z - teamDir * offsideDist) };
+      if (player.role === ROLES.OutsideCentre) return { x: clampX(mark.x + openSideDir * 16), z: clampZ(mark.z - teamDir * (offsideDist + 1)) };
+      return { x: clampX(mark.x + openSideDir * 26), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+    }
+    if (attackFormation === "splitBacks") {
+      if (player.role === ROLES.FlyHalf) return { x: clampX(mark.x + 6), z: clampZ(mark.z - teamDir * offsideDist) };
+      if (player.role === ROLES.InsideCentre) return { x: clampX(mark.x - 8), z: clampZ(mark.z - teamDir * offsideDist) };
+      if (player.role === ROLES.OutsideCentre) return { x: clampX(mark.x + 15), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+      if (player.role === ROLES.Wing && player.number === 11) return { x: clampX(mark.x - 20), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+      if (player.role === ROLES.Wing) return { x: clampX(mark.x + 24), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+      return { x: clampX(mark.x), z: clampZ(mark.z - teamDir * (offsideDist + 8)) };
+    }
+    // Default "openSide" backline sweep
+    if (player.role === ROLES.FlyHalf) return { x: clampX(mark.x + openSideDir * 8), z: clampZ(mark.z - teamDir * offsideDist) };
+    if (player.role === ROLES.InsideCentre) return { x: clampX(mark.x + openSideDir * 15), z: clampZ(mark.z - teamDir * (offsideDist + 1)) };
+    if (player.role === ROLES.OutsideCentre) return { x: clampX(mark.x + openSideDir * 22), z: clampZ(mark.z - teamDir * (offsideDist + 2)) };
+    if (player.role === ROLES.Wing && player.number === 14) return { x: clampX(mark.x + openSideDir * 29), z: clampZ(mark.z - teamDir * (offsideDist + 3)) };
+    if (player.role === ROLES.Wing) return { x: clampX(mark.x - openSideDir * 10), z: clampZ(mark.z - teamDir * (offsideDist + 1)) };
+    return { x: clampX(mark.x + openSideDir * 12), z: clampZ(mark.z - teamDir * (offsideDist + 8)) };
+  }
+
+  // Defence backline variants
+  const depthMod = defenceFormation === "blitz" ? 0.8 : defenceFormation === "drift" ? 1.4 : 1.0;
+  if (player.role === ROLES.FlyHalf) return { x: clampX(mark.x + openSideDir * 8), z: clampZ(mark.z + teamDir * (offsideDist * depthMod)) };
+  if (player.role === ROLES.InsideCentre) return { x: clampX(mark.x + openSideDir * 15), z: clampZ(mark.z + teamDir * (offsideDist * depthMod)) };
+  if (player.role === ROLES.OutsideCentre) return { x: clampX(mark.x + openSideDir * 22), z: clampZ(mark.z + teamDir * (offsideDist * depthMod)) };
+  if (player.role === ROLES.Wing && player.number === 14) return { x: clampX(mark.x + openSideDir * 29), z: clampZ(mark.z + teamDir * ((offsideDist + 3) * depthMod)) };
+  if (player.role === ROLES.Wing) return { x: clampX(mark.x - openSideDir * 10), z: clampZ(mark.z + teamDir * ((offsideDist + 2) * depthMod)) };
+  return { x: clampX(mark.x + openSideDir * 14), z: clampZ(mark.z + teamDir * (offsideDist + 14)) };
 };

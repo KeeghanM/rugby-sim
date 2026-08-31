@@ -1,6 +1,6 @@
 import { attackDirection, type GameState } from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations.ts";
-import { getPlayerProfile } from "../teams.ts";
+import { getPlayerProfile, rollTeamFormations } from "../teams.ts";
 
 // Creates initial teams, ball, score, kickoff, and defensive lines.
 export const createGame = (): GameState => ({
@@ -55,4 +55,19 @@ export const createGame = (): GameState => ({
   pendingClearanceKickerId: null,
   defensiveLineZ: [-3, 3],
   attackFlow: [1, -1],
+  formations: {
+    0: rollTeamFormations(0),
+    1: rollTeamFormations(1),
+  },
+  matchClockSeconds: 0,
+  half: 1,
+  referee: {
+    position: { x: 6, z: 2 },
+    velocity: { x: 0, z: 0 },
+  },
+  phaseCount: 1,
+  possessionTeam: 0,
+  gainLineZ: 0,
+  possessionOriginZ: 0,
+  distanceGained: 0,
 });

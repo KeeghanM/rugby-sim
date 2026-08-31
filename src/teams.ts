@@ -1,4 +1,4 @@
-import { type PlayerSkills, type Role, ROLES, type Team } from "./domain.ts";
+import { type ActiveTeamFormations, type PlayerSkills, type Role, ROLES, type Team } from "./domain.ts";
 import type {
   KickoffAttackFormation,
   KickoffDefenceFormation,
@@ -6,7 +6,43 @@ import type {
   LineoutNonParticipants,
   OpenAttackFormation,
   OpenDefenceFormation,
+  ScrumAttackFormation,
+  ScrumDefenceFormation,
 } from "./formations.ts";
+
+type Random = () => number;
+
+const KICKOFF_ATTACK_VARIANTS: readonly KickoffAttackFormation[] = ["balanced", "press", "split"];
+const KICKOFF_DEFENCE_VARIANTS: readonly KickoffDefenceFormation[] = ["deep", "pendulum", "splitField"];
+const OPEN_ATTACK_VARIANTS: readonly OpenAttackFormation[] = ["balanced", "tightPods", "wide"];
+const OPEN_DEFENCE_VARIANTS_LIST: readonly OpenDefenceFormation[] = ["connected", "narrow", "wide"];
+const LINEOUT_MEMBERS_LIST: readonly LineoutMembers[] = [4, 5, 6, 7];
+const LINEOUT_NON_PARTICIPANTS_LIST: readonly LineoutNonParticipants[] = ["backline", "split", "maulDefence"];
+const SCRUM_ATTACK_VARIANTS: readonly ScrumAttackFormation[] = ["openSide", "blindSide", "splitBacks"];
+const SCRUM_DEFENCE_VARIANTS: readonly ScrumDefenceFormation[] = ["drift", "manOnMan", "blitz"];
+
+const pickVariant = <T>(defaultVal: T, all: readonly T[], random: Random): T => {
+  // 68% chance to use team default structure, 32% chance to vary tactical shape
+  if (random() < 0.68) return defaultVal;
+  return all[Math.floor(random() * all.length)];
+};
+
+export const rollTeamFormations = (
+  team: Team,
+  random: Random = Math.random,
+): ActiveTeamFormations => {
+  const def = TEAMS[team].formations;
+  return {
+    kickoffAttack: pickVariant(def.kickoffAttack, KICKOFF_ATTACK_VARIANTS, random),
+    kickoffDefence: pickVariant(def.kickoffDefence, KICKOFF_DEFENCE_VARIANTS, random),
+    openAttack: pickVariant(def.openAttack, OPEN_ATTACK_VARIANTS, random),
+    openDefence: pickVariant(def.openDefence, OPEN_DEFENCE_VARIANTS_LIST, random),
+    lineoutMembers: pickVariant(def.lineoutMembers, LINEOUT_MEMBERS_LIST, random),
+    lineoutNonParticipants: pickVariant(def.lineoutNonParticipants, LINEOUT_NON_PARTICIPANTS_LIST, random),
+    scrumAttack: pickVariant(def.scrumAttack, SCRUM_ATTACK_VARIANTS, random),
+    scrumDefence: pickVariant(def.scrumDefence, SCRUM_DEFENCE_VARIANTS, random),
+  };
+};
 
 type TeamDefinition = {
   name: string;
@@ -22,6 +58,8 @@ type TeamDefinition = {
     openDefence: OpenDefenceFormation;
     lineoutMembers: LineoutMembers;
     lineoutNonParticipants: LineoutNonParticipants;
+    scrumAttack: ScrumAttackFormation;
+    scrumDefence: ScrumDefenceFormation;
   };
   defaultSkills: PlayerSkills;
   playerOverrides: Partial<
@@ -51,6 +89,8 @@ export const TEAMS: Record<Team, TeamDefinition> = {
       openDefence: "connected",
       lineoutMembers: 6,
       lineoutNonParticipants: "split",
+      scrumAttack: "openSide",
+      scrumDefence: "drift",
     },
     defaultSkills: {
       decision: 0.84,
@@ -80,6 +120,8 @@ export const TEAMS: Record<Team, TeamDefinition> = {
       openDefence: "narrow",
       lineoutMembers: 5,
       lineoutNonParticipants: "maulDefence",
+      scrumAttack: "splitBacks",
+      scrumDefence: "blitz",
     },
     defaultSkills: {
       decision: 0.8,

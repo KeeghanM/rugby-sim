@@ -90,6 +90,11 @@ export type Ball = {
   bouncesRemaining: number;
 };
 
+export type Referee = {
+  position: Position;
+  velocity: Position;
+};
+
 export type Phase =
   | { kind: "openPlay" }
   | {
@@ -97,7 +102,7 @@ export type Phase =
       stage: "forming" | "ready" | "inFlight";
       kickingTeam: Team;
       readyForSeconds: number;
-      reason: "matchStart" | "try" | "goalLineDropout";
+      reason: "matchStart" | "try" | "goalLineDropout" | "halfTime";
     }
   | {
       kind: "ruck";
@@ -120,7 +125,41 @@ export type Phase =
       position: Position;
       throwingTeam: Team;
       elapsed: number;
+    }
+  | {
+      kind: "scrum";
+      stage: "forming" | "set" | "channeling";
+      position: Position;
+      feedingTeam: Team;
+      elapsed: number;
+      winningTeam: Team | null;
+    }
+  | {
+      kind: "conversion";
+      stage: "setup" | "kick";
+      position: Position;
+      kickingTeam: Team;
+      elapsed: number;
+    }
+  | {
+      kind: "penalty";
+      stage: "decision" | "executing";
+      position: Position;
+      awardedTeam: Team;
+      choice: "touch" | "goal" | "tap";
+      elapsed: number;
     };
+
+export type ActiveTeamFormations = {
+  kickoffAttack: "balanced" | "press" | "split";
+  kickoffDefence: "deep" | "pendulum" | "splitField";
+  openAttack: "balanced" | "tightPods" | "wide";
+  openDefence: "connected" | "narrow" | "wide";
+  lineoutMembers: 4 | 5 | 6 | 7;
+  lineoutNonParticipants: "backline" | "split" | "maulDefence";
+  scrumAttack: "openSide" | "blindSide" | "splitBacks";
+  scrumDefence: "drift" | "manOnMan" | "blitz";
+};
 
 export type GameState = {
   players: Player[];
@@ -130,6 +169,15 @@ export type GameState = {
   pendingClearanceKickerId: string | null;
   defensiveLineZ: [number, number];
   attackFlow: [-1 | 1, -1 | 1];
+  formations: Record<Team, ActiveTeamFormations>;
+  matchClockSeconds: number;
+  half: 1 | 2 | "fullTime";
+  referee: Referee;
+  phaseCount: number;
+  possessionTeam: Team;
+  gainLineZ: number;
+  possessionOriginZ: number;
+  distanceGained: number;
 };
 
 export const attackDirection = (team: Team) => (team === 0 ? 1 : -1);

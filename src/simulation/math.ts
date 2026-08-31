@@ -26,6 +26,13 @@ export const effectiveSpeed = (player: Player, effort: Effort) => {
 export const effectiveSkill = (player: Player, skill: keyof Player["skills"]) =>
   player.skills[skill] * (0.7 + (player.stamina / 100) * 0.3);
 
+// Calculates maximum stamina capacity based on match clock (0-80min) and player weight.
+export const maxStamina = (player: Player, matchClockSeconds: number) => {
+  const timeProgress = Math.min(1, matchClockSeconds / 4800);
+  const weightFatigue = (player.weight / 100) * 22;
+  return Math.max(45, 100 - timeProgress * weightFatigue);
+};
+
 // Calculates contact weight after stamina loss.
 export const effectiveWeight = (player: Player) => player.weight * (player.stamina / 100);
 
