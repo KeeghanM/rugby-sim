@@ -88,6 +88,29 @@ export const ratingControl = (
     <output>${Math.round(value)}</output>
   </label>`;
 
+export const modifierControl = (
+  key: string,
+  label: string,
+  delta: number,
+  effectiveTotal: number,
+) => {
+  const roundDelta = Math.round(delta);
+  const deltaStr = roundDelta > 0 ? `+${roundDelta}` : `${roundDelta}`;
+  const deltaColor =
+    roundDelta > 0 ? "#4ade80" : roundDelta < 0 ? "#f87171" : "#94a3b8";
+  return `
+    <label class="rating-control">
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:baseline;">
+        <span>${label}</span>
+        <span style="font-size:0.72rem; color:#94a3b8; font-weight:500;">
+          Total: <strong style="color:#38bdf8; font-family:ui-monospace, monospace;">${Math.round(effectiveTotal)}</strong>
+        </span>
+      </div>
+      <input type="range" min="-50" max="50" step="1" value="${roundDelta}" data-modifier="${key}" data-scope="player" />
+      <output style="font-weight:700; color:${deltaColor}; font-family:ui-monospace, monospace;">${deltaStr}</output>
+    </label>`;
+};
+
 export const mixControl = (key: "carry" | "pass" | "kick", value: number) => `
   <label class="mix-control mix-${key}">
     <span>${text(key)}</span>

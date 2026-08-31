@@ -57,6 +57,33 @@ export const createMatchSetup = (
 
   // preview helpers extracted to ./preview.ts
 
+  const setPlayerModifier = (key: string, delta: number) => {
+    const current = teams[selectedTeam].playerOverrides[selectedPlayer] ?? {};
+    if ((skillKeys as readonly string[]).includes(key)) {
+      const currentSkillsDelta = current.skillsDelta ?? {};
+      setStats(teams, selectedTeam, {
+        playerOverrides: {
+          [selectedPlayer]: {
+            ...current,
+            skillsDelta: {
+              ...currentSkillsDelta,
+              [key]: delta,
+            },
+          },
+        },
+      });
+      return;
+    }
+    setStats(teams, selectedTeam, {
+      playerOverrides: {
+        [selectedPlayer]: {
+          ...current,
+          [key === "speed" ? "speedDelta" : "weightDelta"]: delta,
+        },
+      },
+    });
+  };
+
   const setPlayerRating = (key: string, rating: number) => {
     const slot = ATTACK_FORMATION[selectedPlayer - 1];
     const profile = getPlayerProfile(
@@ -207,6 +234,7 @@ export const createMatchSetup = (
     render,
     onStart,
     setPlayerRating,
+    setPlayerModifier,
     setTeamRating,
     adjustMix,
   );

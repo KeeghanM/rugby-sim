@@ -1,7 +1,8 @@
 import type { MatchConfig, Team } from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations/index.ts";
-import { getPlayerProfile } from "../teams/index.ts";
+import { getPlayerProfile, getPlayerDeltas } from "../teams/index.ts";
 import {
+  modifierControl,
   ratingControl,
   skillKeys,
   text,
@@ -19,9 +20,12 @@ export const renderSquad = (
     ...slot,
     number: index + 1,
     profile: getPlayerProfile(selectedTeam, index + 1, slot.role, teams),
+    deltas: getPlayerDeltas(selectedTeam, index + 1, slot.role, teams),
   }));
   const selected = roster[selectedPlayer - 1];
   const profile = selected.profile;
+  const deltas = selected.deltas;
+
   return `
       <div class="squad-layout">
         <section class="team-ratings">
@@ -51,11 +55,11 @@ export const renderSquad = (
         </section>
         <aside class="player-editor">
           <div class="player-shirt" style="--team-color:${team.color}"><span>${selectedPlayer}</span></div>
-          <div><span class="eyebrow">Individual training</span><h2>#${selectedPlayer} ${selected.role}</h2></div>
+          <div><span class="eyebrow">Individual training (Modifiers)</span><h2>#${selectedPlayer} ${selected.role}</h2></div>
           <div class="player-rating-list">
-            ${ratingControl("speed", "Pace", toSpeedRating(profile.speed), "player")}
-            ${ratingControl("weight", "Power", toWeightRating(profile.weight), "player")}
-            ${skillKeys.map((key) => ratingControl(key, text(key), profile.skills[key] * 100, "player")).join("")}
+            ${modifierControl("speed", "Pace", deltas.speed, toSpeedRating(profile.speed))}
+            ${modifierControl("weight", "Power", deltas.weight, toWeightRating(profile.weight))}
+            ${skillKeys.map((key) => modifierControl(key, text(key), deltas.skills[key], Math.round(profile.skills[key] * 100))).join("")}
           </div>
         </aside>
       </div>`;

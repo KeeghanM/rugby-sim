@@ -22,7 +22,12 @@ export {
   SCRUM_ATTACK_VARIANTS,
   SCRUM_DEFENCE_VARIANTS,
 } from "./constants.ts";
-export { getRolePhysicals, getPlayerProfile } from "./profiles.ts";
+export {
+  getRolePhysicals,
+  getPlayerProfile,
+  getPlayerDeltas,
+  getRoleNaturalDeltas,
+} from "./profiles.ts";
 export { getActiveShapePositions, rollTeamFormations } from "./formations.ts";
 
 const bounded = (value: number, min: number, max: number) =>

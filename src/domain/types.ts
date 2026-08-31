@@ -64,6 +64,9 @@ export type TeamDefinition = {
         speedMultiplier?: number;
         weightMultiplier?: number;
         skills?: Partial<PlayerSkills>;
+        speedDelta?: number;
+        weightDelta?: number;
+        skillsDelta?: Partial<Record<keyof PlayerSkills, number>>;
       }
     >
   >;

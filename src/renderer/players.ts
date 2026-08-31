@@ -10,7 +10,7 @@ import {
 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState, Player } from "../domain.ts";
-import { PITCH, ROLES } from "../domain.ts";
+import { attackDirection, PITCH, ROLES } from "../domain.ts";
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const clean = hex.replace("#", "");
@@ -548,12 +548,30 @@ export const syncPlayers = (
 
     const lineoutPhase = game.phase.kind === "lineout" ? game.phase : null;
 
-    // Player yaw rotation based on velocity, role context, or team attack direction
+    // Player yaw rotation based on phase context, role, velocity, or team attack direction
     const speed = Math.hypot(player.velocity.x, player.velocity.z);
     let targetYaw = player.team === 0 ? 0 : Math.PI;
 
-    if (speed > 0.2) {
-      targetYaw = Math.atan2(player.velocity.x, player.velocity.z);
+    if (maulPhase && isMaulBound) {
+      // Maul participants must always face head-on into the contest
+      targetYaw =
+        player.team === maulPhase.attackingTeam
+          ? attackDirection(maulPhase.attackingTeam) === 1
+            ? 0
+            : Math.PI
+          : attackDirection(maulPhase.attackingTeam) === 1
+            ? Math.PI
+            : 0;
+    } else if (ruckPhase && isRuckCleaner) {
+      // Ruck cleaners always face toward the opposing side across the gate
+      targetYaw =
+        player.team === ruckPhase.attackingTeam
+          ? attackDirection(ruckPhase.attackingTeam) === 1
+            ? 0
+            : Math.PI
+          : attackDirection(ruckPhase.attackingTeam) === 1
+            ? Math.PI
+            : 0;
     } else if (
       lineoutPhase &&
       player.team === lineoutPhase.throwingTeam &&
@@ -568,6 +586,8 @@ export const syncPlayers = (
     ) {
       // Defending hooker faces towards the throwing hooker
       targetYaw = player.position.x < 0 ? -Math.PI / 2 : Math.PI / 2;
+    } else if (speed > 0.2) {
+      targetYaw = Math.atan2(player.velocity.x, player.velocity.z);
     }
 
     // Smooth yaw rotation
