@@ -1,9 +1,17 @@
 import { FreeCamera, UniversalCamera, Vector3 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "../domain.ts";
+import { attackDirection, PITCH, ROLES } from "../domain.ts";
+import { clamp, distance } from "../simulation/math.ts";
 
-export type CameraMode = "halfway" | "goalLine" | "free";
-type GoalLineSide = "south" | "north";
+export type CameraMode = "dynamic" | "free";
+type DynamicShotType =
+  | "broadcast"
+  | "goalLine"
+  | "refCam"
+  | "flyOver"
+  | "sidelineTight"
+  | "breakawayChase";
 
 export const createCameras = (
   scene: Scene,
@@ -12,7 +20,7 @@ export const createCameras = (
 ) => {
   const broadcastCam = new FreeCamera(
     "broadcastCam",
-    new Vector3(85, 85, 0),
+    new Vector3(52, 21, 0),
     scene,
   );
   broadcastCam.setTarget(Vector3.Zero());
@@ -20,11 +28,11 @@ export const createCameras = (
 
   const freeCam = new UniversalCamera(
     "freeCam",
-    new Vector3(0, 85, -85),
+    new Vector3(0, 45, -75),
     scene,
   );
   freeCam.setTarget(Vector3.Zero());
-  freeCam.speed = 1.1;
+  freeCam.speed = 2.2;
   freeCam.angularSensibility = 3000;
   freeCam.keysUp = [87];
   freeCam.keysDown = [83];
@@ -32,188 +40,20 @@ export const createCameras = (
   freeCam.keysRight = [68];
   (freeCam as unknown as { inertia: number }).inertia = 0.5;
 
-  let cameraMode: CameraMode = "halfway";
-  let goalLineSide: GoalLineSide = "south";
-  let autoFollowBall = true;
+  let cameraMode: CameraMode = "dynamic";
   let zoom = 1;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.3;
-  const BASE_BROADCAST_DIST = 85;
   const BASE_FREE_FOV = 0.8;
 
   scene.activeCamera = broadcastCam;
 
-  const positionBroadcastCamera = () => {
-    if (cameraMode === "halfway") {
-      // Main TV broadcast gantry camera positioned under the roof canopy (height ~20m < 27m roof)
-      const posX = 52 / Math.sqrt(zoom);
-      const posY = Math.min(23.5, 21 / Math.sqrt(zoom));
-      broadcastCam.position.set(posX, posY, 0);
-    } else if (cameraMode === "goalLine") {
-      // Elevated goal-line gantry camera under end-stand roof
-      const posZ = (70 / Math.sqrt(zoom)) * (goalLineSide === "south" ? -1 : 1);
-      const posY = Math.min(23.5, 21 / Math.sqrt(zoom));
-      broadcastCam.position.set(0, posY, posZ);
-    }
-  };
-
-  const updateCameraControls = () => {
-    broadcastCam.detachControl();
-    freeCam.detachControl();
-    if (cameraMode === "free") freeCam.attachControl(canvas, true);
-    else if (!autoFollowBall) broadcastCam.attachControl(canvas, true);
-  };
-
-  const updateCamButtons = () => {
-    const camButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
-    );
-    const goalLineSideControl = document.getElementById(
-      "goal-line-side-control",
-    );
-    const goalLineSideButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("[data-goal-side]"),
-    );
-    const autoFollowRow = document.getElementById("auto-follow-row");
-    for (const b of camButtons) {
-      b.classList.toggle("active", b.dataset.cam === cameraMode);
-    }
-    for (const b of goalLineSideButtons) {
-      b.classList.toggle("active", b.dataset.goalSide === goalLineSide);
-    }
-    if (goalLineSideControl)
-      (goalLineSideControl as HTMLElement).hidden = cameraMode !== "goalLine";
-    if (autoFollowRow)
-      (autoFollowRow as HTMLElement).hidden = cameraMode === "free";
-  };
-
-  const updateZoomDisplay = () => {
-    const zoomDisplay = document.getElementById("zoom-display");
-    const zoomSlider = document.getElementById(
-      "zoom-slider",
-    ) as HTMLInputElement | null;
-    if (zoomDisplay) zoomDisplay.textContent = `${zoom.toFixed(1)}×`;
-    if (
-      zoomSlider &&
-      parseFloat(zoomSlider.value).toFixed(1) !== zoom.toFixed(1)
-    ) {
-      zoomSlider.value = String(zoom);
-    }
-  };
-
-  const applyZoomImmediate = () => {
-    if (cameraMode === "free") {
-      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
-      freeCam.fov = fov;
-    } else {
-      positionBroadcastCamera();
-    }
-    updateZoomDisplay();
-  };
-
-  const setCameraMode = (mode: CameraMode) => {
-    if (mode === cameraMode) return;
-    cameraMode = mode;
-    scene.activeCamera = mode === "free" ? freeCam : broadcastCam;
-    if (mode === "free") {
-      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
-      freeCam.fov = fov;
-    } else {
-      positionBroadcastCamera();
-      broadcastCam.setTarget(
-        autoFollowBall
-          ? new Vector3(state.ball.position.x, 0, state.ball.position.z)
-          : Vector3.Zero(),
-      );
-    }
-    updateCameraControls();
-    updateCamButtons();
-    updateZoomDisplay();
-  };
-
-  // Wiring
-  const camButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
-  );
-  const goalLineSideButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("[data-goal-side]"),
-  );
-  const autoFollowToggle = document.getElementById(
-    "auto-follow-toggle",
-  ) as HTMLInputElement | null;
-  const zoomSlider = document.getElementById(
-    "zoom-slider",
-  ) as HTMLInputElement | null;
-
-  for (const btn of camButtons) {
-    btn.addEventListener("click", () => {
-      const m = btn.dataset.cam as CameraMode | undefined;
-      if (m === "goalLine" || m === "halfway" || m === "free") setCameraMode(m);
-    });
-  }
-  for (const btn of goalLineSideButtons) {
-    btn.addEventListener("click", () => {
-      const side = btn.dataset.goalSide as GoalLineSide | undefined;
-      if (side !== "south" && side !== "north") return;
-      goalLineSide = side;
-      if (cameraMode === "goalLine") positionBroadcastCamera();
-      const goalLineSideControl = document.getElementById(
-        "goal-line-side-control",
-      );
-      const autoFollowRow = document.getElementById("auto-follow-row");
-      // update buttons
-      for (const b of goalLineSideButtons) {
-        b.classList.toggle("active", b.dataset.goalSide === goalLineSide);
-      }
-      if (goalLineSideControl)
-        (goalLineSideControl as HTMLElement).hidden = cameraMode !== "goalLine";
-    });
-  }
-  if (autoFollowToggle) {
-    autoFollowBall = autoFollowToggle.checked;
-    autoFollowToggle.addEventListener("change", () => {
-      autoFollowBall = autoFollowToggle.checked;
-      updateCameraControls();
-    });
-  }
-  if (zoomSlider) {
-    zoomSlider.addEventListener("input", () => {
-      zoom = Math.min(
-        ZOOM_MAX,
-        Math.max(ZOOM_MIN, parseFloat(zoomSlider.value) || 1),
-      );
-      applyZoomImmediate();
-    });
-  }
-  canvas.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-      const delta = -e.deltaY * 0.0011;
-      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta));
-      applyZoomImmediate();
-    },
-    { passive: false },
-  );
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "m" || e.key === "M") {
-      const managerModal = document.getElementById("manager-modal");
-      const isOpen = managerModal?.classList.contains("active");
-      if (managerModal) managerModal.classList.toggle("active", !isOpen);
-    }
-    if (e.key === "c" || e.key === "C") {
-      const order: CameraMode[] = ["halfway", "goalLine", "free"];
-      const idx = order.indexOf(cameraMode);
-      setCameraMode(order[(idx + 1) % order.length]);
-    }
-    if (cameraMode === "free") {
-      if (e.key === "q" || e.key === "Q") {
-        freeCam.position.y = Math.max(2, freeCam.position.y - 3);
-      } else if (e.key === "e" || e.key === "E") {
-        freeCam.position.y = Math.min(180, freeCam.position.y + 3);
-      }
-    }
-  });
+  // --- DYNAMIC BROADCAST DIRECTOR STATE ---
+  let currentShot: DynamicShotType = "broadcast";
+  let shotDuration = 0;
+  let lastPhaseKind = "";
+  const desiredCamPos = new Vector3(52, 21, 0);
+  const desiredTarget = new Vector3(0, 0, 0);
 
   const FREE_BASE_SPEED = 2.2;
   const FREE_MAX_SPEED = 15.0;
@@ -235,46 +75,98 @@ export const createCameras = (
   window.addEventListener("keydown", (e) => heldKeys.add(e.key.toLowerCase()));
   window.addEventListener("keyup", (e) => heldKeys.delete(e.key.toLowerCase()));
 
-  const ballTarget = new Vector3(0, 0, 0);
-  const panTarget = new Vector3(0, 0, 0);
-  let isPanning = false;
-  let lastPointerX = 0;
-  let lastPointerY = 0;
+  const updateCameraControls = () => {
+    broadcastCam.detachControl();
+    freeCam.detachControl();
+    if (cameraMode === "free") freeCam.attachControl(canvas, true);
+  };
 
-  canvas.addEventListener("pointerdown", (e) => {
-    if (cameraMode !== "free") {
-      isPanning = true;
-      lastPointerX = e.clientX;
-      lastPointerY = e.clientY;
+  const updateCamButtons = () => {
+    const camButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
+    );
+    for (const b of camButtons) {
+      b.classList.toggle("active", b.dataset.cam === cameraMode);
     }
-  });
+  };
 
-  window.addEventListener("pointermove", (e) => {
-    if (!isPanning || cameraMode === "free") return;
-    const dx = e.clientX - lastPointerX;
-    const dy = e.clientY - lastPointerY;
-    lastPointerX = e.clientX;
-    lastPointerY = e.clientY;
-
-    const panFactor = 0.22 / zoom;
-
-    if (cameraMode === "halfway") {
-      // Screen X maps to World Z; Screen Y maps to World X
-      panTarget.z -= dx * panFactor;
-      panTarget.x -= dy * panFactor;
-    } else if (cameraMode === "goalLine") {
-      const sign = goalLineSide === "south" ? 1 : -1;
-      panTarget.x -= dx * panFactor * sign;
-      panTarget.z -= dy * panFactor * sign;
+  const updateZoomDisplay = () => {
+    const zoomDisplay = document.getElementById("zoom-display");
+    const zoomSlider = document.getElementById(
+      "zoom-slider",
+    ) as HTMLInputElement | null;
+    if (zoomDisplay) zoomDisplay.textContent = `${zoom.toFixed(1)}×`;
+    if (
+      zoomSlider &&
+      parseFloat(zoomSlider.value).toFixed(1) !== zoom.toFixed(1)
+    ) {
+      zoomSlider.value = String(zoom);
     }
+  };
 
-    // Clamp within pitch and stadium bounds
-    panTarget.x = Math.max(-42, Math.min(42, panTarget.x));
-    panTarget.z = Math.max(-65, Math.min(65, panTarget.z));
-  });
+  const applyZoomImmediate = () => {
+    if (cameraMode === "free") {
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
+      freeCam.fov = fov;
+    }
+    updateZoomDisplay();
+  };
 
-  window.addEventListener("pointerup", () => {
-    isPanning = false;
+  const setCameraMode = (mode: CameraMode) => {
+    if (mode === cameraMode) return;
+    cameraMode = mode;
+    scene.activeCamera = mode === "free" ? freeCam : broadcastCam;
+    if (mode === "free") {
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
+      freeCam.fov = fov;
+    } else {
+      shotDuration = 0;
+    }
+    updateCameraControls();
+    updateCamButtons();
+    updateZoomDisplay();
+  };
+
+  // UI Event Wiring
+  const camButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
+  );
+  const zoomSlider = document.getElementById(
+    "zoom-slider",
+  ) as HTMLInputElement | null;
+
+  for (const btn of camButtons) {
+    btn.addEventListener("click", () => {
+      const m = btn.dataset.cam as CameraMode | undefined;
+      if (m === "dynamic" || m === "free") setCameraMode(m);
+    });
+  }
+
+  if (zoomSlider) {
+    zoomSlider.addEventListener("input", () => {
+      zoom = Math.min(
+        ZOOM_MAX,
+        Math.max(ZOOM_MIN, parseFloat(zoomSlider.value) || 1),
+      );
+      applyZoomImmediate();
+    });
+  }
+
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0012;
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta));
+      applyZoomImmediate();
+    },
+    { passive: false },
+  );
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "c" || e.key === "C") {
+      setCameraMode(cameraMode === "dynamic" ? "free" : "dynamic");
+    }
   });
 
   updateCamButtons();
@@ -293,18 +185,141 @@ export const createCameras = (
       applyZoomImmediate();
     },
     sync: (game: GameState) => {
-      if (cameraMode !== "free") {
-        if (autoFollowBall) {
-          ballTarget.set(game.ball.position.x, 0, game.ball.position.z);
-          // Sync pan target with ball when tracking
-          panTarget.copyFrom(ballTarget);
+      if (cameraMode === "dynamic") {
+        shotDuration += 0.016;
+
+        const phase = game.phase;
+        const ball = game.ball;
+        const carrier = game.players.find((p) => p.id === ball.carrierId);
+        const possessionTeam = game.possessionTeam;
+        const attackDir = attackDirection(possessionTeam);
+        const ballZ = ball.position.z;
+        const ballX = ball.position.x;
+        const ballY = ball.position.y;
+        const hSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
+
+        const phaseChanged = phase.kind !== lastPhaseKind;
+        lastPhaseKind = phase.kind;
+
+        // --- 1. PRIORITY EVENTS (Immediate cinematic cuts) ---
+        let chosenShot: DynamicShotType = currentShot;
+        let lerpRate = 0.08;
+
+        const isDownfieldKick =
+          (ball.flight === "kick" ||
+            ball.flight === "kickoff" ||
+            ball.flight === "dropGoal") &&
+          hSpeed > 8;
+
+        const isBreakaway =
+          carrier && (carrier.lineBreakActive || carrier.breakawaySeconds > 0);
+
+        const isGoalKickPhase =
+          phase.kind === "conversion" ||
+          (phase.kind === "penalty" && phase.choice === "goal");
+
+        if (isDownfieldKick) {
+          chosenShot = "flyOver";
+        } else if (isBreakaway) {
+          chosenShot = "breakawayChase";
+        } else if (isGoalKickPhase) {
+          if (phase.stage === "inFlight") {
+            chosenShot = "goalLine";
+          } else {
+            chosenShot = shotDuration > 4.5 ? "goalLine" : "refCam";
+          }
+        } else if (phase.kind === "scrum" || phase.kind === "lineout") {
+          if (phaseChanged || shotDuration >= 5.0) {
+            chosenShot = Math.random() < 0.65 ? "refCam" : "sidelineTight";
+          }
+        } else if (Math.abs(ballZ) >= 28) {
+          // Inside 22m red-zone attack
+          if (shotDuration >= 4.5) {
+            chosenShot = Math.random() < 0.45 ? "goalLine" : "broadcast";
+          }
+        } else {
+          // Open play midfield
+          if (shotDuration >= 5.5) {
+            chosenShot = Math.random() < 0.25 ? "sidelineTight" : "broadcast";
+          }
         }
-        const curTarget = broadcastCam.getTarget();
-        const nextTarget = Vector3.Lerp(
-          curTarget,
-          autoFollowBall ? ballTarget : panTarget,
-          autoFollowBall ? 0.09 : 0.2,
+
+        if (chosenShot !== currentShot) {
+          currentShot = chosenShot;
+          shotDuration = 0;
+        }
+
+        // --- 2. EVALUATE TARGET CAMERA POSITIONS & SIGHTLINES ---
+        if (currentShot === "flyOver") {
+          // Aerial cable-cam tracking behind and above the ball in flight
+          const kDir =
+            ball.velocity.z !== 0 ? Math.sign(ball.velocity.z) : attackDir;
+          desiredCamPos.set(
+            clamp(ballX * 0.6, -22, 22),
+            Math.min(23.0, Math.max(8.0, ballY + 6.5)),
+            ballZ - kDir * 11.0,
+          );
+          desiredTarget.set(
+            ballX,
+            Math.max(0.5, ballY * 0.5),
+            ballZ + kDir * 14.0,
+          );
+          lerpRate = 0.12;
+        } else if (currentShot === "breakawayChase") {
+          // Dramatic follower chase cam behind sprinting line-breaker
+          if (carrier) {
+            desiredCamPos.set(
+              carrier.position.x * 0.75,
+              4.8,
+              carrier.position.z - attackDir * 8.5,
+            );
+            desiredTarget.set(
+              carrier.position.x,
+              1.2,
+              carrier.position.z + attackDir * 7.5,
+            );
+            lerpRate = 0.14;
+          }
+        } else if (currentShot === "refCam") {
+          // Referee bodycam / over-shoulder perspective
+          desiredCamPos.set(
+            game.referee.position.x,
+            1.85,
+            game.referee.position.z,
+          );
+          desiredTarget.set(ballX, Math.max(0.5, ballY), ballZ);
+          lerpRate = 0.1;
+        } else if (currentShot === "sidelineTight") {
+          // Low-angle pitchside jib camera along touchline
+          const touchSide = ballX < 0 ? -37.5 : 37.5;
+          desiredCamPos.set(touchSide, 3.4, ballZ - attackDir * 4.5);
+          desiredTarget.set(ballX * 0.5, 0.8, ballZ + attackDir * 3.0);
+          lerpRate = 0.08;
+        } else if (currentShot === "goalLine") {
+          // Elevated in-goal gantry camera behind the goal posts
+          const targetTryLine =
+            attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
+          const endPosZ = targetTryLine + attackDir * 18.0;
+          desiredCamPos.set(0, Math.min(23.5, 20.5 / Math.sqrt(zoom)), endPosZ);
+          desiredTarget.set(ballX * 0.5, 1.5, targetTryLine - attackDir * 6.0);
+          lerpRate = 0.07;
+        } else {
+          // Default: Main TV Broadcast Gantry under the roof
+          const gantryX = 52.0 / Math.sqrt(zoom);
+          const gantryY = Math.min(23.5, 21.0 / Math.sqrt(zoom));
+          desiredCamPos.set(gantryX, gantryY, ballZ * 0.72);
+          desiredTarget.set(ballX * 0.5, 0, ballZ);
+          lerpRate = 0.08;
+        }
+
+        // Smooth camera gliding interpolation
+        broadcastCam.position = Vector3.Lerp(
+          broadcastCam.position,
+          desiredCamPos,
+          lerpRate,
         );
+        const curTarget = broadcastCam.getTarget();
+        const nextTarget = Vector3.Lerp(curTarget, desiredTarget, lerpRate);
         broadcastCam.setTarget(nextTarget);
       } else if (cameraMode === "free") {
         const isMoving = Array.from(heldKeys).some((k) => moveKeys.has(k));
