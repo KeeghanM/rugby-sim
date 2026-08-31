@@ -1,4 +1,10 @@
-import { attackDirection, PITCH, type Player, type Position, type Team } from "../domain.ts";
+import {
+  attackDirection,
+  PITCH,
+  type Player,
+  type Position,
+  type Team,
+} from "../domain.ts";
 import type { Effort } from "./types.ts";
 
 export const GRAVITY = 9.81;
@@ -11,14 +17,27 @@ export const distance = (a: Position, b: Position) =>
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
+export const overallSkill = (player: Pick<Player, "skills" | "stamina">) =>
+  (Object.values(player.skills).reduce((total, skill) => total + skill, 0) /
+    Object.keys(player.skills).length) *
+  (0.7 + (player.stamina / 100) * 0.3);
+
 // Calculates movement speed from effort, stamina, and injury state.
 export const effectiveSpeed = (player: Player, effort: Effort) => {
   const effortMultiplier =
-    effort === "sprint" ? 1.28 : effort === "run" ? 1 : effort === "jog" ? 0.62 : 0;
+    effort === "sprint"
+      ? 1.28
+      : effort === "run"
+        ? 1
+        : effort === "jog"
+          ? 0.62
+          : 0;
   const staminaMultiplier = 0.65 + (player.stamina / 100) * 0.35;
+  const skillMultiplier = 0.78 + overallSkill(player) * 0.28;
   return Math.max(
     0,
-    player.speed * effortMultiplier * staminaMultiplier - player.injuryPenalty,
+    player.speed * effortMultiplier * staminaMultiplier * skillMultiplier -
+      player.injuryPenalty,
   );
 };
 
@@ -33,12 +52,21 @@ export const maxStamina = (player: Player, matchClockSeconds: number) => {
   return Math.max(45, 100 - timeProgress * weightFatigue);
 };
 
-// Calculates contact weight after stamina loss.
-export const effectiveWeight = (player: Player) => player.weight * (player.stamina / 100);
+export const contactStrength = (
+  player: Player,
+  primary: keyof Player["skills"] = "tackling",
+) => {
+  const technique =
+    effectiveSkill(player, primary) * 0.7 + overallSkill(player) * 0.3;
+  const fatigue = 0.45 + (player.stamina / 100) * 0.55;
+  return player.weight * fatigue * (0.42 + technique * 0.72);
+};
 
 // Reports whether a position lies inside its team's own twenty-two.
 export const insideOwnTwentyTwo = (team: Team, z: number) =>
-  team === 0 ? z <= PITCH.twentyTwoMetreLines.south : z >= PITCH.twentyTwoMetreLines.north;
+  team === 0
+    ? z <= PITCH.twentyTwoMetreLines.south
+    : z >= PITCH.twentyTwoMetreLines.north;
 
 // Builds velocity needed to move a player toward a target at effective speed.
 export const desiredVelocity = (

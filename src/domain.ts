@@ -40,6 +40,14 @@ export type PlayerSkills = {
   tackling: number;
 };
 
+export type FormationContext =
+  | "kickoffAttack"
+  | "kickoffDefence"
+  | "openAttack"
+  | "openDefence"
+  | "scrumAttack"
+  | "scrumDefence";
+
 export type PlayerStats = {
   distanceCovered: number;
   distanceCarried: number;
@@ -53,6 +61,43 @@ export type PlayerStats = {
   totalPasses: number;
   penaltiesConceded: number;
   knockOns: number;
+  forwardPasses: number;
+};
+
+export type TeamDefinition = {
+  name: string;
+  color: string;
+  lineSpeed: number;
+  tendencies: { carry: number; pass: number; kick: number; maul: number };
+  formationVariation: number;
+  speedMultiplier: number;
+  weightMultiplier: number;
+  formations: ActiveTeamFormations;
+  customFormations: Partial<Record<FormationContext, Position[]>>;
+  defaultSkills: PlayerSkills;
+  playerOverrides: Partial<
+    Record<
+      number,
+      {
+        speedMultiplier?: number;
+        weightMultiplier?: number;
+        skills?: Partial<PlayerSkills>;
+      }
+    >
+  >;
+};
+
+export type MatchConfig = Record<Team, TeamDefinition>;
+
+export type TeamMatchStats = {
+  rucksWon: number;
+  rucksLost: number;
+  maulsWon: number;
+  maulsLost: number;
+  scrumsWon: number;
+  scrumsLost: number;
+  lineoutsWon: number;
+  lineoutsLost: number;
 };
 
 export type PendingBallAction =
@@ -88,6 +133,7 @@ export type Player = {
   stamina: number;
   injuryPenalty: number;
   tackleCooldown: number;
+  breakawaySeconds: number;
   hardLineForSeconds: number;
   kickOffside: boolean;
   ruckRecoverySeconds: number;
@@ -101,7 +147,15 @@ export type Ball = {
   position: Position3;
   velocity: Position3;
   carrierId: string | null;
-  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | "grubber" | "dropGoal" | null;
+  flight:
+    | "pass"
+    | "kick"
+    | "kickoff"
+    | "lineout"
+    | "rolling"
+    | "grubber"
+    | "dropGoal"
+    | null;
   intendedReceiverId: string | null;
   lastTouchedTeam: Team | null;
   passerId: string | null;
@@ -150,6 +204,17 @@ export type Phase =
       elapsed: number;
     }
   | {
+      kind: "maul";
+      stage: "forming" | "driving" | "release";
+      position: Position;
+      attackingTeam: Team;
+      elapsed: number;
+      attackers: string[];
+      defenders: string[];
+      driveSpeed: number;
+      winningTeam: Team | null;
+    }
+  | {
       kind: "scrum";
       stage: "forming" | "set" | "channeling";
       position: Position;
@@ -163,6 +228,7 @@ export type Phase =
       position: Position;
       kickingTeam: Team;
       elapsed: number;
+      kickAtSeconds: number;
       isSuccess: boolean | null;
       kickerId: string;
     }
@@ -173,6 +239,7 @@ export type Phase =
       awardedTeam: Team;
       choice: "touch" | "goal" | "tap";
       elapsed: number;
+      kickAtSeconds: number;
       isSuccess?: boolean | null;
       kickerId?: string;
     };
@@ -202,6 +269,7 @@ export type Substitute = {
 };
 
 export type GameState = {
+  teams: MatchConfig;
   players: Player[];
   substitutes: Substitute[];
   recentSubstitution: string | null;
@@ -209,6 +277,7 @@ export type GameState = {
   scores: [number, number];
   phase: Phase;
   pendingClearanceKickerId: string | null;
+  pendingLineoutTeam: Team | null;
   defensiveLineZ: [number, number];
   attackFlow: [-1 | 1, -1 | 1];
   formations: Record<Team, ActiveTeamFormations>;
@@ -220,6 +289,7 @@ export type GameState = {
   gainLineZ: number;
   possessionOriginZ: number;
   distanceGained: number;
+  teamStats: [TeamMatchStats, TeamMatchStats];
 };
 
 export const attackDirection = (team: Team) => (team === 0 ? 1 : -1);

@@ -7,7 +7,6 @@ import {
   type Position,
 } from "../domain.ts";
 import { isForward } from "../formations.ts";
-import { TEAMS } from "../teams.ts";
 import { launchBall, updateBall } from "./ball.ts";
 import {
   clamp,
@@ -15,6 +14,7 @@ import {
   distance,
   effectiveSkill,
   maxStamina,
+  overallSkill,
 } from "./math.ts";
 import {
   attemptTackle,
@@ -23,6 +23,7 @@ import {
   updateConversion,
   updateKickoff,
   updateLineout,
+  updateMaul,
   updatePenalty,
   updateRuck,
   updateScrum,
@@ -51,10 +52,27 @@ export const advanceDefensiveLine = (
   if (!carrier) return;
   const direction = attackDirection(carrier.team);
   const defendingTeam = otherTeam(carrier.team);
+  const currentLine = state.defensiveLineZ[defendingTeam];
+  // Once beaten, line stays behind play instead of teleporting ahead of carrier.
+  if ((carrier.position.z - currentLine) * direction > 0.5) return;
   const limit = carrier.position.z + direction * 0.5;
+  const defenders = state.players.filter(
+    (player) => player.team === defendingTeam,
+  );
+  const defensiveSkill =
+    defenders.reduce(
+      (total, player) =>
+        total +
+        effectiveSkill(player, "tackling") * 0.6 +
+        effectiveSkill(player, "decision") * 0.4,
+      0,
+    ) / Math.max(1, defenders.length);
   const advanced =
-    state.defensiveLineZ[defendingTeam] -
-    direction * TEAMS[defendingTeam].lineSpeed * deltaSeconds;
+    currentLine -
+    direction *
+      state.teams[defendingTeam].lineSpeed *
+      (0.65 + defensiveSkill * 0.5) *
+      deltaSeconds;
   state.defensiveLineZ[defendingTeam] =
     direction === 1 ? Math.max(limit, advanced) : Math.min(limit, advanced);
 };
@@ -70,6 +88,7 @@ const separatedVelocity = (
   const isCarrier = player.id === state.ball.carrierId;
 
   const ruckPhase = state.phase.kind === "ruck" ? state.phase : null;
+  const maulPhase = state.phase.kind === "maul" ? state.phase : null;
   const isScrum = state.phase.kind === "scrum";
 
   const isPlayerRuckBound =
@@ -80,6 +99,10 @@ const separatedVelocity = (
       player.id === ruckPhase.tacklerId);
 
   const isPlayerScrumBound = isScrum && isForward(player);
+  const isPlayerMaulBound =
+    maulPhase !== null &&
+    (maulPhase.attackers.includes(player.id) ||
+      maulPhase.defenders.includes(player.id));
 
   for (const other of state.players) {
     if (other.id === player.id) continue;
@@ -94,11 +117,16 @@ const separatedVelocity = (
         other.id === ruckPhase.tacklerId);
 
     const isOtherScrumBound = isScrum && isForward(other);
+    const isOtherMaulBound =
+      maulPhase !== null &&
+      (maulPhase.attackers.includes(other.id) ||
+        maulPhase.defenders.includes(other.id));
 
     // Bound players in a ruck or scrum pack together without elastic repulsion pushing them apart
     if (
       (isPlayerRuckBound && isOtherRuckBound) ||
-      (isPlayerScrumBound && isOtherScrumBound)
+      (isPlayerScrumBound && isOtherScrumBound) ||
+      (isPlayerMaulBound && isOtherMaulBound)
     ) {
       continue;
     }
@@ -168,7 +196,7 @@ const updateStamina = (
 
   // Recovery when standing / low effort
   const weightFactor = Math.max(0.4, 1 - (player.weight - 70) / 120);
-  const skillFactor = 0.7 + player.skills.decision * 0.3;
+  const skillFactor = 0.55 + overallSkill(player) * 0.9;
   const recoveryRate = 0.014 * weightFactor * skillFactor;
 
   const netRate =
@@ -188,6 +216,7 @@ const updateSubstitutions = (state: GameState) => {
   const isStoppage =
     state.phase.kind === "scrum" ||
     state.phase.kind === "lineout" ||
+    state.phase.kind === "maul" ||
     state.phase.kind === "kickoff" ||
     (state.phase.kind === "ruck" && state.phase.stage === "arrivals");
   if (!isStoppage) return;
@@ -230,7 +259,7 @@ const updateSubstitutions = (state: GameState) => {
       player.stamina = 100;
       matchingSub.isUsed = true;
 
-      const teamName = TEAMS[team].name;
+      const teamName = state.teams[team].name;
       state.recentSubstitution = `${teamName} SUB: #${matchingSub.number} on for #${oldNum} (${player.role})`;
       break;
     }
@@ -298,8 +327,8 @@ const resolvePreparedAction = (
       (receiver.position.z - carrier.position.z) *
       attackDirection(carrier.team);
     if (passDepth > 1.4) {
-      carrier.stats.knockOns += 1;
-      startScrum(state, otherTeam(carrier.team), carrier.position);
+      carrier.stats.forwardPasses += 1;
+      startScrum(state, otherTeam(carrier.team), carrier.position, random);
       return;
     }
     carrier.stamina = clamp(carrier.stamina - 0.25, 0, 100);
@@ -322,7 +351,8 @@ const resolvePreparedAction = (
     const dist = distance(chargingDefender.position, carrier.position);
     const isChargedDown =
       random() <
-      (dist < 1.4 ? 0.38 : 0.18) * (1.15 - carrier.skills.kicking * 0.25);
+      (dist < 1.4 ? 0.42 : 0.2) *
+        (1.25 - effectiveSkill(carrier, "kicking") * 0.75);
     if (isChargedDown) {
       // CHARGED DOWN! Ball ricochets erratically off the defender's body
       carrier.stamina = clamp(carrier.stamina - 0.6, 0, 100);
@@ -369,6 +399,10 @@ export const applyCommands = (
   const nextMotion = commands.map((next) => {
     const player = state.players.find(({ id }) => id === next.playerId)!;
     player.tackleCooldown = Math.max(0, player.tackleCooldown - deltaSeconds);
+    player.breakawaySeconds = Math.max(
+      0,
+      player.breakawaySeconds - deltaSeconds,
+    );
     player.hardLineForSeconds = next.startHardLine
       ? 1.5
       : Math.max(0, player.hardLineForSeconds - deltaSeconds);
@@ -453,7 +487,7 @@ export const applyCommands = (
         : carrier.position.z <= PITCH.tryLines.south;
     // End tick after scoring resets game phase.
     if (scored) {
-      scoreTry(state, carrier.team);
+      scoreTry(state, carrier.team, random);
       return;
     }
   }
@@ -551,7 +585,10 @@ export const applyCommands = (
 
     // In rugby, half time and full time only trigger once the ball goes dead after 40:00 / 80:00
     const isDeadBall =
-      state.phase.kind !== "openPlay" && state.phase.kind !== "conversion";
+      state.phase.kind !== "openPlay" &&
+      state.phase.kind !== "ruck" &&
+      state.phase.kind !== "maul" &&
+      state.phase.kind !== "conversion";
 
     // 40:00+ Half-time whistle once ball is dead
     if (state.half === 1 && state.matchClockSeconds >= 2400 && isDeadBall) {
@@ -580,7 +617,8 @@ export const applyCommands = (
 
   updateRuck(state, deltaSeconds, random);
   updateKickoff(state, deltaSeconds, random);
-  updateLineout(state, deltaSeconds);
+  updateLineout(state, deltaSeconds, random);
+  updateMaul(state, deltaSeconds, random);
   updateScrum(state, deltaSeconds, random);
   updateConversion(state, deltaSeconds, random);
   updatePenalty(state, deltaSeconds, random);

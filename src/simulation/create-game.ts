@@ -1,6 +1,18 @@
-import { attackDirection, type GameState, type PlayerStats } from "../domain.ts";
+import {
+  attackDirection,
+  type GameState,
+  type MatchConfig,
+  type PlayerStats,
+  type TeamMatchStats,
+} from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations.ts";
-import { BENCH_SLOTS, getPlayerProfile, rollTeamFormations } from "../teams.ts";
+import {
+  BENCH_SLOTS,
+  createMatchConfig,
+  getPlayerProfile,
+  rollTeamFormations,
+} from "../teams.ts";
+import type { Random } from "./types.ts";
 
 const createInitialStats = (): PlayerStats => ({
   distanceCovered: 0,
@@ -15,14 +27,30 @@ const createInitialStats = (): PlayerStats => ({
   totalPasses: 0,
   penaltiesConceded: 0,
   knockOns: 0,
+  forwardPasses: 0,
+});
+
+const createTeamStats = (): TeamMatchStats => ({
+  rucksWon: 0,
+  rucksLost: 0,
+  maulsWon: 0,
+  maulsLost: 0,
+  scrumsWon: 0,
+  scrumsLost: 0,
+  lineoutsWon: 0,
+  lineoutsLost: 0,
 });
 
 // Creates initial teams, bench substitutes, ball, score, kickoff, and defensive lines.
-export const createGame = (): GameState => ({
+export const createGame = (
+  teams: MatchConfig = createMatchConfig(),
+  random: Random = Math.random,
+): GameState => ({
+  teams,
   players: ([0, 1] as const).flatMap((team) =>
     ATTACK_FORMATION.map((slot, index) => {
       const position = { x: slot.x, z: slot.z * attackDirection(team) };
-      const profile = getPlayerProfile(team, index + 1, slot.role);
+      const profile = getPlayerProfile(team, index + 1, slot.role, teams);
       return {
         id: `team-${team}-player-${index + 1}`,
         team,
@@ -42,6 +70,7 @@ export const createGame = (): GameState => ({
         stamina: 100,
         injuryPenalty: 0,
         tackleCooldown: 0,
+        breakawaySeconds: 0,
         hardLineForSeconds: 0,
         kickOffside: false,
         ruckRecoverySeconds: 0,
@@ -54,7 +83,7 @@ export const createGame = (): GameState => ({
   ),
   substitutes: ([0, 1] as const).flatMap((team) =>
     BENCH_SLOTS.map((bench) => {
-      const profile = getPlayerProfile(team, bench.number, bench.role);
+      const profile = getPlayerProfile(team, bench.number, bench.role, teams);
       return {
         id: `team-${team}-sub-${bench.number}`,
         team,
@@ -91,11 +120,12 @@ export const createGame = (): GameState => ({
     reason: "matchStart",
   },
   pendingClearanceKickerId: null,
+  pendingLineoutTeam: null,
   defensiveLineZ: [-3, 3],
   attackFlow: [1, -1],
   formations: {
-    0: rollTeamFormations(0),
-    1: rollTeamFormations(1),
+    0: rollTeamFormations(0, random, teams),
+    1: rollTeamFormations(1, random, teams),
   },
   matchClockSeconds: 0,
   half: 1,
@@ -108,4 +138,5 @@ export const createGame = (): GameState => ({
   gainLineZ: 0,
   possessionOriginZ: 0,
   distanceGained: 0,
+  teamStats: [createTeamStats(), createTeamStats()],
 });

@@ -19,7 +19,6 @@ import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "./domain.ts";
 import { PITCH } from "./domain.ts";
 import { isForward } from "./formations.ts";
-import { TEAMS } from "./teams.ts";
 
 export type CameraMode = "ball" | "halfway" | "free";
 
@@ -397,7 +396,9 @@ export const createRenderer = (
         scene,
       );
       const material = new StandardMaterial(`${player.id}-material`, scene);
-      material.diffuseColor = Color3.FromHexString(TEAMS[player.team].color);
+      material.diffuseColor = Color3.FromHexString(
+        state.teams[player.team].color,
+      );
       mesh.material = material;
       return [player.id, { mesh, material }] as const;
     }),
@@ -454,6 +455,7 @@ export const createRenderer = (
   const tvPhasePill = document.getElementById("tv-phase-pill");
   const tvMeters = document.getElementById("tv-meters");
   const tvStatus = document.getElementById("tv-status");
+  const tvShotClock = document.getElementById("tv-shot-clock");
 
   // Manager View Elements
   const managerModal = document.getElementById("manager-modal");
@@ -707,6 +709,7 @@ export const createRenderer = (
     },
     sync(game: GameState) {
       const ruckPhase = game.phase.kind === "ruck" ? game.phase : null;
+      const maulPhase = game.phase.kind === "maul" ? game.phase : null;
       for (const player of game.players) {
         const view = views.get(player.id);
         if (!view) continue;
@@ -724,12 +727,16 @@ export const createRenderer = (
             player.position.x - ruckPhase.position.x,
             player.position.z - ruckPhase.position.z,
           ) <= 1.8;
+        const isMaulBound =
+          maulPhase !== null &&
+          (maulPhase.attackers.includes(player.id) ||
+            maulPhase.defenders.includes(player.id));
 
         if (isTackledOrTackler) {
           // Lie horizontal flat on the floor at the breakdown
           view.mesh.rotation.x = Math.PI / 2;
           view.mesh.position.set(player.position.x, 0.45, player.position.z);
-        } else if (isRuckCleaner) {
+        } else if (isRuckCleaner || isMaulBound) {
           // Lean forward bound over the ruck
           const leanDir = player.team === 0 ? 0.35 : -0.35;
           view.mesh.rotation.x = leanDir;
@@ -754,7 +761,9 @@ export const createRenderer = (
 
       // Semi-transparent gain line on turf
       const showGainLine =
-        game.phase.kind === "openPlay" || game.phase.kind === "ruck";
+        game.phase.kind === "openPlay" ||
+        game.phase.kind === "ruck" ||
+        game.phase.kind === "maul";
       gainLinePlane.setEnabled(showGainLine);
       if (showGainLine) {
         gainLinePlane.position.z = game.gainLineZ;
@@ -805,7 +814,7 @@ export const createRenderer = (
       const shortHalf =
         game.half === "fullTime" ? "FT" : game.half === 2 ? "2ND" : "1ST";
       const clockStr = `${mins}:${secs} (${halfText})`;
-      const baseScore = `${TEAMS[0].name} ${game.scores[0]} - ${game.scores[1]} ${TEAMS[1].name}`;
+      const baseScore = `${game.teams[0].name} ${game.scores[0]} - ${game.scores[1]} ${game.teams[1].name}`;
 
       const p = game.phase;
       let topLevelStatus = "OPEN PLAY";
@@ -813,6 +822,7 @@ export const createRenderer = (
         topLevelStatus =
           game.ball.flight === "dropGoal" ? "DROP GOAL" : "OPEN PLAY";
       } else if (p.kind === "ruck") topLevelStatus = "RUCK";
+      else if (p.kind === "maul") topLevelStatus = "MAUL";
       else if (p.kind === "lineout") topLevelStatus = "LINEOUT";
       else if (p.kind === "scrum") topLevelStatus = "SCRUM";
       else if (p.kind === "kickoff") {
@@ -825,6 +835,7 @@ export const createRenderer = (
       if (p.kind === "openPlay") phaseDesc = "Open play";
       else if (p.kind === "ruck")
         phaseDesc = `Ruck ${p.stage} - ${p.tempo} ${p.play}${p.counterRuck ? " - counter ruck" : ""}`;
+      else if (p.kind === "maul") phaseDesc = `Maul ${p.stage}`;
       else if (p.kind === "lineout") phaseDesc = `Lineout ${p.stage}`;
       else if (p.kind === "scrum") phaseDesc = `Scrum ${p.stage}`;
       else if (p.kind === "kickoff") {
@@ -838,11 +849,15 @@ export const createRenderer = (
       else phaseDesc = (p as { kind: string }).kind;
 
       // Update TV broadcast bug
-      if (tvTeam0) tvTeam0.classList.toggle("possession", game.possessionTeam === 0);
-      if (tvTeam1) tvTeam1.classList.toggle("possession", game.possessionTeam === 1);
-      if (tvTeam0Name) tvTeam0Name.textContent = TEAMS[0].name.toUpperCase();
+      if (tvTeam0)
+        tvTeam0.classList.toggle("possession", game.possessionTeam === 0);
+      if (tvTeam1)
+        tvTeam1.classList.toggle("possession", game.possessionTeam === 1);
+      if (tvTeam0Name)
+        tvTeam0Name.textContent = game.teams[0].name.toUpperCase();
       if (tvTeam0Score) tvTeam0Score.textContent = game.scores[0].toString();
-      if (tvTeam1Name) tvTeam1Name.textContent = TEAMS[1].name.toUpperCase();
+      if (tvTeam1Name)
+        tvTeam1Name.textContent = game.teams[1].name.toUpperCase();
       if (tvTeam1Score) tvTeam1Score.textContent = game.scores[1].toString();
       if (tvClock) tvClock.textContent = `${mins}:${secs}`;
       if (tvHalf) tvHalf.textContent = shortHalf;
@@ -852,6 +867,14 @@ export const createRenderer = (
         tvMeters.textContent = `${sign}${game.distanceGained.toFixed(0)}m`;
       }
       if (tvStatus) tvStatus.textContent = topLevelStatus;
+      const showShotClock =
+        (p.kind === "conversion" && p.stage !== "inFlight") ||
+        (p.kind === "penalty" && p.choice === "goal" && p.stage !== "inFlight");
+      if (tvShotClock) {
+        tvShotClock.hidden = !showShotClock;
+        if (showShotClock)
+          tvShotClock.textContent = `SHOT ${Math.max(0, Math.ceil(30 - p.elapsed * 6))}`;
+      }
 
       if (scoreboard) {
         if (debugMode) {
@@ -865,7 +888,7 @@ export const createRenderer = (
 
       // Update Manager View live data when open
       if (managerOpen && managerTeamSummary && managerRosterTbody) {
-        const teamDef = TEAMS[selectedManagerTeam];
+        const teamDef = game.teams[selectedManagerTeam];
         const teamPlayers = game.players.filter(
           (p) => p.team === selectedManagerTeam,
         );
@@ -944,12 +967,12 @@ export const createRenderer = (
             (sum, p) => sum + p.stats.penaltiesConceded,
             0,
           );
+          const setPieces = game.teamStats[selectedManagerTeam];
 
           const tacklePct =
             totalTacklesMade + totalTacklesMissed > 0
               ? Math.round(
-                  (totalTacklesMade /
-                    (totalTacklesMade + totalTacklesMissed)) *
+                  (totalTacklesMade / (totalTacklesMade + totalTacklesMissed)) *
                     100,
                 )
               : 100;
@@ -979,6 +1002,10 @@ export const createRenderer = (
               <span class="summary-label">Discipline & Errors</span>
               <span class="summary-val">${totalKnockOns} knock-ons · ${totalPens} pens conceded</span>
             </div>
+            <div class="summary-item">
+              <span class="summary-label">Contests Won / Lost</span>
+              <span class="summary-val">Ruck ${setPieces.rucksWon}/${setPieces.rucksLost} · Maul ${setPieces.maulsWon}/${setPieces.maulsLost} · Scrum ${setPieces.scrumsWon}/${setPieces.scrumsLost} · Lineout ${setPieces.lineoutsWon}/${setPieces.lineoutsLost}</span>
+            </div>
           `;
 
           const activeRows = teamPlayers
@@ -998,8 +1025,8 @@ export const createRenderer = (
                   <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
-                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? 'color:#f87171;' : 'color:#64748b;'}">${s.knockOns}</span></td>
-                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? 'color:#ef4444;' : 'color:#64748b;'}">${s.penaltiesConceded}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? "color:#f87171;" : "color:#64748b;"}">${s.knockOns}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? "color:#ef4444;" : "color:#64748b;"}">${s.penaltiesConceded}</span></td>
                 </tr>
               `;
             })
@@ -1022,8 +1049,8 @@ export const createRenderer = (
                   <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
-                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? 'color:#f87171;' : 'color:#64748b;'}">${s.knockOns}</span></td>
-                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? 'color:#ef4444;' : 'color:#64748b;'}">${s.penaltiesConceded}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? "color:#f87171;" : "color:#64748b;"}">${s.knockOns}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? "color:#ef4444;" : "color:#64748b;"}">${s.penaltiesConceded}</span></td>
                 </tr>
               `;
             })
@@ -1066,7 +1093,7 @@ export const createRenderer = (
             </div>
             <div class="summary-item">
               <span class="summary-label">Tendency</span>
-              <span class="summary-val">Carry ${Math.round(teamDef.tendencies.carry * 100)}% · Pass ${Math.round(teamDef.tendencies.pass * 100)}% · Kick ${Math.round(teamDef.tendencies.kick * 100)}%</span>
+              <span class="summary-val">Carry ${Math.round(teamDef.tendencies.carry * 100)}% · Pass ${Math.round(teamDef.tendencies.pass * 100)}% · Kick ${Math.round(teamDef.tendencies.kick * 100)}% · Maul ${Math.round(teamDef.tendencies.maul * 100)}%</span>
             </div>
           `;
 
@@ -1156,9 +1183,7 @@ export const createRenderer = (
       debugOverlay.style.display = "block";
 
       const activeCam = scene.activeCamera as
-        | FreeCamera
-        | UniversalCamera
-        | null;
+        FreeCamera | UniversalCamera | null;
       if (!activeCam) return;
       const transformMatrix = scene.getTransformMatrix();
       const renderWidth = engine.getRenderWidth();
@@ -1219,7 +1244,7 @@ export const createRenderer = (
 
           card.innerHTML = `
             <div class="debug-card-header">
-              <span>#${player.number} ${player.role} (${TEAMS[player.team].name})</span>
+              <span>#${player.number} ${player.role} (${game.teams[player.team].name})</span>
               ${carrierBadge} ${offsideBadge}
             </div>
             <div class="debug-card-row">
@@ -1293,7 +1318,7 @@ export const createRenderer = (
           ).toFixed(1);
           const lastTouch =
             game.ball.lastTouchedTeam !== null
-              ? TEAMS[game.ball.lastTouchedTeam].name
+              ? game.teams[game.ball.lastTouchedTeam].name
               : "None";
 
           ballCard.innerHTML = `

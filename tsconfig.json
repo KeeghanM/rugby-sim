@@ -10,11 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
     "noEmit": true,
-    "types": [
-      "vite/client"
-    ]
+    "types": ["vite/client"]
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }
