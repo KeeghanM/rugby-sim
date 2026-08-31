@@ -43,11 +43,47 @@ export const attemptTackle = (state: GameState, random: Random) => {
   // Abort when no current carrier exists.
   if (!carrier) return false;
   if (carrier.breakawaySeconds > 0) return false;
+
+  const defTeam = otherTeam(carrier.team);
+  const defDir = attackDirection(defTeam);
+  const offsideLineZ = state.defensiveLineZ[defTeam];
+
+  // Law 10 & 15: Players ahead of the offside line / still in ruck recovery are offside
+  const isOffside = (p: Player) => {
+    if (p.ruckRecoverySeconds > 0) return true;
+    if (p.kickOffside) return true;
+    return (p.position.z - offsideLineZ) * defDir > 0.45;
+  };
+
+  // Check for illegal tackle by an offside defender -> immediate penalty!
+  const offsideTackler = state.players
+    .filter(
+      (player) =>
+        player.team !== carrier.team &&
+        player.tackleCooldown === 0 &&
+        isOffside(player) &&
+        distance(player.position, carrier.position) <= 1.25,
+    )
+    .sort(
+      (a, b) =>
+        distance(a.position, carrier.position) -
+        distance(b.position, carrier.position),
+    )[0];
+
+  if (offsideTackler) {
+    offsideTackler.tackleCooldown = 1.5;
+    offsideTackler.stats.penaltiesConceded += 1;
+    startPenalty(state, carrier.team, carrier.position, offsideTackler, random);
+    return true;
+  }
+
+  // Legal onside tackler
   const tackler = state.players
     .filter(
       (player) =>
         player.team !== carrier.team &&
         player.tackleCooldown === 0 &&
+        !isOffside(player) &&
         distance(player.position, carrier.position) <= 1.4,
     )
     .sort(
@@ -55,7 +91,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
         distance(a.position, carrier.position) -
         distance(b.position, carrier.position),
     )[0];
-  // Abort when no defender is close and ready enough to tackle.
+  // Abort when no legal onside defender is close and ready enough to tackle.
   if (!tackler) return false;
   tackler.tackleCooldown = 0.5;
   tackler.stamina = Math.max(0, tackler.stamina - 1.5);

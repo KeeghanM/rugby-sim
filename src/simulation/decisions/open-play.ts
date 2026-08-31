@@ -202,6 +202,24 @@ export const getOpenPlayCommands = (
         );
       }
 
+      const defDir = attackDirection(player.team);
+      const offsideZ = state.defensiveLineZ[player.team];
+      const isPlayerOffside = (player.position.z - offsideZ) * defDir > 0.45;
+
+      if (isPlayerOffside && !lineBroken && !isFullback) {
+        // Offside defender must retreat behind the defensive offside line
+        return command(
+          player,
+          {
+            x: player.laneX,
+            z: offsideZ - defDir * 1.5,
+          },
+          "retreat-onside",
+          false,
+          "run",
+        );
+      }
+
       const inTackleZone = player.id === tacklerId || distToCarrier <= 7;
       if (inTackleZone && distToCarrier < 14) {
         return command(

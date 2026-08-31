@@ -118,9 +118,19 @@ export const startRuck = (
   carrier.pendingBallAction = null;
   carrier.lineBreakActive = false;
 
+  // Law 14: Tackler must immediately release and roll away laterally from the ball/gate
+  const rollLateral = tackler.position.x >= carrier.position.x ? 1.6 : -1.6;
+  const defDir = attackDirection(tackler.team);
+  tackler.position.x = clamp(tackler.position.x + rollLateral, -33, 33);
+  tackler.position.z = clamp(tackler.position.z + defDir * 0.8, -58, 58);
+  tackler.ruckRecoverySeconds = 1.0; // rolling away and returning to feet
+
+  // Tackled carrier stays on ground presenting the ball
+  carrier.ruckRecoverySeconds = 999;
+
   const initialJoinedAttackers = [carrier.id];
-  const initialJoinedDefenders = [tackler.id];
-  const joinOrder = [carrier.id, tackler.id];
+  const initialJoinedDefenders: string[] = []; // tackler rolled away; cleaners arrive through gate
+  const joinOrder = [carrier.id];
 
   const excludeSet = new Set([carrier.id, tackler.id]);
   const attackers = [
@@ -135,20 +145,15 @@ export const startRuck = (
     ),
   ];
   const defenders = [
-    tackler.id,
     ...selectRuckTargeters(
       state,
       otherTeam(carrier.team),
       carrier.position,
-      1,
+      2,
       excludeSet,
       2,
     ),
   ];
-
-  // Only tackled carrier and tackler are frozen on ground initially
-  carrier.ruckRecoverySeconds = 999;
-  tackler.ruckRecoverySeconds = 999;
 
   state.ball = {
     position: { ...carrier.position, y: 0.15 },
