@@ -63,21 +63,6 @@ const createGoalPosts = (scene: Scene) => {
 
   buildPostSet("south-posts", PITCH.tryLines.south);
   buildPostSet("north-posts", PITCH.tryLines.north);
-
-  const createStand = (z: number, side: number) => {
-    const stand = CreateGround(
-      `${side}-stand-${z}`,
-      { width: 12, height: 40 },
-      scene,
-    );
-    stand.position.set(side * 41, 0.03, z);
-    const standMat = new StandardMaterial(`standMat-${side}-${z}`, scene);
-    standMat.diffuseColor = Color3.FromHexString("#475569");
-    standMat.specularColor = Color3.FromHexString("#1e293b");
-    stand.material = standMat;
-  };
-  createStand(0, 1);
-  createStand(0, -1);
 };
 
 export const createPitch = (scene: Scene) => {

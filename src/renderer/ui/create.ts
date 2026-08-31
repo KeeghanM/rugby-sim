@@ -93,15 +93,49 @@ export const createUI = (state: GameState) => {
   }
 
   let simulationSpeed = 1;
+  let previousSpeed = 1;
   let debugMode = false;
+
+  const updateSpeedDisplay = (speed: number) => {
+    if (!speedDisplay) return;
+    speedDisplay.textContent =
+      speed === 0 ? "0.0× (Paused)" : `${speed.toFixed(1)}×`;
+  };
+
   if (speedSlider) {
-    simulationSpeed = parseFloat(speedSlider.value) || 1;
+    const rawVal = parseFloat(speedSlider.value);
+    simulationSpeed = Number.isFinite(rawVal) ? Math.max(0, rawVal) : 1;
+    if (simulationSpeed > 0) previousSpeed = simulationSpeed;
+    updateSpeedDisplay(simulationSpeed);
+
     speedSlider.addEventListener("input", () => {
-      simulationSpeed = parseFloat(speedSlider.value) || 1;
-      if (speedDisplay)
-        speedDisplay.textContent = `${simulationSpeed.toFixed(1)}×`;
+      const val = parseFloat(speedSlider.value);
+      simulationSpeed = Number.isFinite(val) ? Math.max(0, val) : 1;
+      if (simulationSpeed > 0) previousSpeed = simulationSpeed;
+      updateSpeedDisplay(simulationSpeed);
     });
   }
+
+  // Spacebar toggle pause/resume
+  window.addEventListener("keydown", (e) => {
+    if (
+      e.key === " " &&
+      document.activeElement?.tagName !== "INPUT" &&
+      document.activeElement?.tagName !== "TEXTAREA"
+    ) {
+      e.preventDefault();
+      if (simulationSpeed > 0) {
+        previousSpeed = simulationSpeed;
+        simulationSpeed = 0;
+      } else {
+        simulationSpeed = previousSpeed > 0 ? previousSpeed : 1.0;
+      }
+      if (speedSlider) {
+        speedSlider.value = String(simulationSpeed);
+      }
+      updateSpeedDisplay(simulationSpeed);
+    }
+  });
   if (debugToggle) {
     debugMode = debugToggle.checked;
     debugToggle.addEventListener("change", () => {

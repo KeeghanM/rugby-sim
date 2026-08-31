@@ -19,10 +19,11 @@ createMatchSetup(pregame, teams, () => {
 
 engine.runRenderLoop(() => {
   if (!state || !renderer) return;
-  const deltaSeconds =
-    (Math.min(engine.getDeltaTime(), 100) / 1000) *
-    renderer.getSimulationSpeed();
-  updateGame(state, deltaSeconds);
+  const speed = renderer.getSimulationSpeed();
+  if (speed > 0) {
+    const deltaSeconds = (Math.min(engine.getDeltaTime(), 100) / 1000) * speed;
+    updateGame(state, deltaSeconds);
+  }
   renderer.sync(state);
   renderer.scene.render();
 });

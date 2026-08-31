@@ -44,7 +44,8 @@ export const createCameras = (
   scene.activeCamera = broadcastCam;
 
   const positionBroadcastCamera = () => {
-    const d = BASE_BROADCAST_DIST * zoom;
+    // Higher zoom = closer distance to pitch (zoomed in)
+    const d = BASE_BROADCAST_DIST / zoom;
     if (cameraMode === "halfway") {
       broadcastCam.position.set(d, d, 0);
     } else if (cameraMode === "goalLine") {
@@ -210,11 +211,67 @@ export const createCameras = (
     }
   });
 
+  const FREE_BASE_SPEED = 2.2;
+  const FREE_MAX_SPEED = 15.0;
+  let moveHoldTime = 0;
+  const moveKeys = new Set([
+    "w",
+    "a",
+    "s",
+    "d",
+    "q",
+    "e",
+    "arrowup",
+    "arrowdown",
+    "arrowleft",
+    "arrowright",
+  ]);
+
   const heldKeys = new Set<string>();
   window.addEventListener("keydown", (e) => heldKeys.add(e.key.toLowerCase()));
   window.addEventListener("keyup", (e) => heldKeys.delete(e.key.toLowerCase()));
 
   const ballTarget = new Vector3(0, 0, 0);
+  const panTarget = new Vector3(0, 0, 0);
+  let isPanning = false;
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (cameraMode !== "free") {
+      isPanning = true;
+      lastPointerX = e.clientX;
+      lastPointerY = e.clientY;
+    }
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!isPanning || cameraMode === "free") return;
+    const dx = e.clientX - lastPointerX;
+    const dy = e.clientY - lastPointerY;
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+
+    const panFactor = 0.22 / zoom;
+
+    if (cameraMode === "halfway") {
+      // Screen X maps to World Z; Screen Y maps to World X
+      panTarget.z -= dx * panFactor;
+      panTarget.x -= dy * panFactor;
+    } else if (cameraMode === "goalLine") {
+      const sign = goalLineSide === "south" ? 1 : -1;
+      panTarget.x -= dx * panFactor * sign;
+      panTarget.z -= dy * panFactor * sign;
+    }
+
+    // Clamp within pitch and stadium bounds
+    panTarget.x = Math.max(-42, Math.min(42, panTarget.x));
+    panTarget.z = Math.max(-65, Math.min(65, panTarget.z));
+  });
+
+  window.addEventListener("pointerup", () => {
+    isPanning = false;
+  });
 
   updateCamButtons();
   updateCameraControls();
@@ -232,16 +289,41 @@ export const createCameras = (
       applyZoomImmediate();
     },
     sync: (game: GameState) => {
-      if (cameraMode !== "free" && autoFollowBall) {
-        ballTarget.set(game.ball.position.x, 0, game.ball.position.z);
+      if (cameraMode !== "free") {
+        if (autoFollowBall) {
+          ballTarget.set(game.ball.position.x, 0, game.ball.position.z);
+          // Sync pan target with ball when tracking
+          panTarget.copyFrom(ballTarget);
+        }
         const curTarget = broadcastCam.getTarget();
-        const nextTarget = Vector3.Lerp(curTarget, ballTarget, 0.09);
+        const nextTarget = Vector3.Lerp(
+          curTarget,
+          autoFollowBall ? ballTarget : panTarget,
+          autoFollowBall ? 0.09 : 0.2,
+        );
         broadcastCam.setTarget(nextTarget);
       } else if (cameraMode === "free") {
-        if (heldKeys.has("q"))
-          freeCam.position.y = Math.max(2, freeCam.position.y - 0.22);
-        if (heldKeys.has("e"))
-          freeCam.position.y = Math.min(180, freeCam.position.y + 0.22);
+        const isMoving = Array.from(heldKeys).some((k) => moveKeys.has(k));
+        if (isMoving) {
+          moveHoldTime = Math.min(2.5, moveHoldTime + 0.035);
+        } else {
+          moveHoldTime = Math.max(0, moveHoldTime - 0.12);
+        }
+
+        const ramp = Math.pow(moveHoldTime / 2.5, 1.4);
+        const shiftBoost = heldKeys.has("shift") ? 1.8 : 1.0;
+        const currentSpeed =
+          (FREE_BASE_SPEED + (FREE_MAX_SPEED - FREE_BASE_SPEED) * ramp) *
+          shiftBoost;
+        freeCam.speed = currentSpeed;
+
+        const vertSpeed = (0.35 + ramp * 1.5) * shiftBoost;
+        if (heldKeys.has("q")) {
+          freeCam.position.y = Math.max(1.5, freeCam.position.y - vertSpeed);
+        }
+        if (heldKeys.has("e")) {
+          freeCam.position.y = Math.min(220, freeCam.position.y + vertSpeed);
+        }
       }
     },
   };

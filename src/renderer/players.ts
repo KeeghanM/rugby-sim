@@ -1,98 +1,404 @@
 import {
   Color3,
+  CreateBox,
   CreateCylinder,
   CreateGround,
   CreateSphere,
+  DynamicTexture,
   StandardMaterial,
+  Vector4,
 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
-import type { GameState } from "../domain.ts";
+import type { GameState, Player } from "../domain.ts";
 import { PITCH } from "../domain.ts";
 
+const hexToRgb = (hex: string): [number, number, number] => {
+  const clean = hex.replace("#", "");
+  const num = parseInt(
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean,
+    16,
+  );
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+};
+
+const getLuminance = (hex: string): number => {
+  const [r, g, b] = hexToRgb(hex);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+};
+
+const colorDistance = (c1: string, c2: string): number => {
+  const [r1, g1, b1] = hexToRgb(c1);
+  const [r2, g2, b2] = hexToRgb(c2);
+  const rMean = (r1 + r2) / 2;
+  const deltaR = r1 - r2;
+  const deltaG = g1 - g2;
+  const deltaB = b1 - b2;
+  return Math.sqrt(
+    (2 + rMean / 256) * deltaR * deltaR +
+      4 * deltaG * deltaG +
+      (2 + (255 - rMean) / 256) * deltaB * deltaB,
+  );
+};
+
+const REF_PALETTE = [
+  "#facc15",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+  "#a855f7",
+  "#ffffff",
+  "#18181b",
+  "#84cc16",
+];
+
+const getContrastingRefColor = (color0: string, color1: string): string => {
+  let bestColor = REF_PALETTE[0];
+  let maxMinDistance = -1;
+  for (const candidate of REF_PALETTE) {
+    const d0 = colorDistance(candidate, color0);
+    const d1 = colorDistance(candidate, color1);
+    const dPitch = colorDistance(candidate, "#3f9b0b");
+    const score = Math.min(d0, d1, dPitch * 1.1);
+    if (score > maxMinDistance) {
+      maxMinDistance = score;
+      bestColor = candidate;
+    }
+  }
+  return bestColor;
+};
+const SKIN_TONES = [
+  "#fcd34d",
+  "#fca5a5",
+  "#d97706",
+  "#b45309",
+  "#78350f",
+  "#fed7aa",
+  "#fef08a",
+  "#e2a76f",
+];
+
+const HAIR_COLORS = [
+  "#18181b",
+  "#3b2314",
+  "#713f12",
+  "#1c1917",
+  "#451a03",
+  "#854d0e",
+  "#292524",
+];
+
+// Creates a 512x512 dynamic texture for player jersey with big bold number on back
+const createPlayerTexture = (
+  scene: Scene,
+  player: Player,
+  teamColorHex: string,
+) => {
+  const dTex = new DynamicTexture(
+    `player-tex-${player.id}`,
+    { width: 512, height: 512 },
+    scene,
+    false,
+  );
+  const ctx = dTex.getContext() as unknown as CanvasRenderingContext2D;
+
+  const isLightJersey = getLuminance(teamColorHex) > 135;
+  const numColor = isLightJersey ? "#0f172a" : "#ffffff";
+  const numOutline = isLightJersey ? "#ffffff" : "#000000";
+  const shortsColor = isLightJersey ? "#1e293b" : "#f8fafc";
+  const collarColor = isLightJersey ? "#0f172a" : "#ffffff";
+
+  // Individual hair & skin tone
+  const seed = (player.number * 7 + player.slotIndex * 13) % 100;
+  const hairColor = HAIR_COLORS[seed % HAIR_COLORS.length];
+  const skinTone = SKIN_TONES[(seed * 3) % SKIN_TONES.length];
+
+  // Base background
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 512);
+
+  // === 1. BACK (X: 0 to 180, Y: 0 to 512) ===
+  // Upper back neck / hair trim
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(0, 0, 180, 20);
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(35, 20, 110, 18);
+
+  // Jersey body
+  ctx.fillStyle = teamColorHex;
+  ctx.fillRect(0, 38, 180, 322);
+
+  // Collar band
+  ctx.fillStyle = collarColor;
+  ctx.fillRect(25, 38, 130, 20);
+
+  // Athletic seams
+  ctx.strokeStyle = "rgba(0,0,0,0.18)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(25, 40);
+  ctx.lineTo(35, 360);
+  ctx.moveTo(155, 40);
+  ctx.lineTo(145, 360);
+  ctx.stroke();
+
+  // Large Bold Player Number on Back
+  const numStr = String(player.number);
+  ctx.font = "900 150px 'Arial Black', Impact, 'Segoe UI Black', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = numOutline;
+  ctx.strokeText(numStr, 90, 195);
+  ctx.fillStyle = numColor;
+  ctx.fillText(numStr, 90, 195);
+
+  // Rugby shorts (back)
+  ctx.fillStyle = shortsColor;
+  ctx.fillRect(0, 360, 180, 152);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 360, 180, 12); // waistband
+
+  // === 2. FRONT (X: 180 to 360, Y: 0 to 512) ===
+  // Face / neck area
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(180, 0, 180, 48);
+
+  // Hair trim at top of forehead
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(180, 0, 180, 14);
+
+  // Jersey body
+  ctx.fillStyle = teamColorHex;
+  ctx.fillRect(180, 48, 180, 312);
+
+  // Collar V-neck
+  ctx.fillStyle = collarColor;
+  ctx.beginPath();
+  ctx.moveTo(235, 48);
+  ctx.lineTo(270, 85);
+  ctx.lineTo(305, 48);
+  ctx.fill();
+
+  // Front chest band / team stripe
+  ctx.fillStyle = isLightJersey ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.24)";
+  ctx.fillRect(180, 120, 180, 36);
+
+  // Small chest number / badge
+  ctx.font = "bold 38px 'Arial Black', sans-serif";
+  ctx.fillStyle = numColor;
+  ctx.strokeStyle = numOutline;
+  ctx.lineWidth = 4;
+  ctx.strokeText(numStr, 315, 138);
+  ctx.fillText(numStr, 315, 138);
+
+  // Rugby shorts (front)
+  ctx.fillStyle = shortsColor;
+  ctx.fillRect(180, 360, 180, 152);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(180, 360, 180, 12); // waistband
+
+  // === 3. SIDES (X: 360 to 450, Y: 0 to 512) ===
+  // Hair side / ear
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(360, 0, 90, 20);
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(360, 20, 90, 24);
+
+  // Jersey sleeve
+  ctx.fillStyle = teamColorHex;
+  ctx.fillRect(360, 44, 90, 160);
+  // Sleeve cuff
+  ctx.fillStyle = collarColor;
+  ctx.fillRect(360, 192, 90, 12);
+
+  // Skin arms
+  ctx.fillStyle = skinTone;
+  ctx.fillRect(360, 204, 90, 156);
+
+  // Shorts side
+  ctx.fillStyle = shortsColor;
+  ctx.fillRect(360, 360, 90, 152);
+  // Shorts side stripe
+  ctx.fillStyle = teamColorHex;
+  ctx.fillRect(398, 360, 14, 152);
+
+  // === 4. TOP (Head/Hair) & BOTTOM (Boots) (X: 450 to 512, Y: 0 to 512) ===
+  // Top (Head of Hair)
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(450, 0, 62, 256);
+  // Hair texture highlights
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillRect(455, 30, 52, 10);
+  ctx.fillRect(458, 80, 46, 12);
+  ctx.fillRect(455, 140, 52, 10);
+
+  // Bottom (Boots & Socks)
+  ctx.fillStyle = teamColorHex;
+  ctx.fillRect(450, 256, 62, 120); // socks
+  ctx.fillStyle = "#090d16";
+  ctx.fillRect(450, 376, 62, 136); // boots
+
+  dTex.update(true);
+  return dTex;
+};
+
+// Dynamic texture for referee with "REF" on back
+const createRefereeTexture = (scene: Scene, refColorHex: string) => {
+  const dTex = new DynamicTexture(
+    "ref-tex",
+    { width: 512, height: 512 },
+    scene,
+    false,
+  );
+  const ctx = dTex.getContext() as unknown as CanvasRenderingContext2D;
+
+  const isLight = getLuminance(refColorHex) > 135;
+  const textColor = isLight ? "#0f172a" : "#ffffff";
+  const textOutline = isLight ? "#ffffff" : "#000000";
+
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 512);
+
+  // === 1. BACK (X: 0..180) ===
+  ctx.fillStyle = "#18181b"; // hair
+  ctx.fillRect(0, 0, 180, 20);
+  ctx.fillStyle = "#fed7aa"; // neck
+  ctx.fillRect(35, 20, 110, 18);
+
+  ctx.fillStyle = refColorHex;
+  ctx.fillRect(0, 38, 180, 322);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(25, 38, 130, 20); // collar
+
+  ctx.font = "900 110px 'Arial Black', Impact, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = textOutline;
+  ctx.strokeText("REF", 90, 195);
+  ctx.fillStyle = textColor;
+  ctx.fillText("REF", 90, 195);
+
+  // Ref shorts (back)
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 360, 180, 152);
+
+  // === 2. FRONT (X: 180..360) ===
+  ctx.fillStyle = "#fed7aa"; // face/neck
+  ctx.fillRect(180, 0, 180, 48);
+  ctx.fillStyle = "#18181b"; // hair
+  ctx.fillRect(180, 0, 180, 14);
+
+  ctx.fillStyle = refColorHex;
+  ctx.fillRect(180, 48, 180, 312);
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(205, 48, 130, 20); // collar
+
+  // Chest pockets
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(200, 110, 50, 50);
+  ctx.fillRect(290, 110, 50, 50);
+
+  // Ref shorts (front)
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(180, 360, 180, 152);
+
+  // === 3. SIDES (X: 360..450) ===
+  ctx.fillStyle = "#18181b";
+  ctx.fillRect(360, 0, 90, 20);
+  ctx.fillStyle = "#fed7aa";
+  ctx.fillRect(360, 20, 90, 24);
+
+  ctx.fillStyle = refColorHex;
+  ctx.fillRect(360, 44, 90, 160);
+  ctx.fillStyle = "#fed7aa";
+  ctx.fillRect(360, 204, 90, 156);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(360, 360, 90, 152);
+
+  // === 4. TOP & BOTTOM (X: 450..512) ===
+  ctx.fillStyle = "#18181b"; // full hair
+  ctx.fillRect(450, 0, 62, 256);
+  ctx.fillStyle = "#0f172a"; // boots
+  ctx.fillRect(450, 256, 62, 256);
+
+  dTex.update(true);
+  return dTex;
+};
+
 export const createPlayerViews = (scene: Scene, state: GameState) => {
+  // Texture strips:
+  // Strip 1: Back (0.0 to 0.35)
+  // Strip 2: Front (0.35 to 0.70)
+  // Strip 3: Sides (0.70 to 0.88)
+  // Strip 4: Top/Bottom (0.88 to 1.0)
+  //
+  // BabylonJS Box faceUV order:
+  // face 0: front (+Z) -> Strip 2 (Front) - v: 1.0 -> 0.0 (right-side up)
+  // face 1: back (-Z) -> Strip 1 (Back with number) - v: 0.0 -> 1.0 (right-side up)
+  // face 2: right (+X) -> Strip 3 (Sides) - v: 1.0 -> 0.0
+  // face 3: left (-X) -> Strip 3 (Sides) - v: 1.0 -> 0.0
+  // face 4: top (+Y) -> Strip 4 (Top/Head) - v: 0.5 -> 1.0 (shows hair)
+  // face 5: bottom (-Y) -> Strip 4 (Bottom/Boots) - v: 0.0 -> 0.5
+  const playerFaceUV = [
+    new Vector4(0.7, 1.0, 0.35, 0.0), // face 0: front (+Z)
+    new Vector4(0.0, 0.0, 0.35, 1.0), // face 1: back (-Z)
+    new Vector4(0.7, 1.0, 0.88, 0.0), // face 2: right (+X)
+    new Vector4(0.88, 1.0, 0.7, 0.0), // face 3: left (-X)
+    new Vector4(0.88, 0.5, 1.0, 1.0), // face 4: top (+Y)
+    new Vector4(0.88, 0.0, 1.0, 0.5), // face 5: bottom (-Y)
+  ];
   const views = new Map(
     state.players.map((player) => {
-      const mesh = CreateCylinder(
+      // Rugby player rectangular body
+      const width = Math.min(
+        1.1,
+        Math.max(0.8, 0.78 + (player.weight - 80) * 0.005),
+      );
+      const depth = 0.48;
+      const height = 1.92;
+
+      const mesh = CreateBox(
         player.id,
-        { diameter: player.weight / 100, height: 2 },
+        { width, depth, height, faceUV: playerFaceUV },
         scene,
       );
+
+      const teamColor = state.teams[player.team].color;
+      const texture = createPlayerTexture(scene, player, teamColor);
+
       const material = new StandardMaterial(`${player.id}-material`, scene);
-      material.diffuseColor = Color3.FromHexString(
-        state.teams[player.team].color,
-      );
+      material.diffuseTexture = texture;
+      material.specularColor = new Color3(0.08, 0.08, 0.08);
+      material.specularPower = 16;
       mesh.material = material;
+
+      // Initial rotation: Team 0 faces +Z (0), Team 1 faces -Z (Math.PI)
+      mesh.rotation.y = player.team === 0 ? 0 : Math.PI;
+
       return [player.id, { mesh, material }] as const;
     }),
   );
 
-  const REF_PALETTE = [
-    "#facc15",
-    "#ec4899",
-    "#06b6d4",
-    "#f97316",
-    "#a855f7",
-    "#ffffff",
-    "#18181b",
-    "#84cc16",
-  ];
-
-  const hexToRgb = (hex: string): [number, number, number] => {
-    const clean = hex.replace("#", "");
-    const num = parseInt(
-      clean.length === 3
-        ? clean
-            .split("")
-            .map((c) => c + c)
-            .join("")
-        : clean,
-      16,
-    );
-    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
-  };
-
-  const colorDistance = (c1: string, c2: string): number => {
-    const [r1, g1, b1] = hexToRgb(c1);
-    const [r2, g2, b2] = hexToRgb(c2);
-    const rMean = (r1 + r2) / 2;
-    const deltaR = r1 - r2;
-    const deltaG = g1 - g2;
-    const deltaB = b1 - b2;
-    return Math.sqrt(
-      (2 + rMean / 256) * deltaR * deltaR +
-        4 * deltaG * deltaG +
-        (2 + (255 - rMean) / 256) * deltaB * deltaB,
-    );
-  };
-
-  const getContrastingRefColor = (color0: string, color1: string): string => {
-    let bestColor = REF_PALETTE[0];
-    let maxMinDistance = -1;
-    for (const candidate of REF_PALETTE) {
-      const d0 = colorDistance(candidate, color0);
-      const d1 = colorDistance(candidate, color1);
-      const dPitch = colorDistance(candidate, "#3f9b0b");
-      const score = Math.min(d0, d1, dPitch * 1.1);
-      if (score > maxMinDistance) {
-        maxMinDistance = score;
-        bestColor = candidate;
-      }
-    }
-    return bestColor;
-  };
-
-  const refMesh = CreateCylinder(
-    "referee",
-    { diameter: 0.85, height: 1.95 },
-    scene,
-  );
   const refColorHex = getContrastingRefColor(
     state.teams[0].color,
     state.teams[1].color,
   );
+
+  const refMesh = CreateBox(
+    "referee",
+    { width: 0.82, depth: 0.44, height: 1.9, faceUV: playerFaceUV },
+    scene,
+  );
   const refMat = new StandardMaterial("referee-material", scene);
-  refMat.diffuseColor = Color3.FromHexString(refColorHex);
-  refMat.emissiveColor = Color3.FromHexString(refColorHex).scale(0.2);
+  refMat.diffuseTexture = createRefereeTexture(scene, refColorHex);
+  refMat.specularColor = new Color3(0.08, 0.08, 0.08);
   refMesh.material = refMat;
 
   const carrierMarker = CreateCylinder(
@@ -136,6 +442,7 @@ export const syncPlayers = (
 ) => {
   const ruckPhase = game.phase.kind === "ruck" ? game.phase : null;
   const maulPhase = game.phase.kind === "maul" ? game.phase : null;
+
   for (const player of game.players) {
     const view = views.get(player.id);
     if (!view) continue;
@@ -158,21 +465,34 @@ export const syncPlayers = (
       (maulPhase.attackers.includes(player.id) ||
         maulPhase.defenders.includes(player.id));
 
+    // Player yaw rotation based on velocity or team attack direction
+    const speed = Math.hypot(player.velocity.x, player.velocity.z);
+    let targetYaw = player.team === 0 ? 0 : Math.PI;
+    if (speed > 0.2) {
+      targetYaw = Math.atan2(player.velocity.x, player.velocity.z);
+    }
+
+    // Smooth yaw rotation
+    let diff = targetYaw - view.mesh.rotation.y;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    view.mesh.rotation.y += diff * 0.28;
+
     if (isTackledOrTackler) {
       view.mesh.rotation.x = Math.PI / 2;
-      view.mesh.position.set(player.position.x, 0.45, player.position.z);
+      view.mesh.position.set(player.position.x, 0.25, player.position.z);
     } else if (isRuckCleaner || isMaulBound) {
-      const leanDir = player.team === 0 ? 0.35 : -0.35;
+      const leanDir = player.team === 0 ? 0.38 : -0.38;
       view.mesh.rotation.x = leanDir;
       view.mesh.position.set(player.position.x, 0.85, player.position.z);
     } else {
       view.mesh.rotation.x = 0;
-      view.mesh.position.set(player.position.x, 1, player.position.z);
+      view.mesh.position.set(player.position.x, 0.96, player.position.z);
     }
 
     view.material.emissiveColor =
       player.id === game.ball.carrierId
-        ? view.material.diffuseColor.scale(0.35)
+        ? new Color3(0.25, 0.25, 0.08)
         : Color3.Black();
   }
 
@@ -193,12 +513,26 @@ export const syncPlayers = (
   } else {
     carrierMarker.setEnabled(false);
   }
+
   ball.position.set(
     game.ball.position.x,
     game.ball.position.y,
     game.ball.position.z,
   );
-  refMesh.position.set(game.referee.position.x, 1, game.referee.position.z);
+
+  // Referee position and facing
+  refMesh.position.set(game.referee.position.x, 0.95, game.referee.position.z);
+  const refSpeed = Math.hypot(game.referee.velocity.x, game.referee.velocity.z);
+  if (refSpeed > 0.2) {
+    const refTargetYaw = Math.atan2(
+      game.referee.velocity.x,
+      game.referee.velocity.z,
+    );
+    let rDiff = refTargetYaw - refMesh.rotation.y;
+    while (rDiff < -Math.PI) rDiff += Math.PI * 2;
+    while (rDiff > Math.PI) rDiff -= Math.PI * 2;
+    refMesh.rotation.y += rDiff * 0.25;
+  }
 
   const showGainLine =
     game.phase.kind === "openPlay" ||
