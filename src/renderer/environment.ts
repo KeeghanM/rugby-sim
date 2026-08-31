@@ -11,6 +11,7 @@ import {
   Vector4,
 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
+import type { GameState } from "../domain.ts";
 
 export const createEnvironment = (scene: Scene) => {
   // Extended green pitch runoff apron
@@ -545,6 +546,102 @@ export const createEnvironment = (scene: Scene) => {
   createCornerStand("corner-ne", 52, 73);
 
   // --- SCOREBOARD / JUMBOTRON VIDEO SCREENS ---
+  const scoreboardTextures: DynamicTexture[] = [];
+  let lastScoreKey = "";
+
+  const drawScoreboard = (tex: DynamicTexture, game?: GameState) => {
+    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+
+    ctx.fillStyle = "#090d16";
+    ctx.fillRect(0, 0, 1024, 512);
+
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, 1008, 496);
+
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(16, 16, 992, 70);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("RUGBY SIMULATOR", 512, 51);
+
+    if (!game) {
+      tex.update(true);
+      return;
+    }
+
+    const mins = Math.floor(game.matchClockSeconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = Math.floor(game.matchClockSeconds % 60)
+      .toString()
+      .padStart(2, "0");
+    const halfStr =
+      game.half === "fullTime"
+        ? "FULL TIME"
+        : game.half === 2
+          ? "2ND HALF"
+          : "1ST HALF";
+
+    // Team 0 (Left)
+    ctx.fillStyle = game.teams[0].color;
+    ctx.fillRect(40, 105, 420, 245);
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(40, 105, 420, 52);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 30px 'Segoe UI Black', Impact, sans-serif";
+    ctx.fillText(game.teams[0].name.toUpperCase(), 250, 131);
+    ctx.font = "900 135px 'Arial Black', Impact, sans-serif";
+    ctx.fillText(String(game.scores[0]), 250, 255);
+
+    // Center divider
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(470, 105, 84, 245);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 24px 'Segoe UI', sans-serif";
+    ctx.fillText("VS", 512, 227);
+
+    // Team 1 (Right)
+    ctx.fillStyle = game.teams[1].color;
+    ctx.fillRect(564, 105, 420, 245);
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(564, 105, 420, 52);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 30px 'Segoe UI Black', Impact, sans-serif";
+    ctx.fillText(game.teams[1].name.toUpperCase(), 774, 131);
+    ctx.font = "900 135px 'Arial Black', Impact, sans-serif";
+    ctx.fillText(String(game.scores[1]), 774, 255);
+
+    // Bottom Match Info Bar
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(40, 365, 944, 115);
+
+    // Live clock
+    ctx.fillStyle = "#facc15";
+    ctx.font = "bold 44px 'Courier New', monospace";
+    ctx.fillText(`${mins}:${secs}`, 240, 422);
+
+    // Match phase / state
+    const p: any = game.phase;
+    let statusText = p.kind.toUpperCase();
+    if (p.kind === "openPlay") statusText = "OPEN PLAY";
+    else if (p.kind === "ruck") statusText = `RUCK (PHASE ${game.phaseCount})`;
+    else if (p.kind === "maul") statusText = "MAUL";
+    else if (p.kind === "scrum") statusText = "SCRUM";
+    else if (p.kind === "lineout") statusText = "LINEOUT";
+    else if (p.kind === "conversion") statusText = "CONVERSION";
+    else if (p.kind === "kickoff")
+      statusText = p.reason === "goalLineDropout" ? "DROPOUT" : "KICKOFF";
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
+    ctx.fillText(`${halfStr} · ${statusText}`, 640, 422);
+
+    tex.update(true);
+  };
+
   const createScoreboardTexture = (title: string) => {
     const tex = new DynamicTexture(
       `scoreboard-tex-${title}`,
@@ -552,46 +649,8 @@ export const createEnvironment = (scene: Scene) => {
       scene,
       true,
     );
-    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
-
-    // Dark stadium scoreboard background
-    ctx.fillStyle = "#090d16";
-    ctx.fillRect(0, 0, 1024, 512);
-
-    // Outer border
-    ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 8;
-    ctx.strokeRect(8, 8, 1008, 496);
-
-    // Header banner
-    ctx.fillStyle = "#1e3a8a";
-    ctx.fillRect(16, 16, 992, 90);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 44px 'Segoe UI', Arial, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("🏉 RUGBY UNION SIMULATOR", 512, 75);
-
-    // Match status / time
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(40, 130, 944, 150);
-    ctx.fillStyle = "#facc15";
-    ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
-    ctx.fillText("LIVE MATCHDAY", 512, 175);
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "bold 48px 'Courier New', monospace";
-    ctx.fillText("STADIUM SCOREBOARD", 512, 245);
-
-    // Lower info bar
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(40, 310, 944, 160);
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
-    ctx.fillText("WORLD-CLASS RUGBY ARENA", 512, 365);
-    ctx.fillStyle = "#22c55e";
-    ctx.font = "bold 32px 'Segoe UI', Arial, sans-serif";
-    ctx.fillText("FULL TIME STATS & REVIEWS", 512, 425);
-
-    tex.update(true);
+    drawScoreboard(tex);
+    scoreboardTextures.push(tex);
     return tex;
   };
 
@@ -610,7 +669,6 @@ export const createEnvironment = (scene: Scene) => {
       { width: 20.8, height: 10, sideOrientation: 2 },
       scene,
     );
-    // Screen placed on the pitch-side face of the frame
     const pitchOffset = pos.z < 0 ? 0.65 : -0.65;
     screen.position.set(pos.x, pos.y, pos.z + pitchOffset);
     screen.rotation.y = rotY;
@@ -713,4 +771,16 @@ export const createEnvironment = (scene: Scene) => {
     head.rotation.y = Math.atan2(-base.x, -base.z);
     head.material = floodlightMat;
   }
+
+  return {
+    updateScoreboards: (game: GameState) => {
+      const key = `${game.scores[0]}-${game.scores[1]}-${Math.floor(game.matchClockSeconds)}-${game.half}-${game.phase.kind}-${game.phaseCount}`;
+      if (key !== lastScoreKey) {
+        lastScoreKey = key;
+        for (const tex of scoreboardTextures) {
+          drawScoreboard(tex, game);
+        }
+      }
+    },
+  };
 };

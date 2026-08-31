@@ -133,6 +133,10 @@ export const createGame = (
   referee: {
     position: { x: 6, z: 2 },
     velocity: { x: 0, z: 0 },
+    assistants: [
+      { position: { x: -36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "west" },
+      { position: { x: 36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "east" },
+    ],
   },
   phaseCount: 1,
   possessionTeam: 0,

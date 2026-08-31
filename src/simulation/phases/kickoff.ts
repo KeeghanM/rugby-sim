@@ -83,15 +83,18 @@ export const updateKickoff = (
       .filter((player) => player.team === phase.kickingTeam)
       .every((player) => (player.position.z - kickingTryLine) * kickDir <= 0.2);
 
+    const kickerHasBall = Boolean(kicker && state.ball.carrierId === kicker.id);
     const isGoalLine = phase.reason === "goalLineDropout";
     const isFormed = isGoalLine
       ? kickerReady &&
+        kickerHasBall &&
         allKickingBehindTryLine &&
         (inPlaceCount >= 22 || phase.readyForSeconds >= 8)
-      : (kickerReady && inPlaceCount >= 22) || phase.readyForSeconds >= 12;
+      : (kickerReady && kickerHasBall && inPlaceCount >= 22) ||
+        (kickerHasBall && phase.readyForSeconds >= 12);
 
-    // Transition to ready once kicker is set and team is largely formed, or after timeout
-    if (isFormed || phase.readyForSeconds >= 20) {
+    // Transition to ready once kicker has ball and team is largely formed
+    if (isFormed || (kickerHasBall && phase.readyForSeconds >= 20)) {
       phase.stage = "ready";
       phase.readyForSeconds = 0;
     }

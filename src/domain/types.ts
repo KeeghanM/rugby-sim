@@ -146,23 +146,30 @@ export type Ball = {
   bouncesRemaining: number;
 };
 
+export type AssistantReferee = {
+  position: Position;
+  velocity: Position;
+  side: "west" | "east";
+};
+
 export type Referee = {
   position: Position;
   velocity: Position;
+  assistants?: [AssistantReferee, AssistantReferee];
 };
 
 export type Phase =
   | { kind: "openPlay" }
   | {
       kind: "kickoff";
-      stage: "forming" | "ready" | "inFlight";
+      stage: "retrieval" | "forming" | "ready" | "inFlight";
       kickingTeam: Team;
       readyForSeconds: number;
       reason: "matchStart" | "try" | "goalLineDropout" | "halfTime";
     }
   | {
       kind: "ruck";
-      stage: "arrivals" | "secure" | "available";
+      stage: "arrivals" | "secure" | "available" | "passing";
       position: Position;
       attackingTeam: Team;
       tempo: "quick" | "slow";

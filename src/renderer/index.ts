@@ -16,15 +16,22 @@ export const createRenderer = (
   state: GameState,
 ) => {
   const scene = new Scene(engine);
-  createEnvironment(scene);
+  const env = createEnvironment(scene);
   createPitch(scene);
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.92;
   light.groundColor = Color3.FromHexString("#dbeafe");
 
-  const { views, refMesh, carrierMarker, gainLinePlane, ball } =
-    createPlayerViews(scene, state);
+  const {
+    views,
+    refMesh,
+    ar1Mesh,
+    ar2Mesh,
+    carrierMarker,
+    gainLinePlane,
+    ball,
+  } = createPlayerViews(scene, state);
   const cameras = createCameras(scene, canvas, state);
   const ui = createUI(state);
 
@@ -41,10 +48,13 @@ export const createRenderer = (
         game,
         views as any,
         refMesh as any,
+        ar1Mesh as any,
+        ar2Mesh as any,
         carrierMarker as any,
         gainLinePlane as any,
         ball as any,
       );
+      env.updateScoreboards(game);
       cameras.sync(game);
       syncUI(
         game,

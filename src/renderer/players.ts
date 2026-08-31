@@ -46,14 +46,14 @@ const colorDistance = (c1: string, c2: string): number => {
 };
 
 const REF_PALETTE = [
-  "#facc15",
-  "#ec4899",
-  "#06b6d4",
-  "#f97316",
-  "#a855f7",
-  "#ffffff",
-  "#18181b",
-  "#84cc16",
+  "#f43f5e", // vivid neon pink
+  "#ec4899", // hot pink
+  "#facc15", // volt yellow
+  "#06b6d4", // electric cyan
+  "#f97316", // bright orange
+  "#a855f7", // vivid purple
+  "#84cc16", // fluorescent lime
+  "#0284c7", // bright electric blue
 ];
 
 const getContrastingRefColor = (color0: string, color1: string): string => {
@@ -247,10 +247,14 @@ const createPlayerTexture = (
   return dTex;
 };
 
-// Dynamic texture for referee with "REF" on back
-const createRefereeTexture = (scene: Scene, refColorHex: string) => {
+// Dynamic texture for referee with custom label on back
+const createRefereeTexture = (
+  scene: Scene,
+  refColorHex: string,
+  label = "REF",
+) => {
   const dTex = new DynamicTexture(
-    "ref-tex",
+    `ref-tex-${label}`,
     { width: 512, height: 512 },
     scene,
     false,
@@ -280,9 +284,9 @@ const createRefereeTexture = (scene: Scene, refColorHex: string) => {
   ctx.textBaseline = "middle";
   ctx.lineWidth = 12;
   ctx.strokeStyle = textOutline;
-  ctx.strokeText("REF", 90, 195);
+  ctx.strokeText(label, 90, 195);
   ctx.fillStyle = textColor;
-  ctx.fillText("REF", 90, 195);
+  ctx.fillText(label, 90, 195);
 
   // Ref shorts (back)
   ctx.fillStyle = "#0f172a";
@@ -397,9 +401,28 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
     scene,
   );
   const refMat = new StandardMaterial("referee-material", scene);
-  refMat.diffuseTexture = createRefereeTexture(scene, refColorHex);
+  refMat.diffuseTexture = createRefereeTexture(scene, refColorHex, "REF");
   refMat.specularColor = new Color3(0.08, 0.08, 0.08);
   refMesh.material = refMat;
+
+  // 2x Assistant Referees (Touch Judges)
+  const arMat = new StandardMaterial("ar-material", scene);
+  arMat.diffuseTexture = createRefereeTexture(scene, refColorHex, "AR");
+  arMat.specularColor = new Color3(0.08, 0.08, 0.08);
+
+  const ar1Mesh = CreateBox(
+    "assistant-ref-1",
+    { width: 0.8, depth: 0.44, height: 1.88, faceUV: playerFaceUV },
+    scene,
+  );
+  ar1Mesh.material = arMat;
+
+  const ar2Mesh = CreateBox(
+    "assistant-ref-2",
+    { width: 0.8, depth: 0.44, height: 1.88, faceUV: playerFaceUV },
+    scene,
+  );
+  ar2Mesh.material = arMat;
 
   const carrierMarker = CreateCylinder(
     "carrierMarker",
@@ -429,13 +452,23 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
   ballMaterial.diffuseColor = Color3.FromHexString("#f5f5dc");
   ball.material = ballMaterial;
 
-  return { views, refMesh, carrierMarker, gainLinePlane, ball };
+  return {
+    views,
+    refMesh,
+    ar1Mesh,
+    ar2Mesh,
+    carrierMarker,
+    gainLinePlane,
+    ball,
+  };
 };
 
 export const syncPlayers = (
   game: GameState,
   views: Map<string, { mesh: any; material: any }>,
   refMesh: any,
+  ar1Mesh: any,
+  ar2Mesh: any,
   carrierMarker: any,
   gainLinePlane: any,
   ball: any,
@@ -459,7 +492,7 @@ export const syncPlayers = (
       Math.hypot(
         player.position.x - ruckPhase.position.x,
         player.position.z - ruckPhase.position.z,
-      ) <= 1.8;
+      ) <= 2.2;
     const isMaulBound =
       maulPhase !== null &&
       (maulPhase.attackers.includes(player.id) ||
@@ -485,6 +518,23 @@ export const syncPlayers = (
       const leanDir = player.team === 0 ? 0.38 : -0.38;
       view.mesh.rotation.x = leanDir;
       view.mesh.position.set(player.position.x, 0.85, player.position.z);
+    } else if (player.ruckRecoverySeconds > 0) {
+      // Disengaging / getting back up in reverse order after ruck
+      const leanDir = player.team === 0 ? 0.38 : -0.38;
+      if (player.ruckRecoverySeconds > 1.8) {
+        // Still prone on ground
+        view.mesh.rotation.x = Math.PI / 2;
+        view.mesh.position.set(player.position.x, 0.25, player.position.z);
+      } else {
+        // Pushing up / rising
+        const progress = player.ruckRecoverySeconds / 1.8;
+        view.mesh.rotation.x = leanDir * progress;
+        view.mesh.position.set(
+          player.position.x,
+          0.96 - 0.25 * progress,
+          player.position.z,
+        );
+      }
     } else {
       view.mesh.rotation.x = 0;
       view.mesh.position.set(player.position.x, 0.96, player.position.z);
@@ -532,6 +582,32 @@ export const syncPlayers = (
     while (rDiff < -Math.PI) rDiff += Math.PI * 2;
     while (rDiff > Math.PI) rDiff -= Math.PI * 2;
     refMesh.rotation.y += rDiff * 0.25;
+  }
+
+  // Assistant Referees position and facing
+  if (game.referee.assistants && ar1Mesh && ar2Mesh) {
+    const ar1 = game.referee.assistants[0];
+    const ar2 = game.referee.assistants[1];
+    ar1Mesh.position.set(ar1.position.x, 0.95, ar1.position.z);
+    ar2Mesh.position.set(ar2.position.x, 0.95, ar2.position.z);
+
+    const ar1Speed = Math.hypot(ar1.velocity.x, ar1.velocity.z);
+    let ar1TargetYaw = Math.PI / 2; // facing East into pitch
+    if (ar1Speed > 0.2)
+      ar1TargetYaw = Math.atan2(ar1.velocity.x, ar1.velocity.z);
+    let rDiff1 = ar1TargetYaw - ar1Mesh.rotation.y;
+    while (rDiff1 < -Math.PI) rDiff1 += Math.PI * 2;
+    while (rDiff1 > Math.PI) rDiff1 -= Math.PI * 2;
+    ar1Mesh.rotation.y += rDiff1 * 0.25;
+
+    const ar2Speed = Math.hypot(ar2.velocity.x, ar2.velocity.z);
+    let ar2TargetYaw = -Math.PI / 2; // facing West into pitch
+    if (ar2Speed > 0.2)
+      ar2TargetYaw = Math.atan2(ar2.velocity.x, ar2.velocity.z);
+    let rDiff2 = ar2TargetYaw - ar2Mesh.rotation.y;
+    while (rDiff2 < -Math.PI) rDiff2 += Math.PI * 2;
+    while (rDiff2 > Math.PI) rDiff2 -= Math.PI * 2;
+    ar2Mesh.rotation.y += rDiff2 * 0.25;
   }
 
   const showGainLine =

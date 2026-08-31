@@ -195,38 +195,29 @@ export const updateRuck = (
 
   const distributorAtBase = distance(distributor.position, ruckBasePos) <= 1.4;
 
-  // Extraction time calculation:
-  // Base time: quick ball 0.6s, slow ball 1.6s
-  // Plus extra time per player in ruck (harder to dig out with more bodies/weight)
-  const totalInRuck =
-    phase.joinedAttackers.length + phase.joinedDefenders.length;
-  const bodyDelay = Math.max(0, totalInRuck - 2) * 0.3;
-  const weightContest =
-    groupStrength(state, phase.joinedDefenders) /
-    Math.max(1, groupStrength(state, phase.joinedAttackers));
-  const contestDelay = clamp(weightContest * 0.35, 0, 0.7);
-  const skillBonus = effectiveSkill(distributor, "passing") * 0.35;
-  const requiredExtractionTime = Math.max(
-    0.35,
-    (phase.tempo === "quick" ? 0.6 : 1.6) +
-      bodyDelay +
-      contestDelay -
-      skillBonus,
-  );
-
   if (phase.stage === "secure") {
-    if (distributorAtBase && phase.elapsed >= requiredExtractionTime) {
+    // Distributor approaches base of ruck
+    if (distributorAtBase || phase.elapsed >= 3.5) {
       phase.stage = "available";
       phase.elapsed = 0;
-    } else if (phase.elapsed >= 5.5) {
-      phase.stage = "available";
-      phase.elapsed = 0;
+      // Nine gets hands on ball at base of ruck
+      state.ball.carrierId = distributor.id;
+      state.ball.flight = null;
+      state.ball.position = {
+        x: distributor.position.x,
+        y: 0.5,
+        z: distributor.position.z,
+      };
     }
     return;
   }
 
+  // Nine pauses at base of ruck surveying receivers before delivering pass
   if (phase.stage === "available") {
-    executeRuckPlay(state, random);
+    const pauseTime = phase.tempo === "quick" ? 0.45 : 0.95;
+    if (phase.elapsed >= pauseTime) {
+      executeRuckPlay(state, random);
+    }
   }
 };
 
