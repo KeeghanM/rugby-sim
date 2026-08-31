@@ -58,8 +58,9 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
   // --- 2. SET PIECE MARKS: Referee is first to the mark ---
   if (phase.kind === "lineout") {
     const touchSide = phase.position.x < 0 ? -1 : 1;
-    // Referee sprints directly to the 5m line mark of the lineout to set the tunnel
-    const targetX = touchSide * (PITCH.touchLines.right - 5.0);
+    // Referee stands at the TAIL / END of the lineout line (3m past the last jumper)
+    // looking straight down the tunnel towards the hooker on the touchline
+    const targetX = touchSide * 15.0;
     const targetZ = phase.position.z;
     const dx = targetX - state.referee.position.x;
     const dz = targetZ - state.referee.position.z;

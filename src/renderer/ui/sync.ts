@@ -110,10 +110,21 @@ export const syncUI = (
   if (tvTeam1Score) tvTeam1Score.textContent = game.scores[1].toString();
   if (tvClock) tvClock.textContent = `${mins}:${secs}`;
   if (tvHalf) tvHalf.textContent = shortHalf;
-  if (tvPhasePill) tvPhasePill.textContent = `PHASE ${game.phaseCount}`;
+
+  // Phase and Gain metrics only show during open play / rucks / mauls
+  const isOpenPlayOrRuck =
+    p.kind === "openPlay" || p.kind === "ruck" || p.kind === "maul";
+
+  if (tvPhasePill) {
+    tvPhasePill.hidden = !isOpenPlayOrRuck;
+    if (isOpenPlayOrRuck) tvPhasePill.textContent = `PHASE ${game.phaseCount}`;
+  }
   if (tvMeters) {
-    const sign = game.distanceGained >= 0 ? "+" : "";
-    tvMeters.textContent = `${sign}${game.distanceGained.toFixed(0)}m`;
+    tvMeters.hidden = !isOpenPlayOrRuck;
+    if (isOpenPlayOrRuck) {
+      const sign = game.distanceGained >= 0 ? "+" : "";
+      tvMeters.textContent = `${sign}${game.distanceGained.toFixed(0)}m`;
+    }
   }
   if (tvStatus) tvStatus.textContent = topLevelStatus;
   const showShotClock =

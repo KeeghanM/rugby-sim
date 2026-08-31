@@ -626,14 +626,27 @@ export const createEnvironment = (scene: Scene) => {
     // Match phase / state
     const p: any = game.phase;
     let statusText = p.kind.toUpperCase();
-    if (p.kind === "openPlay") statusText = "OPEN PLAY";
-    else if (p.kind === "ruck") statusText = `RUCK (PHASE ${game.phaseCount})`;
-    else if (p.kind === "maul") statusText = "MAUL";
-    else if (p.kind === "scrum") statusText = "SCRUM";
-    else if (p.kind === "lineout") statusText = "LINEOUT";
-    else if (p.kind === "conversion") statusText = "CONVERSION";
-    else if (p.kind === "kickoff")
-      statusText = p.reason === "goalLineDropout" ? "DROPOUT" : "KICKOFF";
+    if (p.kind === "openPlay") {
+      statusText =
+        game.ball.flight === "dropGoal"
+          ? "DROP GOAL"
+          : `OPEN PLAY · ${game.distanceGained >= 0 ? "+" : ""}${game.distanceGained.toFixed(0)}M`;
+    } else if (p.kind === "ruck") {
+      statusText = `RUCK (PHASE ${game.phaseCount}) · ${game.distanceGained >= 0 ? "+" : ""}${game.distanceGained.toFixed(0)}M`;
+    } else if (p.kind === "maul") {
+      statusText = `MAUL · ${game.distanceGained >= 0 ? "+" : ""}${game.distanceGained.toFixed(0)}M`;
+    } else if (p.kind === "scrum") {
+      statusText = "SCRUM";
+    } else if (p.kind === "lineout") {
+      statusText = "LINEOUT";
+    } else if (p.kind === "conversion") {
+      statusText = "CONVERSION KICK";
+    } else if (p.kind === "penalty") {
+      statusText = p.choice === "goal" ? "PENALTY KICK AT GOAL" : "PENALTY";
+    } else if (p.kind === "kickoff") {
+      statusText =
+        p.reason === "goalLineDropout" ? "GOAL-LINE DROPOUT" : "KICKOFF";
+    }
 
     ctx.fillStyle = "#38bdf8";
     ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";

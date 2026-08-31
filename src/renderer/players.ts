@@ -692,16 +692,26 @@ export const syncPlayers = (
   refMesh.setEnabled(!isRefCam);
   refMesh.position.set(game.referee.position.x, 0.95, game.referee.position.z);
   const refSpeed = Math.hypot(game.referee.velocity.x, game.referee.velocity.z);
+
+  let refTargetYaw = refMesh.rotation.y;
   if (refSpeed > 0.2) {
-    const refTargetYaw = Math.atan2(
-      game.referee.velocity.x,
-      game.referee.velocity.z,
-    );
-    let rDiff = refTargetYaw - refMesh.rotation.y;
-    while (rDiff < -Math.PI) rDiff += Math.PI * 2;
-    while (rDiff > Math.PI) rDiff -= Math.PI * 2;
-    refMesh.rotation.y += rDiff * 0.25;
+    refTargetYaw = Math.atan2(game.referee.velocity.x, game.referee.velocity.z);
+  } else if (game.phase.kind === "lineout") {
+    // Referee at tail of lineout faces toward touchline looking down tunnel
+    const touchSide = game.phase.position.x < 0 ? -1 : 1;
+    refTargetYaw = touchSide < 0 ? -Math.PI / 2 : Math.PI / 2;
+  } else if (game.phase.kind === "scrum") {
+    // Referee beside scrum faces toward the tunnel
+    refTargetYaw =
+      game.referee.position.x > game.phase.position.x
+        ? -Math.PI / 2
+        : Math.PI / 2;
   }
+
+  let rDiff = refTargetYaw - refMesh.rotation.y;
+  while (rDiff < -Math.PI) rDiff += Math.PI * 2;
+  while (rDiff > Math.PI) rDiff -= Math.PI * 2;
+  refMesh.rotation.y += rDiff * 0.25;
 
   // Assistant Referees position and facing
   if (game.referee.assistants && ar1Mesh && ar2Mesh) {
