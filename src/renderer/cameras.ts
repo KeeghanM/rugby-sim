@@ -1,4 +1,4 @@
-import { FreeCamera, UniversalCamera, Vector3 } from "@babylonjs/core";
+import { FreeCamera, Matrix, UniversalCamera, Vector3 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "../domain.ts";
 import { attackDirection, PITCH, ROLES } from "../domain.ts";
@@ -52,8 +52,11 @@ export const createCameras = (
   let currentShot: DynamicShotType = "broadcast";
   let shotDuration = 0;
   let lastPhaseKind = "";
+  let ballOutOfViewTimer = 0;
   const desiredCamPos = new Vector3(52, 21, 0);
   const desiredTarget = new Vector3(0, 0, 0);
+  const ballPosVec = new Vector3();
+  const identityMat = Matrix.Identity();
 
   const FREE_BASE_SPEED = 2.2;
   const FREE_MAX_SPEED = 15.0;
@@ -201,9 +204,42 @@ export const createCameras = (
         const phaseChanged = phase.kind !== lastPhaseKind;
         lastPhaseKind = phase.kind;
 
+        // --- 0. BALL SCREEN VISIBILITY TRACKER ---
+        ballPosVec.set(ballX, ballY, ballZ);
+        const engine = scene.getEngine();
+        const renderW = engine.getRenderWidth();
+        const renderH = engine.getRenderHeight();
+
+        if (renderW > 0 && renderH > 0) {
+          const viewport = broadcastCam.viewport.toGlobal(renderW, renderH);
+          const projected = Vector3.Project(
+            ballPosVec,
+            identityMat,
+            scene.getTransformMatrix(),
+            viewport,
+          );
+
+          const isBallInView =
+            projected.z > 0 &&
+            projected.z < 1 &&
+            projected.x >= viewport.width * 0.04 &&
+            projected.x <= viewport.width * 0.96 &&
+            projected.y >= viewport.height * 0.04 &&
+            projected.y <= viewport.height * 0.96;
+
+          if (!isBallInView) {
+            ballOutOfViewTimer += 0.016;
+          } else {
+            ballOutOfViewTimer = Math.max(0, ballOutOfViewTimer - 0.032);
+          }
+        }
+
         // --- 1. DYNAMIC TV DIRECTOR (Main Gantry 90+% of the time, Ref Cam during setup) ---
         let chosenShot: DynamicShotType = "broadcast";
         let lerpRate = 0.06;
+
+        // If ball is out of shot for >1 second, force-cut to wide broadcast angle
+        const isBallLost = ballOutOfViewTimer >= 1.0;
 
         const isGoalKickPhase =
           phase.kind === "conversion" ||
@@ -213,7 +249,10 @@ export const createCameras = (
           (phase.kind === "scrum" || phase.kind === "lineout") &&
           phase.stage === "forming";
 
-        if (isGoalKickPhase && phase.stage === "inFlight") {
+        if (isBallLost) {
+          chosenShot = "broadcast";
+          lerpRate = 0.14; // quickly re-acquire ball
+        } else if (isGoalKickPhase && phase.stage === "inFlight") {
           // Goal line view during goal kick in flight
           chosenShot = "goalLine";
         } else if (isSetPieceSetup) {
