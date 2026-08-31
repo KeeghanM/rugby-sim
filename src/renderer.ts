@@ -18,6 +18,7 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "./domain.ts";
 import { PITCH } from "./domain.ts";
+import { isForward } from "./formations.ts";
 import { TEAMS } from "./teams.ts";
 
 export type CameraMode = "ball" | "halfway" | "free";
@@ -452,6 +453,51 @@ export const createRenderer = (
   const tvMeters = document.getElementById("tv-meters");
   const tvStatus = document.getElementById("tv-status");
 
+  // Manager View Elements
+  const managerModal = document.getElementById("manager-modal");
+  const managerViewBtn = document.getElementById("manager-view-btn");
+  const managerCloseBtn = document.getElementById("manager-close-btn");
+  const tabTeam0 = document.getElementById("tab-team-0");
+  const tabTeam1 = document.getElementById("tab-team-1");
+  const managerTeamSummary = document.getElementById("manager-team-summary");
+  const managerRosterTbody = document.getElementById("manager-roster-tbody");
+
+  let managerOpen = false;
+  let selectedManagerTeam: 0 | 1 = 0;
+
+  const setManagerOpen = (open: boolean) => {
+    managerOpen = open;
+    if (managerModal) {
+      managerModal.classList.toggle("active", open);
+    }
+  };
+
+  if (managerViewBtn) {
+    managerViewBtn.addEventListener("click", () => setManagerOpen(true));
+  }
+  if (managerCloseBtn) {
+    managerCloseBtn.addEventListener("click", () => setManagerOpen(false));
+  }
+  if (managerModal) {
+    managerModal.addEventListener("click", (e) => {
+      if (e.target === managerModal) setManagerOpen(false);
+    });
+  }
+  if (tabTeam0) {
+    tabTeam0.addEventListener("click", () => {
+      selectedManagerTeam = 0;
+      tabTeam0.classList.add("active");
+      tabTeam1?.classList.remove("active");
+    });
+  }
+  if (tabTeam1) {
+    tabTeam1.addEventListener("click", () => {
+      selectedManagerTeam = 1;
+      tabTeam1.classList.add("active");
+      tabTeam0?.classList.remove("active");
+    });
+  }
+
   if (controlsToggleBtn && uiControls) {
     controlsToggleBtn.addEventListener("click", () => {
       uiControls.classList.toggle("collapsed");
@@ -758,6 +804,113 @@ export const createRenderer = (
         } else {
           scoreboard.textContent = `${clockStr} | ${baseScore}`;
         }
+      }
+
+      // Update Manager View live data when open
+      if (managerOpen && managerTeamSummary && managerRosterTbody) {
+        const teamDef = TEAMS[selectedManagerTeam];
+        const teamPlayers = game.players.filter(
+          (p) => p.team === selectedManagerTeam,
+        );
+        const packWeight = teamPlayers
+          .filter((p) => isForward(p))
+          .reduce((sum, p) => sum + Math.round(p.weight), 0);
+
+        managerTeamSummary.innerHTML = `
+          <div class="summary-item">
+            <span class="summary-label">Attacking Style</span>
+            <span class="summary-val">${teamDef.name} — ${game.formations[selectedManagerTeam].openAttack}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">8-Man Pack Weight</span>
+            <span class="summary-val">${packWeight} kg</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Defensive Line Speed</span>
+            <span class="summary-val">${teamDef.lineSpeed.toFixed(1)} m/s (${game.formations[selectedManagerTeam].openDefence})</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Tendency</span>
+            <span class="summary-val">Carry ${Math.round(teamDef.tendencies.carry * 100)}% · Pass ${Math.round(teamDef.tendencies.pass * 100)}% · Kick ${Math.round(teamDef.tendencies.kick * 100)}%</span>
+          </div>
+        `;
+
+        // Render Active XV
+        const activeRows = teamPlayers
+          .map((player) => {
+            const avgSkill = Math.round(
+              (player.skills.decision +
+                player.skills.handling +
+                player.skills.passing +
+                player.skills.kicking +
+                player.skills.tackling) *
+                20,
+            );
+            const staminaClamped = Math.max(0, Math.min(100, player.stamina));
+            const staminaClass =
+              staminaClamped > 65
+                ? ""
+                : staminaClamped > 35
+                  ? "stamina-mid"
+                  : "stamina-low";
+
+            return `
+              <tr>
+                <td class="player-num-col">${player.number}</td>
+                <td class="player-role-col">
+                  ${player.role}
+                  <span class="player-pod-badge">${player.pod}</span>
+                </td>
+                <td>${Math.round(player.weight)}kg · ${player.speed.toFixed(1)}m/s</td>
+                <td><span class="skill-badge">★ ${avgSkill}</span></td>
+                <td>
+                  <div class="stamina-bar-container" title="Indicative Match Condition">
+                    <div class="stamina-bar-fill ${staminaClass}" style="width: ${staminaClamped}%;"></div>
+                  </div>
+                </td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        // Render Bench Substitutes
+        const benchSubs = game.substitutes.filter(
+          (s) => s.team === selectedManagerTeam,
+        );
+        const benchRows = benchSubs
+          .map((sub) => {
+            const avgSkill = Math.round(
+              (sub.skills.decision +
+                sub.skills.handling +
+                sub.skills.passing +
+                sub.skills.kicking +
+                sub.skills.tackling) *
+                20,
+            );
+            const statusLabel = sub.isUsed
+              ? `<span style="color:#94a3b8;font-size:0.75rem;">SUBBED ON</span>`
+              : `<span style="color:#4ade80;font-size:0.75rem;">READY</span>`;
+
+            return `
+              <tr style="opacity: ${sub.isUsed ? 0.6 : 0.95};">
+                <td class="player-num-col" style="color: #94a3b8;">${sub.number}</td>
+                <td class="player-role-col" style="color: #cbd5e1;">
+                  ${sub.role} (Sub)
+                  <span class="player-pod-badge">${sub.pod}</span>
+                </td>
+                <td>${Math.round(sub.weight)}kg · ${sub.speed.toFixed(1)}m/s</td>
+                <td><span class="skill-badge">★ ${avgSkill}</span></td>
+                <td>${statusLabel}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        managerRosterTbody.innerHTML = `
+          ${activeRows}
+          <tr><td colspan="5" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
+          ${benchRows}
+        `;
       }
 
       if (!debugOverlay) return;

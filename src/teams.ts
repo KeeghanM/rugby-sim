@@ -1,4 +1,4 @@
-import { type ActiveTeamFormations, type PlayerSkills, type Role, ROLES, type Team } from "./domain.ts";
+import { type ActiveTeamFormations, type PlayerSkills, type Pod, type Role, ROLES, type Team } from "./domain.ts";
 import type {
   KickoffAttackFormation,
   KickoffDefenceFormation,
@@ -11,6 +11,17 @@ import type {
 } from "./formations.ts";
 
 type Random = () => number;
+
+export const BENCH_SLOTS: readonly { number: number; role: Role; pod: Pod }[] = [
+  { number: 16, role: ROLES.Hooker, pod: "middle" },
+  { number: 17, role: ROLES.LooseHead, pod: "left" },
+  { number: 18, role: ROLES.TightHead, pod: "right" },
+  { number: 19, role: ROLES.Lock, pod: "left" },
+  { number: 20, role: ROLES.OpenSideFlanker, pod: "right" },
+  { number: 21, role: ROLES.ScrumHalf, pod: "backline" },
+  { number: 22, role: ROLES.FlyHalf, pod: "backline" },
+  { number: 23, role: ROLES.Wing, pod: "backline" },
+] as const;
 
 const KICKOFF_ATTACK_VARIANTS: readonly KickoffAttackFormation[] = ["balanced", "press", "split"];
 const KICKOFF_DEFENCE_VARIANTS: readonly KickoffDefenceFormation[] = ["deep", "pendulum", "splitField"];

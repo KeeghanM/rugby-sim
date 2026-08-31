@@ -112,7 +112,7 @@ const startRuck = (
   state.formations[1] = rollTeamFormations(1, random);
 };
 
-// Attempts nearest eligible defender's tackle against carrier.
+// Attempts nearest eligible defender's tackle against carrier, resolving tackle breaks and offloads
 export const attemptTackle = (state: GameState, random: Random) => {
   const carrier = state.players.find((player) => player.id === state.ball.carrierId);
   // Abort when no current carrier exists.
@@ -133,12 +133,52 @@ export const attemptTackle = (state: GameState, random: Random) => {
   if (!tackler) return false;
   tackler.tackleCooldown = 0.5;
   tackler.stamina = Math.max(0, tackler.stamina - 1.5);
-  // Low tackling skill / high fatigue introduces occasional slipped tackle / broken tackle
-  if (random() < (1 - effectiveSkill(tackler, "tackling")) * 0.18) {
+
+  const tacklerSkill = effectiveSkill(tackler, "tackling");
+  const carrierSkill = effectiveSkill(carrier, "handling");
+  const isAgileRunner =
+    !isForward(carrier) ||
+    carrier.role === ROLES.OpenSideFlanker ||
+    carrier.role === ROLES.NumberEight;
+
+  // 1. Offload in contact: if support runner is right behind, high handling skill allows offload before grounded
+  const direction = attackDirection(carrier.team);
+  const supportRunner = state.players.find(
+    (p) =>
+      p.team === carrier.team &&
+      p.id !== carrier.id &&
+      p.ruckRecoverySeconds === 0 &&
+      distance(p.position, carrier.position) <= 3.5 &&
+      (p.position.z - carrier.position.z) * direction <= 0.2,
+  );
+  if (supportRunner && random() < carrierSkill * 0.28) {
+    carrier.stamina = Math.max(0, carrier.stamina - 0.5);
     tackler.tackleCooldown = 1.0;
+    launchBall(
+      state,
+      carrier,
+      supportRunner.position,
+      "pass",
+      supportRunner.id,
+      random,
+    );
     return false;
   }
-  // Decisive tackle: contact brings down carrier into a ruck
+
+  // 2. Tackle break / evasion: agile backs and loose forwards running with speed can break arm tackles
+  const carrierSpeed = Math.hypot(carrier.velocity.x, carrier.velocity.z);
+  const breakChance =
+    (isAgileRunner ? 0.26 : 0.12) *
+    Math.min(1.3, carrierSpeed / 4.2) *
+    (1.15 - tacklerSkill * 0.35);
+
+  if (random() < breakChance) {
+    tackler.tackleCooldown = 1.2;
+    carrier.stamina = Math.max(0, carrier.stamina - 0.8);
+    return false;
+  }
+
+  // 3. Completed tackle: carrier brought down into a ruck
   startRuck(state, carrier, tackler, random);
   return true;
 };
@@ -499,7 +539,8 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
     .filter((player) => {
       const members =
         player.team === phase.throwingTeam ? throwingMembers : defendingMembers;
-      return members.includes(player.number);
+      const slotNum = (player.slotIndex ?? 0) + 1;
+      return members.includes(slotNum);
     })
     .every((player) => {
       const formation = state.formations[player.team];
@@ -527,12 +568,12 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
     const jumper = state.players.find(
       (player) =>
         player.team === phase.throwingTeam &&
-        throwingMembers.includes(player.number) &&
+        throwingMembers.includes((player.slotIndex ?? 0) + 1) &&
         player.role === ROLES.Lock,
     ) ?? state.players.find(
       (player) =>
         player.team === phase.throwingTeam &&
-        throwingMembers.includes(player.number),
+        throwingMembers.includes((player.slotIndex ?? 0) + 1),
     );
     // Wait when hooker or jumper is unavailable.
     if (!hooker || !jumper) return;

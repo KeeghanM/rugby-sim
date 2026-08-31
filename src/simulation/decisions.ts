@@ -42,14 +42,16 @@ const nearestOpponentDistance = (players: Player[], player: Player) =>
     Infinity,
   );
 
-// Reports whether carrier has passed every defender except sweeping fullback.
+// Reports whether carrier has passed every defender in their running corridor.
 const hasBrokenLine = (players: Player[], carrier: Player) => {
   const direction = attackDirection(carrier.team);
   return !players.some(
     (player) =>
       player.team !== carrier.team &&
       player.role !== ROLES.FullBack &&
-      (player.position.z - carrier.position.z) * direction > 0,
+      Math.abs(player.position.x - carrier.position.x) < 14 &&
+      (player.position.z - carrier.position.z) * direction > 0 &&
+      distance(player.position, carrier.position) < 35,
   );
 };
 
@@ -437,6 +439,14 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
     velocity: { ...player.velocity },
     intentTarget: { ...player.intentTarget },
   }));
+
+  // Full-time: whistle blown, match ended, all players stand
+  if (state.half === "fullTime") {
+    return players.map((player) =>
+      command(player, player.position, "full-time", true, "stand"),
+    );
+  }
+
   const phase = state.phase;
 
   // Hold kickoff formation until ball enters flight.
@@ -522,11 +532,12 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
           "run",
         );
       }
+      const slotOffset = (player.slotIndex ?? 7) - 7;
       if (player.team === phase.kickingTeam) {
         return command(
           player,
           {
-            x: (player.number - 8) * 3.5,
+            x: slotOffset * 3.5,
             z: clamp(phase.position.z - teamDir * 26, -55, 55),
           },
           "conversion-support",
@@ -537,7 +548,7 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       return command(
         player,
         {
-          x: (player.number - 8) * 4,
+          x: slotOffset * 4,
           z: clamp(phase.position.z + teamDir * 2, -58, 58),
         },
         "conversion-defence",
@@ -555,11 +566,12 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       if (isKicker) {
         return command(player, phase.position, "penalty-kicker", false, "run");
       }
+      const slotOffset = (player.slotIndex ?? 7) - 7;
       if (player.team === phase.awardedTeam) {
         return command(
           player,
           {
-            x: (player.number - 8) * 4,
+            x: slotOffset * 4,
             z: clamp(phase.position.z - teamDir * 5, -55, 55),
           },
           "penalty-attack",
@@ -570,7 +582,7 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       return command(
         player,
         {
-          x: (player.number - 8) * 4.5,
+          x: slotOffset * 4.5,
           z: clamp(phase.position.z + teamDir * 10, -55, 55),
         },
         "penalty-retreat",

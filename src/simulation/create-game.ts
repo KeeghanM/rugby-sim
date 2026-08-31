@@ -1,8 +1,8 @@
 import { attackDirection, type GameState } from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations.ts";
-import { getPlayerProfile, rollTeamFormations } from "../teams.ts";
+import { BENCH_SLOTS, getPlayerProfile, rollTeamFormations } from "../teams.ts";
 
-// Creates initial teams, ball, score, kickoff, and defensive lines.
+// Creates initial teams, bench substitutes, ball, score, kickoff, and defensive lines.
 export const createGame = (): GameState => ({
   players: ([0, 1] as const).flatMap((team) =>
     ATTACK_FORMATION.map((slot, index) => {
@@ -12,6 +12,7 @@ export const createGame = (): GameState => ({
         id: `team-${team}-player-${index + 1}`,
         team,
         number: index + 1,
+        slotIndex: index,
         role: slot.role,
         pod: slot.pod,
         position,
@@ -34,6 +35,23 @@ export const createGame = (): GameState => ({
       };
     }),
   ),
+  substitutes: ([0, 1] as const).flatMap((team) =>
+    BENCH_SLOTS.map((bench) => {
+      const profile = getPlayerProfile(team, bench.number, bench.role);
+      return {
+        id: `team-${team}-sub-${bench.number}`,
+        team,
+        number: bench.number,
+        role: bench.role,
+        pod: bench.pod,
+        speed: profile.speed,
+        weight: profile.weight,
+        skills: profile.skills,
+        isUsed: false,
+      };
+    }),
+  ),
+  recentSubstitution: null,
   ball: {
     position: { x: 0, y: 0.15, z: 0 },
     velocity: { x: 0, y: 0, z: 0 },

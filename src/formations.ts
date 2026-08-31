@@ -130,6 +130,12 @@ const clampX = (x: number) =>
 const clampZ = (z: number) =>
   Math.max(PITCH.tryLines.south + 1, Math.min(PITCH.tryLines.north - 1, z));
 
+// Safely resolves player position slot index (0 to 14) even after substitutions (#16-23)
+export const getSlotIndex = (player: Player): number =>
+  typeof player.slotIndex === "number"
+    ? Math.max(0, Math.min(14, player.slotIndex))
+    : Math.max(0, Math.min(14, (player.number - 1) % 15));
+
 export const isForward = (player: Pick<Player, "role">) => FORWARDS.has(player.role);
 
 export const getKickoffTarget = (
@@ -139,7 +145,8 @@ export const getKickoffTarget = (
   attackFormation: KickoffAttackFormation,
   defenceFormation: KickoffDefenceFormation,
 ): Position => {
-  const slot = ATTACK_FORMATION[player.number - 1];
+  const slotIdx = getSlotIndex(player);
+  const slot = ATTACK_FORMATION[slotIdx];
   // For goal-line dropouts, all kicking team players MUST be in-goal behind their own try line
   if (reason === "goalLineDropout") {
     const direction = attackDirection(kickingTeam);
@@ -149,18 +156,18 @@ export const getKickoffTarget = (
     if (player.team === kickingTeam) {
       return {
         x: isKicker ? 0 : slot.x,
-        z: tryLine - direction * (isKicker ? 0.5 : 1.8 + (player.number % 3) * 1.2),
+        z: tryLine - direction * (isKicker ? 0.5 : 1.8 + (slotIdx % 3) * 1.2),
       };
     }
     // Receiving team stands out on the pitch (18m-26m from goal line)
     return {
       x: slot.x,
-      z: tryLine + direction * (18 + (player.number % 4) * 2),
+      z: tryLine + direction * (18 + (slotIdx % 4) * 2),
     };
   }
   // Hold kicking side just behind halfway for normal restarts.
   if (player.team === kickingTeam) {
-    const kickoffSlot = KICKOFF_ATTACK_FORMATIONS[attackFormation][player.number - 1];
+    const kickoffSlot = KICKOFF_ATTACK_FORMATIONS[attackFormation][slotIdx];
     return {
       x: kickoffSlot.x,
       z: -attackDirection(player.team) * kickoffSlot.z,
@@ -168,7 +175,7 @@ export const getKickoffTarget = (
   }
   // Set receiving side inside its own 22 with fullback deepest.
   const receivingSlot =
-    KICKOFF_DEFENCE_FORMATIONS[defenceFormation][player.number - 1];
+    KICKOFF_DEFENCE_FORMATIONS[defenceFormation][slotIdx];
   return {
     x: receivingSlot.x,
     z: -attackDirection(player.team) * receivingSlot.z,
@@ -182,9 +189,10 @@ export const getOpenPlayTarget = (
   attackFormation: OpenAttackFormation = "balanced",
   defenceFormation: OpenDefenceFormation = "connected",
 ): Position => {
+  const slotIdx = getSlotIndex(player);
   const ballDirection = attackDirection(carrier.team);
   if (player.team === carrier.team) {
-    const slot = OPEN_ATTACK_FORMATIONS[attackFormation][player.number - 1];
+    const slot = OPEN_ATTACK_FORMATIONS[attackFormation][slotIdx];
     // Fullback on attack always holds deep sweeping cover behind the backline
     if (player.role === ROLES.FullBack) {
       return {
@@ -223,7 +231,7 @@ export const getOpenPlayTarget = (
   }
 
   // Defending line stays spread across the width of the pitch on the offside line
-  const slotX = DEFENCE_X[player.number - 1] ?? 0;
+  const slotX = DEFENCE_X[slotIdx] ?? 0;
   return {
     x: clampX(
       slotX * OPEN_DEFENCE_VARIANTS[defenceFormation].width +
@@ -242,6 +250,7 @@ export const getRuckTarget = (
   attackers: ReadonlySet<string>,
   defenders: ReadonlySet<string>,
 ): Position => {
+  const slotIdx = getSlotIndex(player);
   const direction = attackDirection(attackingTeam);
   const attacking = player.team === attackingTeam;
   const joins = attackers.has(player.id) || defenders.has(player.id);
@@ -264,12 +273,12 @@ export const getRuckTarget = (
 
   if (!attacking) {
     return {
-      x: clampX((DEFENCE_X[player.number - 1] ?? 0) + ruck.x * 0.25),
-      z: clampZ(ruck.z + direction * (0.5 + (player.number % 2) * 0.3)),
+      x: clampX((DEFENCE_X[slotIdx] ?? 0) + ruck.x * 0.25),
+      z: clampZ(ruck.z + direction * (0.5 + (slotIdx % 2) * 0.3)),
     };
   }
 
-  const slot = ATTACK_FORMATION[player.number - 1];
+  const slot = ATTACK_FORMATION[slotIdx];
   const podX = player.pod === "left" ? -14 : player.pod === "right" ? 14 : 0;
   return {
     x: clampX((isForward(player) ? podX : slot.x) + ruck.x * 0.2),
@@ -284,6 +293,7 @@ export const getLineoutTarget = (
   memberCount: LineoutMembers,
   nonParticipants: LineoutNonParticipants,
 ): Position => {
+  const slotIdx = getSlotIndex(player);
   const touchSide = mark.x < 0 ? -1 : 1;
   const throwing = player.team === throwingTeam;
   const teamDir = attackDirection(throwingTeam);
@@ -300,9 +310,10 @@ export const getLineoutTarget = (
   }
 
   const members = LINEOUT_MEMBER_VARIANTS[memberCount];
-  // Lineout participants form two parallel rows (5m to 15m from touch) across mark.z
-  if (members.includes(player.number)) {
-    const rank = members.indexOf(player.number);
+  // Match lineout members by forward position slot index (1=LH, 3=TH, 4=L, 5=L, 6=BF, 7=OF, 8=N8)
+  const slotNumber = slotIdx + 1;
+  if (members.includes(slotNumber)) {
+    const rank = members.indexOf(slotNumber);
     return {
       x: touchSide * (30 - rank * 2.0),
       z: clampZ(mark.z + (throwing ? -teamDir * 0.5 : teamDir * 0.5)),
@@ -323,7 +334,7 @@ export const getLineoutTarget = (
     : nonParticipants === "split" ? 12 : nonParticipants === "maulDefence" ? 10 : 10;
   const width = nonParticipants === "split" ? 0.9 : nonParticipants === "maulDefence" ? 0.55 : 0.65;
   return {
-    x: clampX(ATTACK_FORMATION[player.number - 1].x * width),
+    x: clampX(ATTACK_FORMATION[slotIdx].x * width),
     z: clampZ(mark.z + (throwing ? -teamDir * depth : teamDir * depth)),
   };
 };

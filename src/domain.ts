@@ -58,6 +58,7 @@ export type Player = {
   id: string;
   team: Team;
   number: number;
+  slotIndex: number;
   role: Role;
   pod: Pod;
   position: Position;
@@ -161,8 +162,22 @@ export type ActiveTeamFormations = {
   scrumDefence: "drift" | "manOnMan" | "blitz";
 };
 
+export type Substitute = {
+  id: string;
+  team: Team;
+  number: number;
+  role: Role;
+  pod: Pod;
+  speed: number;
+  weight: number;
+  skills: PlayerSkills;
+  isUsed: boolean;
+};
+
 export type GameState = {
   players: Player[];
+  substitutes: Substitute[];
+  recentSubstitution: string | null;
   ball: Ball;
   scores: [number, number];
   phase: Phase;
