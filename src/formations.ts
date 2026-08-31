@@ -10,6 +10,12 @@ import {
 } from "./domain.ts";
 
 type Slot = { role: Role; pod: Pod; x: number; z: number };
+export type KickoffAttackFormation = "balanced" | "press" | "split";
+export type KickoffDefenceFormation = "deep" | "pendulum" | "splitField";
+export type OpenAttackFormation = "balanced" | "tightPods" | "wide";
+export type OpenDefenceFormation = "connected" | "narrow" | "wide";
+export type LineoutMembers = 4 | 5 | 6 | 7;
+export type LineoutNonParticipants = "backline" | "split" | "maulDefence";
 
 export const ATTACK_FORMATION: readonly Slot[] = [
   { role: ROLES.LooseHead, pod: "left", x: -14, z: -3 },
@@ -28,6 +34,83 @@ export const ATTACK_FORMATION: readonly Slot[] = [
   { role: ROLES.Wing, pod: "backline", x: 30, z: -7 },
   { role: ROLES.FullBack, pod: "backline", x: 0, z: -18 },
 ] as const;
+
+// Provides team-selectable open-play attack widths and depths.
+export const OPEN_ATTACK_FORMATIONS: Record<
+  OpenAttackFormation,
+  readonly Slot[]
+> = {
+  balanced: ATTACK_FORMATION,
+  tightPods: ATTACK_FORMATION.map((slot) => ({
+    ...slot,
+    x: slot.pod === "backline" ? slot.x * 0.85 : slot.x * 0.68,
+    z: slot.z * 0.9,
+  })),
+  wide: ATTACK_FORMATION.map((slot) => ({
+    ...slot,
+    x: Math.max(-32, Math.min(32, slot.x * 1.12)),
+    z: slot.z * 1.15,
+  })),
+};
+
+// Provides three kicking-team restart shapes; fly-half always owns centre spot.
+export const KICKOFF_ATTACK_FORMATIONS: Record<
+  KickoffAttackFormation,
+  readonly Position[]
+> = {
+  balanced: ATTACK_FORMATION.map((slot, index) => ({
+    x: index === 9 ? 0 : slot.x,
+    z: index === 9 ? 1 : 1 + ((index + 1) % 3) * 1.5,
+  })),
+  press: ATTACK_FORMATION.map((slot, index) => ({
+    x: index === 9 ? 0 : slot.x * 0.9,
+    z: index === 9 ? 0.75 : 0.75 + ((index + 1) % 2) * 1.25,
+  })),
+  split: ATTACK_FORMATION.map((slot, index) => ({
+    x: index === 9 ? 0 : Math.max(-32, Math.min(32, slot.x * 1.12)),
+    z: index === 9 ? 1 : 1.5 + ((index + 1) % 4),
+  })),
+};
+
+// Provides receiving-team shapes inside own 22.
+export const KICKOFF_DEFENCE_FORMATIONS: Record<
+  KickoffDefenceFormation,
+  readonly Position[]
+> = {
+  deep: ATTACK_FORMATION.map((slot, index) => ({
+    x: slot.x,
+    z: index === 14 ? 38 : 30 + ((index + 1) % 4) * 2,
+  })),
+  pendulum: ATTACK_FORMATION.map((slot, index) => ({
+    x: slot.x * 0.92,
+    z: index === 14 ? 40 : slot.role === ROLES.Wing ? 35 : 30 + ((index + 1) % 3),
+  })),
+  splitField: ATTACK_FORMATION.map((slot, index) => ({
+    x: Math.max(-32, Math.min(32, slot.x * 1.08)),
+    z: index === 14 ? 36 : 31 + ((index + 1) % 4) * 1.5,
+  })),
+};
+
+// Defines which forwards stand in line for each legal lineout size.
+export const LINEOUT_MEMBER_VARIANTS: Record<
+  LineoutMembers,
+  readonly number[]
+> = {
+  4: [1, 4, 5, 8],
+  5: [1, 4, 5, 6, 8],
+  6: [1, 3, 4, 5, 6, 8],
+  7: [1, 3, 4, 5, 6, 7, 8],
+};
+
+// Provides defensive line width and fullback depth variants.
+const OPEN_DEFENCE_VARIANTS: Record<
+  OpenDefenceFormation,
+  { width: number; fullbackDepth: number }
+> = {
+  connected: { width: 1, fullbackDepth: 24 },
+  narrow: { width: 0.82, fullbackDepth: 22 },
+  wide: { width: 1.08, fullbackDepth: 27 },
+};
 
 const DEFENCE_X = [-18, -12, -6, 0, 6, 12, 18, -24, 24, -9, -30, -3, 3, 30];
 const FORWARDS = new Set<Role>([
@@ -51,6 +134,8 @@ export const getKickoffTarget = (
   player: Player,
   kickingTeam: Team,
   reason: "matchStart" | "try" | "goalLineDropout",
+  attackFormation: KickoffAttackFormation,
+  defenceFormation: KickoffDefenceFormation,
 ): Position => {
   const slot = ATTACK_FORMATION[player.number - 1];
   // Place goal-line dropout teams around their own line and receiving side near 22.
@@ -60,28 +145,38 @@ export const getKickoffTarget = (
     const depth = player.team === kickingTeam
       ? 1 + (player.number % 3)
       : 22 + (player.number % 4) * 2;
-    return { x: slot.x, z: tryLine + direction * depth };
+    return {
+      x: player.role === ROLES.FlyHalf && player.team === kickingTeam ? 0 : slot.x,
+      z: tryLine + direction * depth,
+    };
   }
   // Hold kicking side just behind halfway for normal restarts.
   if (player.team === kickingTeam) {
+    const kickoffSlot = KICKOFF_ATTACK_FORMATIONS[attackFormation][player.number - 1];
     return {
-      x: slot.x,
-      z: -attackDirection(player.team) * (1 + (player.number % 3) * 1.5),
+      x: kickoffSlot.x,
+      z: -attackDirection(player.team) * kickoffSlot.z,
     };
   }
   // Set receiving side inside its own 22 with fullback deepest.
-  const depth = player.role === ROLES.FullBack ? 38 : 30 + (player.number % 4) * 2;
-  return { x: slot.x, z: -attackDirection(player.team) * depth };
+  const receivingSlot =
+    KICKOFF_DEFENCE_FORMATIONS[defenceFormation][player.number - 1];
+  return {
+    x: receivingSlot.x,
+    z: -attackDirection(player.team) * receivingSlot.z,
+  };
 };
 
 export const getOpenPlayTarget = (
   player: Player,
   carrier: Player,
   defensiveLineZ?: number,
+  attackFormation: OpenAttackFormation = "balanced",
+  defenceFormation: OpenDefenceFormation = "connected",
 ): Position => {
   const ballDirection = attackDirection(carrier.team);
   if (player.team === carrier.team) {
-    const slot = ATTACK_FORMATION[player.number - 1];
+    const slot = OPEN_ATTACK_FORMATIONS[attackFormation][player.number - 1];
     const x =
       player.role === ROLES.ScrumHalf
         ? carrier.position.x + 4
@@ -95,14 +190,15 @@ export const getOpenPlayTarget = (
   }
 
   if (player.role === ROLES.FullBack) {
+    const variant = OPEN_DEFENCE_VARIANTS[defenceFormation];
     return {
       x: clampX(carrier.position.x * 0.55),
-      z: clampZ(carrier.position.z + ballDirection * 24),
+      z: clampZ(carrier.position.z + ballDirection * variant.fullbackDepth),
     };
   }
 
   return {
-    x: clampX(player.laneX),
+    x: clampX(player.laneX * OPEN_DEFENCE_VARIANTS[defenceFormation].width),
     z: clampZ(
       defensiveLineZ ?? carrier.position.z + ballDirection * 3.5,
     ),
@@ -155,21 +251,29 @@ export const getLineoutTarget = (
   player: Player,
   mark: Position,
   throwingTeam: Team,
+  memberCount: LineoutMembers,
+  nonParticipants: LineoutNonParticipants,
 ): Position => {
   const touchSide = mark.x < 0 ? -1 : 1;
   const throwing = player.team === throwingTeam;
   if (throwing && player.role === ROLES.Hooker) {
     return { x: touchSide * 34, z: mark.z };
   }
-  if (isForward(player)) {
+  const members = LINEOUT_MEMBER_VARIANTS[memberCount];
+  // Put selected forwards into line while remaining forwards join backs shape.
+  if (members.includes(player.number)) {
+    const rank = members.indexOf(player.number);
     return {
-      x: touchSide * (31 - (player.number - 1) * 2.2),
+      x: touchSide * (31 - rank * 2.2),
       z: clampZ(mark.z + attackDirection(throwingTeam) * (throwing ? -0.6 : 0.6)),
     };
   }
-  const depth = player.role === ROLES.FullBack ? 20 : 11;
+  const depth = player.role === ROLES.FullBack
+    ? nonParticipants === "maulDefence" ? 16 : 20
+    : nonParticipants === "split" ? 13 : nonParticipants === "maulDefence" ? 8 : 11;
+  const width = nonParticipants === "split" ? 0.9 : nonParticipants === "maulDefence" ? 0.55 : 0.65;
   return {
-    x: clampX(ATTACK_FORMATION[player.number - 1].x * 0.65),
+    x: clampX(ATTACK_FORMATION[player.number - 1].x * width),
     z: clampZ(mark.z + attackDirection(throwingTeam) * (throwing ? -depth : depth)),
   };
 };

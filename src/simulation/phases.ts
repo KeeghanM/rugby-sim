@@ -33,9 +33,28 @@ const chooseRuckPlay = (team: Team, position: Position, random: Random) => {
 };
 
 // Converts successful tackle into initialized ruck state.
-const startRuck = (state: GameState, carrier: Player, random: Random) => {
-  const attackers = closestForwards(state, carrier.team, carrier.position, 3);
-  const defenders = closestForwards(state, otherTeam(carrier.team), carrier.position, 2);
+const startRuck = (
+  state: GameState,
+  carrier: Player,
+  tackler: Player,
+  random: Random,
+) => {
+  carrier.pendingBallAction = null;
+  const attackers = [
+    carrier.id,
+    ...closestForwards(state, carrier.team, carrier.position, 3).filter(
+      (id) => id !== carrier.id,
+    ),
+  ];
+  const defenders = [
+    tackler.id,
+    ...closestForwards(
+      state,
+      otherTeam(carrier.team),
+      carrier.position,
+      2,
+    ).filter((id) => id !== tackler.id),
+  ];
   // Prevent carrier and committed cleaners from becoming immediate pass targets.
   for (const player of state.players) {
     if (
@@ -68,7 +87,12 @@ const startRuck = (state: GameState, carrier: Player, random: Random) => {
     elapsed: 0,
     attackers,
     defenders,
+    tackledPlayerId: carrier.id,
+    tacklerId: tackler.id,
   };
+  // Reverse phase direction only when contact reaches current touch-side limit.
+  if (carrier.position.x <= -25) state.attackFlow[carrier.team] = 1;
+  if (carrier.position.x >= 25) state.attackFlow[carrier.team] = -1;
 };
 
 // Attempts nearest eligible defender's tackle against carrier.
@@ -91,7 +115,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
   );
   // Leave play open when tackle probability check fails.
   if (random() >= chance) return false;
-  startRuck(state, carrier, random);
+  startRuck(state, carrier, tackler, random);
   return true;
 };
 
@@ -116,8 +140,6 @@ const executeRuckPlay = (state: GameState, random: Random) => {
   for (const player of state.players) {
     if (player.ruckRecoverySeconds > 0) player.ruckRecoverySeconds = 3;
   }
-  for (const player of state.players) player.laneX = player.position.x;
-
   // Give ball to nearest forward for pick-and-go.
   if (phase.play === "pickAndGo") {
     const runner = state.players
@@ -182,8 +204,21 @@ export const updateRuck = (state: GameState, deltaSeconds: number, random: Rando
     // Rebuild ruck sides and play when defence wins turnover.
     if (phase.winningTeam !== phase.attackingTeam) {
       phase.attackingTeam = phase.winningTeam;
-      phase.attackers = closestForwards(state, phase.attackingTeam, phase.position, 3);
-      phase.defenders = closestForwards(state, otherTeam(phase.attackingTeam), phase.position, 2);
+      phase.attackers = [
+        phase.tacklerId,
+        ...closestForwards(state, phase.attackingTeam, phase.position, 3).filter(
+          (id) => id !== phase.tacklerId,
+        ),
+      ];
+      phase.defenders = [
+        phase.tackledPlayerId,
+        ...closestForwards(
+          state,
+          otherTeam(phase.attackingTeam),
+          phase.position,
+          2,
+        ).filter((id) => id !== phase.tackledPlayerId),
+      ];
       // Mark newly committed turnover participants unavailable for immediate passes.
       for (const player of state.players) {
         if (phase.attackers.includes(player.id) || phase.defenders.includes(player.id)) {
@@ -236,7 +271,13 @@ export const updateKickoff = (
         (player) =>
           distance(
             player.position,
-            getKickoffTarget(player, phase.kickingTeam, phase.reason),
+            getKickoffTarget(
+              player,
+              phase.kickingTeam,
+              phase.reason,
+              TEAMS[phase.kickingTeam].formations.kickoffAttack,
+              TEAMS[player.team].formations.kickoffDefence,
+            ),
           ) <= 1,
       )
     ) {
@@ -295,7 +336,16 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
   // Wait for lineout formation or formation timeout.
   if (phase.stage === "forming") {
     const ready = state.players.every((player) =>
-      distance(player.position, getLineoutTarget(player, phase.position, phase.throwingTeam)) <= 1.5,
+      distance(
+        player.position,
+        getLineoutTarget(
+          player,
+          phase.position,
+          phase.throwingTeam,
+          TEAMS[player.team].formations.lineoutMembers,
+          TEAMS[player.team].formations.lineoutNonParticipants,
+        ),
+      ) <= 1.5,
     );
     // Continue forming before timeout while players remain out of place.
     if (!ready && phase.elapsed < 8) return;

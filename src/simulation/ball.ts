@@ -73,6 +73,8 @@ const startGoalLineDropout = (state: GameState, z: number) => {
 
 // Transfers grounded or caught ball into player possession.
 export const carryBall = (state: GameState, player: Player) => {
+  // Cancel stale preparations whenever possession changes hands.
+  for (const candidate of state.players) candidate.pendingBallAction = null;
   state.ball.carrierId = player.id;
   state.ball.flight = null;
   state.ball.intendedReceiverId = null;
@@ -82,6 +84,14 @@ export const carryBall = (state: GameState, player: Player) => {
   state.ball.kickOrigin = null;
   state.ball.bouncesRemaining = 0;
   for (const teammate of state.players) teammate.kickOffside = false;
+  // Initialize defending team line relative to carrier upon possession change
+  const direction = attackDirection(player.team);
+  const defendingTeam = otherTeam(player.team);
+  state.defensiveLineZ[defendingTeam] = clamp(
+    player.position.z + direction * 7,
+    PITCH.tryLines.south,
+    PITCH.tryLines.north,
+  );
 };
 
 // Converts a kick crossing touch into a forming opposition lineout.

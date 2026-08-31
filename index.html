@@ -5,9 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rugby Sim</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             padding: 0;
+            overflow: hidden;
+            background: #0f172a;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
         }
 
         #renderCanvas {
@@ -19,20 +27,252 @@
 
         #scoreboard {
             position: fixed;
-            z-index: 1;
+            z-index: 20;
             top: 1rem;
             left: 50%;
             transform: translateX(-50%);
-            padding: 0.6rem 1rem;
-            border-radius: 0.35rem;
-            background: rgb(0 0 0 / 75%);
-            color: white;
-            font: 600 1rem/1.2 system-ui, sans-serif;
+            padding: 0.55rem 1.1rem;
+            border-radius: 0.45rem;
+            background: rgb(15 23 42 / 85%);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgb(255 255 255 / 15%);
+            color: #f8fafc;
+            font: 600 0.95rem/1.2 system-ui, sans-serif;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+            white-space: nowrap;
+        }
+
+        #ui-controls {
+            position: fixed;
+            z-index: 20;
+            top: 1rem;
+            left: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 0.5rem;
+            background: rgb(15 23 42 / 85%);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgb(255 255 255 / 15%);
+            color: #f8fafc;
+            box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+            font-size: 0.82rem;
+            min-width: 190px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        .speed-val {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgb(56 189 248 / 60%);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border: none;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgb(56 189 248 / 60%);
+            transition: transform 0.1s;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding-top: 0.4rem;
+            border-top: 1px solid rgb(255 255 255 / 10%);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 18px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #334155;
+            transition: .2s;
+            border-radius: 18px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #38bdf8;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+
+        #debug-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+            display: none;
+        }
+
+        .debug-card {
+            position: absolute;
+            transform: translate(-50%, -100%) translateY(-8px);
+            background: rgb(15 23 42 / 92%);
+            border: 1px solid rgb(255 255 255 / 15%);
+            border-radius: 5px;
+            padding: 4px 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 9.5px;
+            line-height: 1.25;
+            color: #f1f5f9;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgb(0 0 0 / 50%);
+            display: none;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+
+        .debug-card.team-0 {
+            border-left: 3px solid #3b82f6;
+        }
+
+        .debug-card.team-1 {
+            border-left: 3px solid #ef4444;
+        }
+
+        .debug-card.ball-card {
+            border-left: 3px solid #facc15;
+        }
+
+        .debug-card-header {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 700;
+            font-size: 10px;
+            margin-bottom: 2px;
+            color: #ffffff;
+        }
+
+        .debug-card-row {
+            color: #94a3b8;
+        }
+
+        .debug-card-row .val {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .debug-card-row .highlight {
+            color: #facc15;
+            font-weight: 600;
+        }
+
+        .debug-badge {
+            display: inline-block;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 8.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-carrier {
+            background: #eab308;
+            color: #000;
+        }
+
+        .badge-offside {
+            background: #ef4444;
+            color: #fff;
         }
     </style>
 </head>
 <body>
+    <div id="ui-controls">
+        <div class="control-row">
+            <div class="control-header">
+                <span>Sim Speed</span>
+                <span id="speed-display" class="speed-val">1.0×</span>
+            </div>
+            <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1" />
+        </div>
+        <label class="toggle-row" for="debug-toggle">
+            <span>Debug Mode</span>
+            <div class="toggle-switch">
+                <input type="checkbox" id="debug-toggle" />
+                <span class="slider"></span>
+            </div>
+        </label>
+    </div>
     <output id="scoreboard" aria-live="polite"></output>
+    <div id="debug-overlay"></div>
     <canvas id="renderCanvas"></canvas>
     <script type="module" src="/src/index.ts"></script>
 </body>

@@ -15,6 +15,7 @@ export type PlayerCommand = {
   startHardLine?: boolean;
   decisionForSeconds?: number;
   effort: Effort;
+  freeze?: boolean;
 };
 
 export type Random = () => number;

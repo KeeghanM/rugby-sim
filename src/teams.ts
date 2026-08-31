@@ -1,4 +1,12 @@
 import { type PlayerSkills, type Role, ROLES, type Team } from "./domain.ts";
+import type {
+  KickoffAttackFormation,
+  KickoffDefenceFormation,
+  LineoutMembers,
+  LineoutNonParticipants,
+  OpenAttackFormation,
+  OpenDefenceFormation,
+} from "./formations.ts";
 
 type TeamDefinition = {
   name: string;
@@ -7,6 +15,14 @@ type TeamDefinition = {
   tendencies: { carry: number; pass: number; kick: number };
   speedMultiplier: number;
   weightMultiplier: number;
+  formations: {
+    kickoffAttack: KickoffAttackFormation;
+    kickoffDefence: KickoffDefenceFormation;
+    openAttack: OpenAttackFormation;
+    openDefence: OpenDefenceFormation;
+    lineoutMembers: LineoutMembers;
+    lineoutNonParticipants: LineoutNonParticipants;
+  };
   defaultSkills: PlayerSkills;
   playerOverrides: Partial<
     Record<
@@ -28,6 +44,14 @@ export const TEAMS: Record<Team, TeamDefinition> = {
     tendencies: { carry: 0.45, pass: 0.43, kick: 0.12 },
     speedMultiplier: 1.02,
     weightMultiplier: 0.98,
+    formations: {
+      kickoffAttack: "split",
+      kickoffDefence: "pendulum",
+      openAttack: "wide",
+      openDefence: "connected",
+      lineoutMembers: 6,
+      lineoutNonParticipants: "split",
+    },
     defaultSkills: {
       decision: 0.84,
       handling: 0.86,
@@ -49,6 +73,14 @@ export const TEAMS: Record<Team, TeamDefinition> = {
     tendencies: { carry: 0.57, pass: 0.28, kick: 0.15 },
     speedMultiplier: 0.98,
     weightMultiplier: 1.04,
+    formations: {
+      kickoffAttack: "press",
+      kickoffDefence: "deep",
+      openAttack: "tightPods",
+      openDefence: "narrow",
+      lineoutMembers: 5,
+      lineoutNonParticipants: "maulDefence",
+    },
     defaultSkills: {
       decision: 0.8,
       handling: 0.82,

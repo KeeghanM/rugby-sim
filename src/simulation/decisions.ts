@@ -75,7 +75,7 @@ const selectSupportRunners = (
       return {
         player,
         priority:
-          (preferred ? 0 : 20) +
+          (lineBroken ? -player.speed * 4 : preferred ? 0 : 20) +
           Math.max(
             0,
             (player.position.z - carrier.position.z) * direction,
@@ -94,6 +94,7 @@ const choosePassTarget = (
   players: Player[],
   carrier: Player,
   preferredRoles?: ReadonlySet<Player["role"]>,
+  flowDirection?: -1 | 1,
 ) =>
   players
     .filter(
@@ -102,6 +103,8 @@ const choosePassTarget = (
         player.id !== carrier.id &&
         player.ruckRecoverySeconds === 0 &&
         (!preferredRoles || preferredRoles.has(player.role)) &&
+        (!flowDirection ||
+          (player.position.x - carrier.position.x) * flowDirection >= 2) &&
         (player.position.z - carrier.position.z) * attackDirection(carrier.team) <= 0.5 &&
         (player.position.z - carrier.position.z) * attackDirection(carrier.team) >=
           (preferredRoles ? -12 : -5) &&
@@ -112,9 +115,16 @@ const choosePassTarget = (
       player,
       space: nearestOpponentDistance(players, player),
       gap: distance(player.position, carrier.position),
+      lateralGap: Math.abs(player.position.x - carrier.position.x),
       depth: Math.abs((player.position.z - carrier.position.z) * attackDirection(carrier.team)),
     }))
-    .sort((a, b) => a.depth - b.depth || b.space - a.space || a.gap - b.gap)[0]
+    .sort(
+      (a, b) =>
+        a.depth - b.depth ||
+        a.lateralGap - b.lateralGap ||
+        b.space - a.space ||
+        a.gap - b.gap,
+    )[0]
     ?.player;
 
 // Chooses a touch-finding clearance target downfield.
@@ -143,7 +153,25 @@ const chooseCarrierCommand = (
   random: Random,
 ): PlayerCommand => {
   const direction = attackDirection(carrier.team);
+  // Advance carrier smoothly while committed pass or kick preparation completes.
+  if (carrier.pendingBallAction) {
+    const isKick = carrier.pendingBallAction.kind === "kick";
+    return command(
+      carrier,
+      isKick
+        ? carrier.position
+        : { x: carrier.position.x, z: carrier.position.z + direction * 4 },
+      `prepare-${carrier.pendingBallAction.kind}`,
+      false,
+      isKick ? "stand" : "jog",
+    );
+  }
   const lineBroken = hasBrokenLine(players, carrier);
+  const flowDirection = carrier.position.x <= -25
+    ? 1
+    : carrier.position.x >= 25
+      ? -1
+      : state.attackFlow[carrier.team];
   // Sprint directly toward goal when primary defensive line is broken.
   if (lineBroken) {
     const sprint = command(
@@ -226,7 +254,12 @@ const chooseCarrierCommand = (
   const totalWeight = weighted.reduce((total, weight) => total + weight, 0);
   for (let index = 0; index < weighted.length; index += 1) weighted[index] /= totalWeight;
   const roll = random();
-  const passTarget = choosePassTarget(players, carrier);
+  const passTarget = choosePassTarget(
+    players,
+    carrier,
+    undefined,
+    flowDirection,
+  );
   // Carry straight when roll selects carry or no selected pass target exists.
   if (roll < weighted[0] || (!passTarget && roll < weighted[0] + weighted[1])) return result;
   // Pass when roll selects passing and a receiver exists.
@@ -340,7 +373,13 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
     return players.map((player) =>
       command(
         player,
-        getKickoffTarget(player, phase.kickingTeam, phase.reason),
+        getKickoffTarget(
+          player,
+          phase.kickingTeam,
+          phase.reason,
+          TEAMS[phase.kickingTeam].formations.kickoffAttack,
+          TEAMS[player.team].formations.kickoffDefence,
+        ),
         `kickoff-${phase.stage}`,
         false,
         phase.stage === "ready" ? "stand" : "run",
@@ -349,21 +388,43 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
   }
   // Hold lineout formation until throw enters flight.
   if (phase.kind === "lineout" && phase.stage !== "inFlight") {
-    return players.map((player) =>
-      command(
+    return players.map((player) => {
+      const formation = TEAMS[player.team].formations;
+      return command(
         player,
-        getLineoutTarget(player, phase.position, phase.throwingTeam),
+        getLineoutTarget(
+          player,
+          phase.position,
+          phase.throwingTeam,
+          formation.lineoutMembers,
+          formation.lineoutNonParticipants,
+        ),
         `lineout-${phase.stage}`,
         false,
         phase.stage === "ready" ? "stand" : "jog",
-      ),
-    );
+      );
+    });
   }
   // Position ruck participants and surrounding attacking shape.
   if (phase.kind === "ruck") {
     const attackers = new Set(phase.attackers);
     const defenders = new Set(phase.defenders);
     return players.map((player) => {
+      // Freeze tackled carrier and tackler exactly where contact ended.
+      if (
+        player.id === phase.tackledPlayerId ||
+        player.id === phase.tacklerId
+      ) {
+        const frozen = command(
+          player,
+          player.position,
+          "ruck-contact-frozen",
+          true,
+          "stand",
+        );
+        frozen.freeze = true;
+        return frozen;
+      }
       const joinsRuck = attackers.has(player.id) || defenders.has(player.id);
       return command(
         player,
@@ -414,8 +475,24 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
     // Let carrier-specific decision logic own carrier command.
     if (player.id === carrier.id) return chooseCarrierCommand(state, players, carrier, random);
     const attacking = player.team === carrier.team;
-    const target = getOpenPlayTarget(player, carrier, attacking ? undefined : state.defensiveLineZ[player.team]);
+    const target = getOpenPlayTarget(
+      player,
+      carrier,
+      attacking ? undefined : state.defensiveLineZ[player.team],
+      TEAMS[player.team].formations.openAttack,
+      TEAMS[player.team].formations.openDefence,
+    );
     const direction = attackDirection(player.team);
+    // Keep former ruck participants bound to contact area until recovery expires.
+    if (player.ruckRecoverySeconds > 0) {
+      return command(
+        player,
+        player.position,
+        "ruck-recovery",
+        true,
+        "stand",
+      );
+    }
     const supportIndex = supportRunnerIds.indexOf(player.id);
     // Drive selected support runners onto close inside and outside shoulders.
     if (supportIndex >= 0) {
@@ -434,12 +511,15 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
         },
         lineBroken ? "line-break-support" : "support",
         false,
-        lineBroken ? "sprint" : "run",
+        lineBroken || distance(player.position, carrier.position) > 8
+          ? "sprint"
+          : "run",
       );
     }
-    const offside = attacking && player.hardLineForSeconds === 0 && (player.position.z - carrier.position.z) * direction >= -0.5;
-    // Jog players ahead of carrier back toward eligibility without freezing whole team.
-    if (offside) {
+    const aheadDistance = (player.position.z - carrier.position.z) * direction;
+    const offside = attacking && player.hardLineForSeconds === 0 && aheadDistance >= 0;
+    // Jog players immediately ahead of carrier back behind ball without forcing deep forward pods to retreat across field.
+    if (offside && aheadDistance <= 8) {
       return command(
         player,
         { x: player.laneX, z: carrier.position.z - direction * 2.5 },
@@ -484,12 +564,19 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       hardLine.startHardLine = canRunHardLine;
       return hardLine;
     }
+    const formationGap = distance(player.position, target);
     return command(
       player,
       target,
       attacking ? `attack-${player.pod}` : "defence-line",
       false,
-      attacking ? "jog" : "run",
+      attacking
+        ? formationGap > 12
+          ? "sprint"
+          : formationGap > 2
+            ? "run"
+            : "jog"
+        : "run",
     );
   });
 };

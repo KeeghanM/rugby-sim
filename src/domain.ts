@@ -40,6 +40,20 @@ export type PlayerSkills = {
   tackling: number;
 };
 
+export type PendingBallAction =
+  | {
+      kind: "pass";
+      receiverId: string;
+      clearance: boolean;
+      remainingSeconds: number;
+    }
+  | {
+      kind: "kick";
+      target: Position;
+      flight: "kick" | "kickoff" | "lineout";
+      remainingSeconds: number;
+    };
+
 export type Player = {
   id: string;
   team: Team;
@@ -61,6 +75,7 @@ export type Player = {
   hardLineForSeconds: number;
   kickOffside: boolean;
   ruckRecoverySeconds: number;
+  pendingBallAction: PendingBallAction | null;
   skills: PlayerSkills;
 };
 
@@ -96,6 +111,8 @@ export type Phase =
       elapsed: number;
       attackers: string[];
       defenders: string[];
+      tackledPlayerId: string;
+      tacklerId: string;
     }
   | {
       kind: "lineout";
@@ -112,6 +129,7 @@ export type GameState = {
   phase: Phase;
   pendingClearanceKickerId: string | null;
   defensiveLineZ: [number, number];
+  attackFlow: [-1 | 1, -1 | 1];
 };
 
 export const attackDirection = (team: Team) => (team === 0 ? 1 : -1);

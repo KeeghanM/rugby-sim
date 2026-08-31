@@ -29,6 +29,7 @@ export const createGame = (): GameState => ({
         hardLineForSeconds: 0,
         kickOffside: false,
         ruckRecoverySeconds: 0,
+        pendingBallAction: null,
         skills: profile.skills,
       };
     }),
@@ -53,4 +54,5 @@ export const createGame = (): GameState => ({
   },
   pendingClearanceKickerId: null,
   defensiveLineZ: [-3, 3],
+  attackFlow: [1, -1],
 });
