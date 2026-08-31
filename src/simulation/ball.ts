@@ -14,7 +14,17 @@ export const launchBall = (
   random: Random = Math.random,
 ) => {
   const isKicking =
-    flight === "kick" || flight === "kickoff" || flight === "grubber";
+    flight === "kick" ||
+    flight === "kickoff" ||
+    flight === "grubber" ||
+    flight === "dropGoal";
+
+  if (flight === "pass" || flight === "lineout") {
+    carrier.stats.totalPasses += 1;
+  } else if (isKicking) {
+    carrier.stats.totalKicks += 1;
+  }
+
   const skill = isKicking
     ? effectiveSkill(carrier, "kicking")
     : effectiveSkill(carrier, "passing");
@@ -36,7 +46,9 @@ export const launchBall = (
       ? Math.max(0.35, horizontalDistance / 14)
       : isGrubber
         ? Math.max(0.65, horizontalDistance / 16)
-        : 2.2;
+        : flight === "dropGoal"
+          ? 1.8
+          : 2.2;
   state.ball = {
     position: { ...carrier.position, y: isGrubber ? 0.35 : 1.25 },
     velocity: {
@@ -48,6 +60,8 @@ export const launchBall = (
     flight,
     intendedReceiverId,
     lastTouchedTeam: carrier.team,
+    passerId: flight === "pass" || flight === "lineout" ? carrier.id : null,
+    kickerId: isKicking ? carrier.id : null,
     kickOrigin: isKicking ? { ...carrier.position } : null,
     bouncesRemaining: isGrubber ? 4 : isKicking ? 2 : 0,
   };
@@ -73,6 +87,8 @@ export const startGoalLineDropout = (state: GameState, z: number) => {
     flight: null,
     intendedReceiverId: null,
     lastTouchedTeam: defendingTeam,
+    passerId: null,
+    kickerId: null,
     kickOrigin: null,
     bouncesRemaining: 0,
   };
@@ -88,11 +104,32 @@ export const startGoalLineDropout = (state: GameState, z: number) => {
 
 // Transfers grounded or caught ball into player possession.
 export const carryBall = (state: GameState, player: Player) => {
+  // Check pass completion
+  if (state.ball.passerId) {
+    if (player.team === state.ball.lastTouchedTeam) {
+      const passer =
+        state.players.find((p) => p.id === state.ball.passerId) ??
+        state.substitutes.find((s) => s.id === state.ball.passerId);
+      if (passer) passer.stats.successfulPasses += 1;
+    }
+  }
+  // Check kick regather
+  if (state.ball.kickerId) {
+    if (player.team === state.ball.lastTouchedTeam && player.id !== state.ball.kickerId) {
+      const kicker =
+        state.players.find((p) => p.id === state.ball.kickerId) ??
+        state.substitutes.find((s) => s.id === state.ball.kickerId);
+      if (kicker) kicker.stats.successfulKicks += 1;
+    }
+  }
+
   // Cancel stale preparations whenever possession changes hands.
   for (const candidate of state.players) candidate.pendingBallAction = null;
   state.ball.carrierId = player.id;
   state.ball.flight = null;
   state.ball.intendedReceiverId = null;
+  state.ball.passerId = null;
+  state.ball.kickerId = null;
   state.ball.velocity = { x: 0, y: 0, z: 0 };
   state.ball.position = { ...player.position, y: 1.25 };
   state.ball.lastTouchedTeam = player.team;
@@ -125,6 +162,14 @@ export const carryBall = (state: GameState, player: Player) => {
 
 // Converts a kick crossing touch into a forming opposition lineout.
 const startLineout = (state: GameState, kickingTeam: Team, z: number, x: number) => {
+  // Successful touch-finding kick
+  if (state.ball.kickerId) {
+    const kicker =
+      state.players.find((p) => p.id === state.ball.kickerId) ??
+      state.substitutes.find((s) => s.id === state.ball.kickerId);
+    if (kicker) kicker.stats.successfulKicks += 1;
+  }
+
   const throwingTeam = otherTeam(kickingTeam);
   state.ball = {
     position: { x: Math.sign(x) * PITCH.touchLines.right, y: 0.15, z },
@@ -133,6 +178,8 @@ const startLineout = (state: GameState, kickingTeam: Team, z: number, x: number)
     flight: null,
     intendedReceiverId: null,
     lastTouchedTeam: kickingTeam,
+    passerId: null,
+    kickerId: null,
     kickOrigin: null,
     bouncesRemaining: 0,
   };
@@ -232,6 +279,12 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
 
       if (isBetweenUprights && isOverCrossbar) {
         state.scores[kickingTeam] += 3;
+        if (state.ball.kickerId) {
+          const kicker =
+            state.players.find((p) => p.id === state.ball.kickerId) ??
+            state.substitutes.find((s) => s.id === state.ball.kickerId);
+          if (kicker) kicker.stats.successfulKicks += 1;
+        }
         state.ball.flight = null;
         state.phase = {
           kind: "kickoff",

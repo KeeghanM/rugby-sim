@@ -226,6 +226,7 @@ const updateSubstitutions = (state: GameState) => {
       player.speed = matchingSub.speed;
       player.weight = matchingSub.weight;
       player.skills = { ...matchingSub.skills };
+      player.stats = matchingSub.stats;
       player.stamina = 100;
       matchingSub.isUsed = true;
 
@@ -336,6 +337,8 @@ const resolvePreparedAction = (
         flight: "rolling",
         intendedReceiverId: null,
         lastTouchedTeam: carrier.team,
+        passerId: null,
+        kickerId: carrier.id,
         kickOrigin: { ...carrier.position },
         bouncesRemaining: 3,
       };
@@ -417,6 +420,14 @@ export const applyCommands = (
   });
 
   for (const motion of nextMotion) {
+    const distTraveled = Math.hypot(
+      motion.velocity.x * deltaSeconds,
+      motion.velocity.z * deltaSeconds,
+    );
+    motion.player.stats.distanceCovered += distTraveled;
+    if (motion.player.id === state.ball.carrierId) {
+      motion.player.stats.distanceCarried += distTraveled;
+    }
     motion.player.velocity = motion.velocity;
     motion.player.position.x = clamp(
       motion.player.position.x + motion.velocity.x * deltaSeconds,
@@ -456,11 +467,14 @@ export const applyCommands = (
       resolvePreparedAction(state, carrier, deltaSeconds, random);
   }
 
-  // Advance ball during open play and in-flight set-piece stages.
+  // Advance ball during flight, open play, and in-flight set-piece stages.
   if (
+    state.ball.flight !== null ||
     state.phase.kind === "openPlay" ||
     (state.phase.kind === "kickoff" && state.phase.stage === "inFlight") ||
-    (state.phase.kind === "lineout" && state.phase.stage === "inFlight")
+    (state.phase.kind === "lineout" && state.phase.stage === "inFlight") ||
+    (state.phase.kind === "conversion" && state.phase.stage === "inFlight") ||
+    (state.phase.kind === "penalty" && state.phase.stage === "inFlight")
   ) {
     updateBall(state, deltaSeconds, random);
   }

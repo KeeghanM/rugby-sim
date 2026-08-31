@@ -1,6 +1,19 @@
-import { attackDirection, type GameState } from "../domain.ts";
+import { attackDirection, type GameState, type PlayerStats } from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations.ts";
 import { BENCH_SLOTS, getPlayerProfile, rollTeamFormations } from "../teams.ts";
+
+const createInitialStats = (): PlayerStats => ({
+  distanceCovered: 0,
+  distanceCarried: 0,
+  tacklesMade: 0,
+  tacklesMissed: 0,
+  triesScored: 0,
+  lineBreaks: 0,
+  successfulKicks: 0,
+  totalKicks: 0,
+  successfulPasses: 0,
+  totalPasses: 0,
+});
 
 // Creates initial teams, bench substitutes, ball, score, kickoff, and defensive lines.
 export const createGame = (): GameState => ({
@@ -30,8 +43,10 @@ export const createGame = (): GameState => ({
         hardLineForSeconds: 0,
         kickOffside: false,
         ruckRecoverySeconds: 0,
+        lineBreakActive: false,
         pendingBallAction: null,
         skills: profile.skills,
+        stats: createInitialStats(),
       };
     }),
   ),
@@ -47,6 +62,7 @@ export const createGame = (): GameState => ({
         speed: profile.speed,
         weight: profile.weight,
         skills: profile.skills,
+        stats: createInitialStats(),
         isUsed: false,
       };
     }),
@@ -59,6 +75,8 @@ export const createGame = (): GameState => ({
     flight: null,
     intendedReceiverId: null,
     lastTouchedTeam: null,
+    passerId: null,
+    kickerId: null,
     kickOrigin: null,
     bouncesRemaining: 0,
   },

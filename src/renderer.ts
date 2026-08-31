@@ -443,6 +443,8 @@ export const createRenderer = (
   const controlsToggleBtn = document.getElementById("controls-toggle-btn");
 
   // TV Scoreboard Bug Elements
+  const tvTeam0 = document.getElementById("tv-team-0");
+  const tvTeam1 = document.getElementById("tv-team-1");
   const tvTeam0Name = document.getElementById("tv-team0-name");
   const tvTeam0Score = document.getElementById("tv-team0-score");
   const tvTeam1Name = document.getElementById("tv-team1-name");
@@ -459,11 +461,15 @@ export const createRenderer = (
   const managerCloseBtn = document.getElementById("manager-close-btn");
   const tabTeam0 = document.getElementById("tab-team-0");
   const tabTeam1 = document.getElementById("tab-team-1");
+  const subtabRoster = document.getElementById("subtab-roster");
+  const subtabStats = document.getElementById("subtab-stats");
   const managerTeamSummary = document.getElementById("manager-team-summary");
+  const managerRosterThead = document.getElementById("manager-roster-thead");
   const managerRosterTbody = document.getElementById("manager-roster-tbody");
 
   let managerOpen = false;
   let selectedManagerTeam: 0 | 1 = 0;
+  let selectedManagerView: "roster" | "stats" = "roster";
 
   const setManagerOpen = (open: boolean) => {
     managerOpen = open;
@@ -495,6 +501,20 @@ export const createRenderer = (
       selectedManagerTeam = 1;
       tabTeam1.classList.add("active");
       tabTeam0?.classList.remove("active");
+    });
+  }
+  if (subtabRoster) {
+    subtabRoster.addEventListener("click", () => {
+      selectedManagerView = "roster";
+      subtabRoster.classList.add("active");
+      subtabStats?.classList.remove("active");
+    });
+  }
+  if (subtabStats) {
+    subtabStats.addEventListener("click", () => {
+      selectedManagerView = "stats";
+      subtabStats.classList.add("active");
+      subtabRoster?.classList.remove("active");
     });
   }
 
@@ -639,8 +659,11 @@ export const createRenderer = (
     },
     { passive: false },
   );
-  // C to cycle cameras
+  // C to cycle cameras, M to toggle manager view
   window.addEventListener("keydown", (e) => {
+    if (e.key === "m" || e.key === "M") {
+      setManagerOpen(!managerOpen);
+    }
     if (e.key === "c" || e.key === "C") {
       const order: CameraMode[] = ["halfway", "ball", "free"];
       const idx = order.indexOf(cameraMode);
@@ -694,8 +717,13 @@ export const createRenderer = (
             player.id === ruckPhase.tacklerId);
         const isRuckCleaner =
           ruckPhase !== null &&
-          (ruckPhase.attackers.includes(player.id) ||
-            ruckPhase.defenders.includes(player.id));
+          !isTackledOrTackler &&
+          (ruckPhase.joinedAttackers.includes(player.id) ||
+            ruckPhase.joinedDefenders.includes(player.id)) &&
+          Math.hypot(
+            player.position.x - ruckPhase.position.x,
+            player.position.z - ruckPhase.position.z,
+          ) <= 1.8;
 
         if (isTackledOrTackler) {
           // Lie horizontal flat on the floor at the breakdown
@@ -810,6 +838,8 @@ export const createRenderer = (
       else phaseDesc = (p as { kind: string }).kind;
 
       // Update TV broadcast bug
+      if (tvTeam0) tvTeam0.classList.toggle("possession", game.possessionTeam === 0);
+      if (tvTeam1) tvTeam1.classList.toggle("possession", game.possessionTeam === 1);
       if (tvTeam0Name) tvTeam0Name.textContent = TEAMS[0].name.toUpperCase();
       if (tvTeam0Score) tvTeam0Score.textContent = game.scores[0].toString();
       if (tvTeam1Name) tvTeam1Name.textContent = TEAMS[1].name.toUpperCase();
@@ -839,105 +869,267 @@ export const createRenderer = (
         const teamPlayers = game.players.filter(
           (p) => p.team === selectedManagerTeam,
         );
-        const packWeight = teamPlayers
-          .filter((p) => isForward(p))
-          .reduce((sum, p) => sum + Math.round(p.weight), 0);
-
-        managerTeamSummary.innerHTML = `
-          <div class="summary-item">
-            <span class="summary-label">Attacking Style</span>
-            <span class="summary-val">${teamDef.name} — ${game.formations[selectedManagerTeam].openAttack}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">8-Man Pack Weight</span>
-            <span class="summary-val">${packWeight} kg</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Defensive Line Speed</span>
-            <span class="summary-val">${teamDef.lineSpeed.toFixed(1)} m/s (${game.formations[selectedManagerTeam].openDefence})</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Tendency</span>
-            <span class="summary-val">Carry ${Math.round(teamDef.tendencies.carry * 100)}% · Pass ${Math.round(teamDef.tendencies.pass * 100)}% · Kick ${Math.round(teamDef.tendencies.kick * 100)}%</span>
-          </div>
-        `;
-
-        // Render Active XV
-        const activeRows = teamPlayers
-          .map((player) => {
-            const avgSkill = Math.round(
-              (player.skills.decision +
-                player.skills.handling +
-                player.skills.passing +
-                player.skills.kicking +
-                player.skills.tackling) *
-                20,
-            );
-            const staminaClamped = Math.max(0, Math.min(100, player.stamina));
-            const staminaClass =
-              staminaClamped > 65
-                ? ""
-                : staminaClamped > 35
-                  ? "stamina-mid"
-                  : "stamina-low";
-
-            return `
-              <tr>
-                <td class="player-num-col">${player.number}</td>
-                <td class="player-role-col">
-                  ${player.role}
-                  <span class="player-pod-badge">${player.pod}</span>
-                </td>
-                <td>${Math.round(player.weight)}kg · ${player.speed.toFixed(1)}m/s</td>
-                <td><span class="skill-badge">★ ${avgSkill}</span></td>
-                <td>
-                  <div class="stamina-bar-container" title="Indicative Match Condition">
-                    <div class="stamina-bar-fill ${staminaClass}" style="width: ${staminaClamped}%;"></div>
-                  </div>
-                </td>
-              </tr>
-            `;
-          })
-          .join("");
-
-        // Render Bench Substitutes
         const benchSubs = game.substitutes.filter(
           (s) => s.team === selectedManagerTeam,
         );
-        const benchRows = benchSubs
-          .map((sub) => {
-            const avgSkill = Math.round(
-              (sub.skills.decision +
-                sub.skills.handling +
-                sub.skills.passing +
-                sub.skills.kicking +
-                sub.skills.tackling) *
-                20,
-            );
-            const statusLabel = sub.isUsed
-              ? `<span style="color:#94a3b8;font-size:0.75rem;">SUBBED ON</span>`
-              : `<span style="color:#4ade80;font-size:0.75rem;">READY</span>`;
 
-            return `
-              <tr style="opacity: ${sub.isUsed ? 0.6 : 0.95};">
-                <td class="player-num-col" style="color: #94a3b8;">${sub.number}</td>
-                <td class="player-role-col" style="color: #cbd5e1;">
-                  ${sub.role} (Sub)
-                  <span class="player-pod-badge">${sub.pod}</span>
-                </td>
-                <td>${Math.round(sub.weight)}kg · ${sub.speed.toFixed(1)}m/s</td>
-                <td><span class="skill-badge">★ ${avgSkill}</span></td>
-                <td>${statusLabel}</td>
+        const formatDist = (d: number) =>
+          d >= 1000 ? `${(d / 1000).toFixed(2)}km` : `${Math.round(d)}m`;
+
+        if (selectedManagerView === "stats") {
+          if (managerRosterThead) {
+            managerRosterThead.innerHTML = `
+              <tr>
+                <th class="player-num-col">#</th>
+                <th>Player / Role</th>
+                <th>Distance Ran</th>
+                <th>Carried</th>
+                <th>Tackles (Made/Miss)</th>
+                <th>Tries</th>
+                <th>Line Breaks</th>
+                <th>Passes</th>
+                <th>Kicks</th>
               </tr>
             `;
-          })
-          .join("");
+          }
 
-        managerRosterTbody.innerHTML = `
-          ${activeRows}
-          <tr><td colspan="5" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
-          ${benchRows}
-        `;
+          const allTeamPlayers = [...teamPlayers, ...benchSubs];
+          const totalDistM = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.distanceCovered,
+            0,
+          );
+          const totalCarriedM = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.distanceCarried,
+            0,
+          );
+          const totalTacklesMade = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.tacklesMade,
+            0,
+          );
+          const totalTacklesMissed = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.tacklesMissed,
+            0,
+          );
+          const totalTries = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.triesScored,
+            0,
+          );
+          const totalBreaks = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.lineBreaks,
+            0,
+          );
+          const totalPassesSucc = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.successfulPasses,
+            0,
+          );
+          const totalPassesAtt = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.totalPasses,
+            0,
+          );
+          const totalKicksSucc = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.successfulKicks,
+            0,
+          );
+          const totalKicksAtt = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.totalKicks,
+            0,
+          );
+
+          const tacklePct =
+            totalTacklesMade + totalTacklesMissed > 0
+              ? Math.round(
+                  (totalTacklesMade /
+                    (totalTacklesMade + totalTacklesMissed)) *
+                    100,
+                )
+              : 100;
+          const passPct =
+            totalPassesAtt > 0
+              ? Math.round((totalPassesSucc / totalPassesAtt) * 100)
+              : 100;
+          const kickPct =
+            totalKicksAtt > 0
+              ? Math.round((totalKicksSucc / totalKicksAtt) * 100)
+              : 100;
+
+          managerTeamSummary.innerHTML = `
+            <div class="summary-item">
+              <span class="summary-label">Total Distance</span>
+              <span class="summary-val">${(totalDistM / 1000).toFixed(2)} km <span style="color:#94a3b8;font-size:0.72rem;">(${formatDist(totalCarriedM)} carry)</span></span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Tackles Completed</span>
+              <span class="summary-val">${totalTacklesMade}/${totalTacklesMade + totalTacklesMissed} (${tacklePct}%)</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Tries & Line Breaks</span>
+              <span class="summary-val">${totalTries} tries · ${totalBreaks} breaks</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Pass & Kick Accuracy</span>
+              <span class="summary-val">Pass ${passPct}% (${totalPassesSucc}/${totalPassesAtt}) · Kick ${kickPct}% (${totalKicksSucc}/${totalKicksAtt})</span>
+            </div>
+          `;
+
+          const activeRows = teamPlayers
+            .map((player) => {
+              const s = player.stats;
+              return `
+                <tr>
+                  <td class="player-num-col">${player.number}</td>
+                  <td class="player-role-col">
+                    ${player.role}
+                    <span class="player-pod-badge">${player.pod}</span>
+                  </td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#e2e8f0;">${formatDist(s.distanceCovered)}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#38bdf8;">${formatDist(s.distanceCarried)}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.tacklesMade} <span style="color:#94a3b8;font-size:0.75rem;">(${s.tacklesMissed} miss)</span></span></td>
+                  <td>${s.triesScored > 0 ? `<span class="stat-highlight-gold">🏉 ${s.triesScored}</span>` : `<span style="color:#64748b;">0</span>`}</td>
+                  <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          const benchRows = benchSubs
+            .map((sub) => {
+              const s = sub.stats;
+              return `
+                <tr style="opacity: ${sub.isUsed ? 0.95 : 0.65};">
+                  <td class="player-num-col" style="color: #94a3b8;">${sub.number}</td>
+                  <td class="player-role-col" style="color: #cbd5e1;">
+                    ${sub.role} (Sub)
+                    <span class="player-pod-badge">${sub.pod}</span>
+                  </td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#cbd5e1;">${formatDist(s.distanceCovered)}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#38bdf8;">${formatDist(s.distanceCarried)}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.tacklesMade} <span style="color:#94a3b8;font-size:0.75rem;">(${s.tacklesMissed})</span></span></td>
+                  <td>${s.triesScored > 0 ? `<span class="stat-highlight-gold">🏉 ${s.triesScored}</span>` : `<span style="color:#64748b;">0</span>`}</td>
+                  <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          managerRosterTbody.innerHTML = `
+            ${activeRows}
+            <tr><td colspan="9" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
+            ${benchRows}
+          `;
+        } else {
+          if (managerRosterThead) {
+            managerRosterThead.innerHTML = `
+              <tr>
+                <th class="player-num-col">#</th>
+                <th>Player / Role</th>
+                <th>Physicals</th>
+                <th>Skill</th>
+                <th>Condition</th>
+              </tr>
+            `;
+          }
+
+          const packWeight = teamPlayers
+            .filter((p) => isForward(p))
+            .reduce((sum, p) => sum + Math.round(p.weight), 0);
+
+          managerTeamSummary.innerHTML = `
+            <div class="summary-item">
+              <span class="summary-label">Attacking Style</span>
+              <span class="summary-val">${teamDef.name} — ${game.formations[selectedManagerTeam].openAttack}</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">8-Man Pack Weight</span>
+              <span class="summary-val">${packWeight} kg</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Defensive Line Speed</span>
+              <span class="summary-val">${teamDef.lineSpeed.toFixed(1)} m/s (${game.formations[selectedManagerTeam].openDefence})</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Tendency</span>
+              <span class="summary-val">Carry ${Math.round(teamDef.tendencies.carry * 100)}% · Pass ${Math.round(teamDef.tendencies.pass * 100)}% · Kick ${Math.round(teamDef.tendencies.kick * 100)}%</span>
+            </div>
+          `;
+
+          // Render Active XV
+          const activeRows = teamPlayers
+            .map((player) => {
+              const avgSkill = Math.round(
+                (player.skills.decision +
+                  player.skills.handling +
+                  player.skills.passing +
+                  player.skills.kicking +
+                  player.skills.tackling) *
+                  20,
+              );
+              const staminaClamped = Math.max(0, Math.min(100, player.stamina));
+              const staminaClass =
+                staminaClamped > 65
+                  ? ""
+                  : staminaClamped > 35
+                    ? "stamina-mid"
+                    : "stamina-low";
+
+              return `
+                <tr>
+                  <td class="player-num-col">${player.number}</td>
+                  <td class="player-role-col">
+                    ${player.role}
+                    <span class="player-pod-badge">${player.pod}</span>
+                  </td>
+                  <td>${Math.round(player.weight)}kg · ${player.speed.toFixed(1)}m/s</td>
+                  <td><span class="skill-badge">★ ${avgSkill}</span></td>
+                  <td>
+                    <div class="stamina-bar-container" title="Indicative Match Condition">
+                      <div class="stamina-bar-fill ${staminaClass}" style="width: ${staminaClamped}%;"></div>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          // Render Bench Substitutes
+          const benchRows = benchSubs
+            .map((sub) => {
+              const avgSkill = Math.round(
+                (sub.skills.decision +
+                  sub.skills.handling +
+                  sub.skills.passing +
+                  sub.skills.kicking +
+                  sub.skills.tackling) *
+                  20,
+              );
+              const statusLabel = sub.isUsed
+                ? `<span style="color:#94a3b8;font-size:0.75rem;">SUBBED ON</span>`
+                : `<span style="color:#4ade80;font-size:0.75rem;">READY</span>`;
+
+              return `
+                <tr style="opacity: ${sub.isUsed ? 0.6 : 0.95};">
+                  <td class="player-num-col" style="color: #94a3b8;">${sub.number}</td>
+                  <td class="player-role-col" style="color: #cbd5e1;">
+                    ${sub.role} (Sub)
+                    <span class="player-pod-badge">${sub.pod}</span>
+                  </td>
+                  <td>${Math.round(sub.weight)}kg · ${sub.speed.toFixed(1)}m/s</td>
+                  <td><span class="skill-badge">★ ${avgSkill}</span></td>
+                  <td>${statusLabel}</td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          managerRosterTbody.innerHTML = `
+            ${activeRows}
+            <tr><td colspan="5" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
+            ${benchRows}
+          `;
+        }
       }
 
       if (!debugOverlay) return;

@@ -40,6 +40,19 @@ export type PlayerSkills = {
   tackling: number;
 };
 
+export type PlayerStats = {
+  distanceCovered: number;
+  distanceCarried: number;
+  tacklesMade: number;
+  tacklesMissed: number;
+  triesScored: number;
+  lineBreaks: number;
+  successfulKicks: number;
+  totalKicks: number;
+  successfulPasses: number;
+  totalPasses: number;
+};
+
 export type PendingBallAction =
   | {
       kind: "pass";
@@ -76,8 +89,10 @@ export type Player = {
   hardLineForSeconds: number;
   kickOffside: boolean;
   ruckRecoverySeconds: number;
+  lineBreakActive?: boolean;
   pendingBallAction: PendingBallAction | null;
   skills: PlayerSkills;
+  stats: PlayerStats;
 };
 
 export type Ball = {
@@ -87,6 +102,8 @@ export type Ball = {
   flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | "grubber" | "dropGoal" | null;
   intendedReceiverId: string | null;
   lastTouchedTeam: Team | null;
+  passerId: string | null;
+  kickerId: string | null;
   kickOrigin: Position | null;
   bouncesRemaining: number;
 };
@@ -117,6 +134,8 @@ export type Phase =
       elapsed: number;
       attackers: string[];
       defenders: string[];
+      joinedAttackers: string[];
+      joinedDefenders: string[];
       tackledPlayerId: string;
       tacklerId: string;
       joinOrder: string[];
@@ -143,14 +162,17 @@ export type Phase =
       kickingTeam: Team;
       elapsed: number;
       isSuccess: boolean | null;
+      kickerId: string;
     }
   | {
       kind: "penalty";
-      stage: "decision" | "executing";
+      stage: "decision" | "executing" | "inFlight";
       position: Position;
       awardedTeam: Team;
       choice: "touch" | "goal" | "tap";
       elapsed: number;
+      isSuccess?: boolean | null;
+      kickerId?: string;
     };
 
 export type ActiveTeamFormations = {
@@ -173,6 +195,7 @@ export type Substitute = {
   speed: number;
   weight: number;
   skills: PlayerSkills;
+  stats: PlayerStats;
   isUsed: boolean;
 };
 

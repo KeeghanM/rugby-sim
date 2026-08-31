@@ -1,4 +1,4 @@
-import { attackDirection, type GameState, PITCH, type Player, type Position, ROLES } from "../domain.ts";
+import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, ROLES } from "../domain.ts";
 import {
   getKickoffTarget,
   getLineoutTarget,
@@ -42,17 +42,37 @@ const nearestOpponentDistance = (players: Player[], player: Player) =>
     Infinity,
   );
 
-// Reports whether carrier has passed every defender in their running corridor.
-const hasBrokenLine = (players: Player[], carrier: Player) => {
+// Reports whether carrier has broken cleanly past the opposition defensive line in open play.
+const hasBrokenLine = (state: GameState, players: Player[], carrier: Player) => {
+  if (state.phase.kind !== "openPlay") return false;
   const direction = attackDirection(carrier.team);
-  return !players.some(
-    (player) =>
-      player.team !== carrier.team &&
-      player.role !== ROLES.FullBack &&
-      Math.abs(player.position.x - carrier.position.x) < 14 &&
-      (player.position.z - carrier.position.z) * direction > 0 &&
-      distance(player.position, carrier.position) < 35,
+  const defendingTeam = otherTeam(carrier.team);
+  const defLineZ = state.defensiveLineZ[defendingTeam];
+
+  // Carrier must be past the defensive line into the backfield
+  const pastLineDistance = (carrier.position.z - defLineZ) * direction;
+  if (pastLineDistance < 2.5) return false;
+
+  // Frontline defenders (non-fullbacks) ahead in carrier's running lane
+  const defendersAheadInLane = players.filter(
+    (p) =>
+      p.team !== carrier.team &&
+      p.role !== ROLES.FullBack &&
+      (p.position.z - carrier.position.z) * direction > 0 &&
+      Math.abs(p.position.x - carrier.position.x) < 14 &&
+      distance(p.position, carrier.position) < 30,
   );
+
+  // Frontline defenders that carrier has genuinely beaten behind them
+  const frontlineBeaten = players.filter(
+    (p) =>
+      p.team !== carrier.team &&
+      p.role !== ROLES.FullBack &&
+      (carrier.position.z - p.position.z) * direction > 0 &&
+      distance(p.position, carrier.position) < 25,
+  );
+
+  return defendersAheadInLane.length === 0 && frontlineBeaten.length >= 3;
 };
 
 // Chooses three role-appropriate runners behind carrier to preserve live support.
@@ -201,14 +221,19 @@ const chooseCarrierCommand = (
       isKick ? "stand" : "jog",
     );
   }
-  const lineBroken = hasBrokenLine(players, carrier);
+  const lineBroken = hasBrokenLine(state, players, carrier);
   const flowDirection = carrier.position.x <= -25
     ? 1
     : carrier.position.x >= 25
       ? -1
       : state.attackFlow[carrier.team];
   // Sprint directly toward goal when primary defensive line is broken.
+  const realCarrier = state.players.find((p) => p.id === carrier.id);
   if (lineBroken) {
+    if (realCarrier && !realCarrier.lineBreakActive) {
+      realCarrier.lineBreakActive = true;
+      realCarrier.stats.lineBreaks += 1;
+    }
     const sprint = command(
       carrier,
       { x: carrier.position.x, z: carrier.team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south },
@@ -218,6 +243,9 @@ const chooseCarrierCommand = (
     );
     sprint.decisionForSeconds = 1;
     return sprint;
+  }
+  if (realCarrier) {
+    realCarrier.lineBreakActive = false;
   }
   // Retain current carrier intent while decision timer remains active.
   if (carrier.decisionForSeconds > 0) {
@@ -766,7 +794,7 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
     );
   }
 
-  const lineBroken = hasBrokenLine(players, carrier);
+  const lineBroken = hasBrokenLine(state, players, carrier);
   const fullback = players.find(
     (player) => player.team !== carrier.team && player.role === ROLES.FullBack,
   );

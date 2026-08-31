@@ -75,6 +75,18 @@
         flex: 1;
         padding: 0 0.6rem;
         gap: 0.4rem;
+        border-bottom: 3px solid transparent;
+        transition: border-bottom-color 0.2s ease, background 0.2s ease;
+      }
+
+      .tv-team.possession.tv-team-0 {
+        border-bottom: 3px solid #3b82f6;
+        background: rgb(59 130 246 / 20%);
+      }
+
+      .tv-team.possession.tv-team-1 {
+        border-bottom: 3px solid #ef4444;
+        background: rgb(239 68 68 / 20%);
       }
 
       .tv-team-badge {
@@ -586,9 +598,61 @@
 
       .manager-tabs {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 0.5rem;
         padding: 0.75rem 1.25rem 0;
         border-bottom: 1px solid rgb(255 255 255 / 10%);
+      }
+
+      .manager-team-tabs {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .manager-subtabs {
+        display: flex;
+        gap: 0.35rem;
+        background: rgb(0 0 0 / 30%);
+        padding: 0.2rem;
+        border-radius: 0.4rem;
+        border: 1px solid rgb(255 255 255 / 10%);
+        margin-bottom: 0.4rem;
+      }
+
+      .manager-subtab-btn {
+        padding: 0.3rem 0.65rem;
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        font: 600 0.76rem system-ui, sans-serif;
+        cursor: pointer;
+        border-radius: 0.3rem;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .manager-subtab-btn:hover {
+        color: #f1f5f9;
+      }
+
+      .manager-subtab-btn.active {
+        background: #38bdf8;
+        color: #0f172a;
+      }
+
+      .stat-highlight-gold {
+        color: #facc15;
+        font-weight: 700;
+      }
+
+      .stat-highlight-cyan {
+        color: #38bdf8;
+        font-weight: 700;
+      }
+
+      .stat-highlight-green {
+        color: #4ade80;
+        font-weight: 700;
       }
 
       .team-tab-btn {
@@ -739,13 +803,13 @@
     <!-- TV Broadcast Bug UI -->
     <div id="tv-scoreboard" class="tv-bug" aria-live="polite">
       <div class="tv-top-row">
-        <div class="tv-team tv-team-0">
+        <div class="tv-team tv-team-0" id="tv-team-0">
           <span class="tv-team-badge"></span>
           <span class="tv-team-name" id="tv-team0-name">BLU</span>
           <span class="tv-team-score" id="tv-team0-score">0</span>
         </div>
         <div class="tv-team-divider"></div>
-        <div class="tv-team tv-team-1">
+        <div class="tv-team tv-team-1" id="tv-team-1">
           <span class="tv-team-score" id="tv-team1-score">0</span>
           <span class="tv-team-name" id="tv-team1-name">RED</span>
           <span class="tv-team-badge"></span>
@@ -863,27 +927,45 @@
           </button>
         </div>
         <div class="manager-tabs">
-          <button
-            type="button"
-            class="team-tab-btn active"
-            data-team="0"
-            id="tab-team-0"
-          >
-            🔵 Blue Team
-          </button>
-          <button
-            type="button"
-            class="team-tab-btn"
-            data-team="1"
-            id="tab-team-1"
-          >
-            🔴 Red Team
-          </button>
+          <div class="manager-team-tabs">
+            <button
+              type="button"
+              class="team-tab-btn active"
+              data-team="0"
+              id="tab-team-0"
+            >
+              🔵 Blue Team
+            </button>
+            <button
+              type="button"
+              class="team-tab-btn"
+              data-team="1"
+              id="tab-team-1"
+            >
+              🔴 Red Team
+            </button>
+          </div>
+          <div class="manager-subtabs">
+            <button
+              type="button"
+              class="manager-subtab-btn active"
+              id="subtab-roster"
+            >
+              👥 Squad & Condition
+            </button>
+            <button
+              type="button"
+              class="manager-subtab-btn"
+              id="subtab-stats"
+            >
+              📊 Game Stats
+            </button>
+          </div>
         </div>
         <div class="manager-body">
           <div class="team-summary-card" id="manager-team-summary"></div>
           <table class="roster-table">
-            <thead>
+            <thead id="manager-roster-thead">
               <tr>
                 <th class="player-num-col">#</th>
                 <th>Player / Role</th>

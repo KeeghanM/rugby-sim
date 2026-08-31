@@ -265,7 +265,7 @@ export const getRuckTarget = (
   }
 
   if (attacking && player.role === ROLES.ScrumHalf) {
-    return { x: clampX(ruck.x + 2.5), z: clampZ(ruck.z - direction * 2.8) };
+    return { x: clampX(ruck.x), z: clampZ(ruck.z - direction * 1.1) };
   }
   if (!attacking && player.role === ROLES.FullBack) {
     return { x: clampX(ruck.x * 0.5), z: clampZ(ruck.z + direction * 26) };
