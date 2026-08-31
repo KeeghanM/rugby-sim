@@ -189,9 +189,32 @@ export const updateBall = (
       state.ball.flight === "grubber") &&
     Math.abs(state.ball.position.x) >= PITCH.touchLines.right
   ) {
+    const kickerTeam = state.ball.lastTouchedTeam ?? 0;
+    const kickDir = attackDirection(kickerTeam);
+    const opp22Z =
+      kickDir === 1
+        ? PITCH.twentyTwoMetreLines.north
+        : PITCH.twentyTwoMetreLines.south;
+
+    // World Rugby 50/22 Law:
+    // Kicked from inside own half, bounced in field of play, crossed into touch inside opp 22
+    const is5022 =
+      state.ball.flight === "kick" &&
+      state.ball.kickOrigin !== null &&
+      state.ball.kickOrigin.z * kickDir <= 0 &&
+      (state.ball.position.z - opp22Z) * kickDir >= 0 &&
+      state.ball.bouncesRemaining < 2;
+
+    const throwingTeam =
+      state.pendingLineoutTeam !== null
+        ? state.pendingLineoutTeam
+        : is5022
+          ? kickerTeam
+          : otherTeam(kickerTeam);
+
     startLineout(
       state,
-      state.ball.lastTouchedTeam ?? 0,
+      throwingTeam,
       clamp(state.ball.position.z, PITCH.tryLines.south, PITCH.tryLines.north),
       state.ball.position.x,
     );

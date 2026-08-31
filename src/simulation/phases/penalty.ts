@@ -53,11 +53,68 @@ export const startPenalty = (
   const targetTryLine =
     awardedTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
   const distToTryLine = Math.abs(targetTryLine - position.z);
-  const kicking = kicker ? effectiveSkill(kicker, "kicking") : 0;
-  const decision = kicker ? effectiveSkill(kicker, "decision") : 0;
-  const goalRange = 18 + kicking * 22 + decision * 5;
+  const lateralDistance = Math.abs(position.x);
+
+  const kickSkill = kicker ? effectiveSkill(kicker, "kicking") : 0.75;
+  const decisionSkill = kicker ? effectiveSkill(kicker, "decision") : 0.75;
+
+  // 1. Kick accuracy / success rate estimation from this position
+  const anglePenalty = (lateralDistance / 35) * 0.32;
+  const distancePenalty = Math.max(0, distToTryLine - 22) * 0.01;
+  const estimatedGoalChance = clamp(
+    0.2 + kickSkill * 0.75 - anglePenalty - distancePenalty,
+    0.05,
+    0.95,
+  );
+
+  // 2. Scoreline context & match clock pressure
+  const oppTeam = otherTeam(awardedTeam);
+  const scoreDiff = state.scores[awardedTeam] - state.scores[oppTeam];
+  const isLateInMatch = state.half === 2 && state.matchClockSeconds >= 3600;
+
+  // 3. Pack strength & maul tendency (heavy pack teams love kicking for touch)
+  const forwardPack = state.players.filter(
+    (p) => p.team === awardedTeam && isForward(p),
+  );
+  const packWeight = forwardPack.reduce((sum, p) => sum + p.weight, 0);
+  const maulTendency = state.teams[awardedTeam].tendencies.maul;
+  const packDominanceBonus =
+    (packWeight > 880 ? 0.25 : 0) + (maulTendency > 0.5 ? 0.3 : 0);
+
+  // Calculate Touch Kick vs Goal Kick score
+  let touchPreference = 0.5 + packDominanceBonus;
+  let goalPreference = 0.5;
+
+  if (distToTryLine > 48 || lateralDistance > 26) {
+    // Out of realistic goal kick range -> always kick for touch
+    goalPreference = 0.05;
+    touchPreference = 0.95;
+  } else if (distToTryLine <= 30 && lateralDistance <= 15) {
+    // In the pocket right in front of the posts
+    goalPreference += estimatedGoalChance * 0.7;
+  } else {
+    goalPreference += estimatedGoalChance * 0.4;
+  }
+
+  // Score context adjustments:
+  if (isLateInMatch) {
+    if (scoreDiff >= -7 && scoreDiff <= -4) {
+      // Trailing by 4-7 points late in game: need a TRY to win/tie! Touch kick heavily favored
+      touchPreference += 0.55;
+      goalPreference -= 0.35;
+    } else if (scoreDiff >= -3 && scoreDiff < 0) {
+      // Trailing by 1-3 points late in game: 3 points ties or wins! Goal kick favored if in range
+      goalPreference += 0.5;
+    } else if (scoreDiff === 0) {
+      // Tied late: 3 points takes the lead
+      goalPreference += 0.45;
+    }
+  }
+
+  // Decision skill variation: higher decision skill picks the optimal option
+  const noise = (random() - 0.5) * (1 - decisionSkill) * 0.4;
   const choice =
-    distToTryLine <= goalRange && Math.abs(position.x) <= 12 + kicking * 14
+    goalPreference + noise > touchPreference && estimatedGoalChance > 0.3
       ? "goal"
       : "touch";
 

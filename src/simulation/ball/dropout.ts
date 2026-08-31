@@ -16,22 +16,8 @@ import type { Random } from "../types.ts";
 
 export const startGoalLineDropout = (state: GameState, z: number) => {
   const defendingTeam: Team = z < 0 ? 0 : 1;
-  state.ball = {
-    position: {
-      x: 0,
-      y: 0.15,
-      z: defendingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north,
-    },
-    velocity: { x: 0, y: 0, z: 0 },
-    carrierId: null,
-    flight: null,
-    intendedReceiverId: null,
-    lastTouchedTeam: defendingTeam,
-    passerId: null,
-    kickerId: null,
-    kickOrigin: null,
-    bouncesRemaining: 0,
-  };
+  // Old dead ball continues out naturally; referee/AR spawns new ball at goal line
+  state.ball.carrierId = null;
   state.pendingClearanceKickerId = null;
   state.pendingLineoutTeam = null;
   state.phase = {

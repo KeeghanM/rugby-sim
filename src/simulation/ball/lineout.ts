@@ -16,7 +16,7 @@ import type { Random } from "../types.ts";
 
 export const startLineout = (
   state: GameState,
-  kickingTeam: Team,
+  throwingTeam: Team,
   z: number,
   x: number,
 ) => {
@@ -28,7 +28,6 @@ export const startLineout = (
     if (kicker) kicker.stats.successfulKicks += 1;
   }
 
-  const throwingTeam = state.pendingLineoutTeam ?? otherTeam(kickingTeam);
   const touchSide = Math.sign(x) || 1;
 
   // Let the old ball naturally fly/bounce out of bounds while the lineout is established
