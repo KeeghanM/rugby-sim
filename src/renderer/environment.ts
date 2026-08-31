@@ -289,7 +289,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     lowerTier.position.set(side * 48.0, 5.1, 0);
-    lowerTier.rotation.z = -side * 0.48; // raked upwards away from pitch
+    lowerTier.rotation.z = side * 0.48; // raked upwards away from pitch
     lowerTier.material = seatMatLower;
 
     // Lower Tier Concrete Under-Wedge / Side Walls
@@ -317,7 +317,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     upperTier.position.set(side * 65.0, 18.5, 0);
-    upperTier.rotation.z = -side * 0.62;
+    upperTier.rotation.z = side * 0.62;
     upperTier.material = seatMatUpper;
 
     // Upper Tier Support Concrete Structure
@@ -356,7 +356,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     roof.position.set(side * 56.5, 27.2, 0);
-    roof.rotation.z = side * 0.06;
+    roof.rotation.z = -side * 0.06;
     roof.material = roofMat;
 
     // Roof Truss Girders Underneath
@@ -397,7 +397,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     lowerTier.position.set(0, 5.1, side * 73.5);
-    lowerTier.rotation.x = side * 0.48;
+    lowerTier.rotation.x = -side * 0.48;
     lowerTier.material = seatMatLower;
 
     // Lower Under Structure
@@ -425,7 +425,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     upperTier.position.set(0, 18.5, side * 90.0);
-    upperTier.rotation.x = side * 0.62;
+    upperTier.rotation.x = -side * 0.62;
     upperTier.material = seatMatUpper;
 
     // Upper Under Structure
@@ -464,7 +464,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     roof.position.set(0, 27.2, side * 82.5);
-    roof.rotation.x = -side * 0.06;
+    roof.rotation.x = side * 0.06;
     roof.material = roofMat;
 
     // Roof Truss Girders
@@ -495,12 +495,9 @@ export const createEnvironment = (scene: Scene) => {
   createEndStand(1, "stand-north"); // North Stand
 
   // --- 4 CORNER BOWL STANDS ---
-  const createCornerStand = (
-    name: string,
-    posX: number,
-    posZ: number,
-    rotY: number,
-  ) => {
+  const createCornerStand = (name: string, posX: number, posZ: number) => {
+    const rotY = Math.atan2(-posX, -posZ);
+
     // Corner Lower Tier
     const cornerLower = CreateBox(
       `${name}-tier-lower`,
@@ -508,8 +505,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     cornerLower.position.set(posX, 5.1, posZ);
-    cornerLower.rotation.y = rotY;
-    cornerLower.rotation.z = -0.48;
+    cornerLower.rotation.set(0.48, rotY, 0);
     cornerLower.material = seatMatLower;
 
     // Corner Upper Tier
@@ -519,8 +515,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     cornerUpper.position.set(posX * 1.22, 18.5, posZ * 1.15);
-    cornerUpper.rotation.y = rotY;
-    cornerUpper.rotation.z = -0.62;
+    cornerUpper.rotation.set(0.62, rotY, 0);
     cornerUpper.material = seatMatUpper;
 
     // Corner Outer Wall
@@ -530,7 +525,7 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     cornerWall.position.set(posX * 1.34, 14.0, posZ * 1.26);
-    cornerWall.rotation.y = rotY;
+    cornerWall.rotation.set(0, rotY, 0);
     cornerWall.material = facadeMat;
 
     // Corner Roof Canopy
@@ -540,14 +535,14 @@ export const createEnvironment = (scene: Scene) => {
       scene,
     );
     cornerRoof.position.set(posX * 1.15, 27.2, posZ * 1.1);
-    cornerRoof.rotation.y = rotY;
+    cornerRoof.rotation.set(-0.06, rotY, 0);
     cornerRoof.material = roofMat;
   };
 
-  createCornerStand("corner-sw", -52, -73, Math.PI / 4);
-  createCornerStand("corner-se", 52, -73, -Math.PI / 4);
-  createCornerStand("corner-nw", -52, 73, (3 * Math.PI) / 4);
-  createCornerStand("corner-ne", 52, 73, (-3 * Math.PI) / 4);
+  createCornerStand("corner-sw", -52, -73);
+  createCornerStand("corner-se", 52, -73);
+  createCornerStand("corner-nw", -52, 73);
+  createCornerStand("corner-ne", 52, 73);
 
   // --- SCOREBOARD / JUMBOTRON VIDEO SCREENS ---
   const createScoreboardTexture = (title: string) => {
@@ -627,9 +622,9 @@ export const createEnvironment = (scene: Scene) => {
     screen.material = screenMat;
   };
 
-  // Mount Jumbotrons facing into the pitch
-  createJumbotron("jumbotron-south", new Vector3(0, 22.5, -67.5), Math.PI);
-  createJumbotron("jumbotron-north", new Vector3(0, 22.5, 67.5), 0);
+  // Mount Jumbotrons facing into the pitch (lowered for realistic sightlines)
+  createJumbotron("jumbotron-south", new Vector3(0, 19.8, -67.5), Math.PI);
+  createJumbotron("jumbotron-north", new Vector3(0, 19.8, 67.5), 0);
 
   // --- TEAM DUGOUTS / BENCHES (West Sideline) ---
   const dugoutMat = new StandardMaterial("dugout-glass-mat", scene);

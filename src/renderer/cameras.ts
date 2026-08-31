@@ -32,7 +32,7 @@ export const createCameras = (
   freeCam.keysRight = [68];
   (freeCam as unknown as { inertia: number }).inertia = 0.5;
 
-  let cameraMode: CameraMode = "halfway";
+  let cameraMode: CameraMode = "free";
   let goalLineSide: GoalLineSide = "south";
   let autoFollowBall = true;
   let zoom = 1;
@@ -41,7 +41,7 @@ export const createCameras = (
   const BASE_BROADCAST_DIST = 85;
   const BASE_FREE_FOV = 0.8;
 
-  scene.activeCamera = broadcastCam;
+  scene.activeCamera = freeCam;
 
   const positionBroadcastCamera = () => {
     // Higher zoom = closer distance to pitch (zoomed in)

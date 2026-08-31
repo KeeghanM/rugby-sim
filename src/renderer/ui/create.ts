@@ -83,15 +83,6 @@ export const createUI = (state: GameState) => {
       subtabStats.classList.add("active");
       subtabRoster?.classList.remove("active");
     });
-  if (controlsToggleBtn && uiControls) {
-    controlsToggleBtn.addEventListener("click", () => {
-      uiControls.classList.toggle("collapsed");
-      controlsToggleBtn.textContent = uiControls.classList.contains("collapsed")
-        ? "Open ⚙"
-        : "Minimize";
-    });
-  }
-
   let simulationSpeed = 1;
   let previousSpeed = 1;
   let debugMode = false;
@@ -116,13 +107,15 @@ export const createUI = (state: GameState) => {
     });
   }
 
-  // Spacebar toggle pause/resume
+  // Keyboard shortcuts: Space for Pause, D for Debug overlay
   window.addEventListener("keydown", (e) => {
     if (
-      e.key === " " &&
-      document.activeElement?.tagName !== "INPUT" &&
-      document.activeElement?.tagName !== "TEXTAREA"
+      document.activeElement?.tagName === "INPUT" ||
+      document.activeElement?.tagName === "TEXTAREA"
     ) {
+      return;
+    }
+    if (e.key === " ") {
       e.preventDefault();
       if (simulationSpeed > 0) {
         previousSpeed = simulationSpeed;
@@ -134,6 +127,9 @@ export const createUI = (state: GameState) => {
         speedSlider.value = String(simulationSpeed);
       }
       updateSpeedDisplay(simulationSpeed);
+    } else if (e.key === "d" || e.key === "D") {
+      debugMode = !debugMode;
+      if (debugToggle) debugToggle.checked = debugMode;
     }
   });
   if (debugToggle) {
