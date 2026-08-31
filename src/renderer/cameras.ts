@@ -201,43 +201,31 @@ export const createCameras = (
         const phaseChanged = phase.kind !== lastPhaseKind;
         lastPhaseKind = phase.kind;
 
-        // --- 1. PRIORITY EVENTS (180-Degree Consistent TV Director) ---
-        let chosenShot: DynamicShotType = currentShot;
-        let lerpRate = 0.08;
-
-        const isDownfieldKick =
-          (ball.flight === "kick" ||
-            ball.flight === "kickoff" ||
-            ball.flight === "dropGoal") &&
-          hSpeed > 7;
-
-        const isBreakaway =
-          carrier && (carrier.lineBreakActive || carrier.breakawaySeconds > 0);
+        // --- 1. DYNAMIC TV DIRECTOR (Main Gantry 90+% of the time, Ref Cam during setup) ---
+        let chosenShot: DynamicShotType = "broadcast";
+        let lerpRate = 0.06;
 
         const isGoalKickPhase =
           phase.kind === "conversion" ||
           (phase.kind === "penalty" && phase.choice === "goal");
 
-        if (isDownfieldKick) {
-          chosenShot = "flyOver";
-        } else if (isBreakaway) {
-          chosenShot = "breakawayChase";
-        } else if (isGoalKickPhase) {
+        const isSetPieceSetup =
+          (phase.kind === "scrum" || phase.kind === "lineout") &&
+          phase.stage === "forming";
+
+        if (isGoalKickPhase && phase.stage === "inFlight") {
+          // Goal line view during goal kick in flight
           chosenShot = "goalLine";
-        } else if (phase.kind === "scrum" || phase.kind === "lineout") {
-          if (phaseChanged || shotDuration >= 5.5) {
-            chosenShot = Math.random() < 0.6 ? "refCam" : "sidelineTight";
+        } else if (isSetPieceSetup) {
+          // Ref bodycam occasionally during set-piece setup only
+          if (phaseChanged) {
+            currentShot = Math.random() < 0.35 ? "refCam" : "broadcast";
+            shotDuration = 0;
           }
-        } else if (Math.abs(ballZ) >= 28) {
-          // 22m Red-Zone Attack
-          if (shotDuration >= 5.0) {
-            chosenShot = Math.random() < 0.45 ? "goalLine" : "broadcast";
-          }
+          chosenShot = currentShot;
         } else {
-          // Neutral Midfield Open Play (Hold broadcast for continuity)
-          if (shotDuration >= 6.0) {
-            chosenShot = Math.random() < 0.25 ? "sidelineTight" : "broadcast";
-          }
+          // 90+% Main Broadcast Gantry Cam
+          chosenShot = "broadcast";
         }
 
         if (chosenShot !== currentShot) {
@@ -245,68 +233,35 @@ export const createCameras = (
           shotDuration = 0;
         }
 
-        // --- 2. 180-DEGREE BROADCAST AXIS (Cameras strictly stay on East Side X > 0) ---
-        // Team 0 (South -> North) always flows Left-to-Right across the viewer's screen.
-        // Team 1 (North -> South) always flows Right-to-Left. Never cross the 50/line.
-        if (currentShot === "flyOver") {
-          // Broadcast Cable-Cam: elevated along East sideline trailing the flight
-          const kDir =
-            ball.velocity.z !== 0 ? Math.sign(ball.velocity.z) : attackDir;
+        // --- 2. SIGHTLINES & POSITIONING (180-Degree Consistent TV Gantry) ---
+        if (currentShot === "refCam") {
+          // Referee bodycam during set-piece setup
           desiredCamPos.set(
-            28.0,
-            Math.min(22.5, Math.max(9.5, ballY + 7.0)),
-            ballZ - kDir * 9.0,
-          );
-          desiredTarget.set(
-            clamp(ballX * 0.4, -18, 18),
-            Math.max(0.5, ballY * 0.4),
-            ballZ + kDir * 14.0,
-          );
-          lerpRate = 0.1;
-        } else if (currentShot === "breakawayChase") {
-          // Elevated tracking from broadcast side
-          if (carrier) {
-            desiredCamPos.set(26.0, 5.2, carrier.position.z - attackDir * 6.5);
-            desiredTarget.set(
-              carrier.position.x * 0.5,
-              1.2,
-              carrier.position.z + attackDir * 6.0,
-            );
-            lerpRate = 0.12;
-          }
-        } else if (currentShot === "refCam") {
-          // Ref cam anchored on broadcast side of referee
-          desiredCamPos.set(
-            Math.max(5.0, game.referee.position.x + 3.5),
+            Math.max(4.5, game.referee.position.x + 3.0),
             2.1,
             game.referee.position.z,
           );
-          desiredTarget.set(ballX * 0.6, Math.max(0.5, ballY), ballZ);
-          lerpRate = 0.09;
-        } else if (currentShot === "sidelineTight") {
-          // Low pitchside camera on EAST broadcast touchline (never crossing to West)
-          desiredCamPos.set(37.2, 3.2, ballZ - attackDir * 3.5);
-          desiredTarget.set(ballX * 0.4, 0.9, ballZ + attackDir * 2.5);
+          desiredTarget.set(ballX * 0.5, Math.max(0.5, ballY), ballZ);
           lerpRate = 0.08;
         } else if (currentShot === "goalLine") {
-          // Corner gantry camera on broadcast side (X = +26 > 0)
+          // Corner gantry camera on broadcast side
           const targetTryLine =
             attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
-          const endPosZ = targetTryLine + attackDir * 14.0;
+          const endPosZ = targetTryLine + attackDir * 15.0;
           desiredCamPos.set(
-            26.0,
-            Math.min(22.0, 19.5 / Math.sqrt(zoom)),
+            28.0,
+            Math.min(23.0, 20.0 / Math.sqrt(zoom)),
             endPosZ,
           );
           desiredTarget.set(0, 2.0, targetTryLine - attackDir * 6.0);
-          lerpRate = 0.07;
+          lerpRate = 0.06;
         } else {
-          // Default: Main TV Broadcast Gantry under the roof canopy (X = +52)
-          const gantryX = 52.0 / Math.sqrt(zoom);
-          const gantryY = Math.min(23.5, 21.0 / Math.sqrt(zoom));
-          desiredCamPos.set(gantryX, gantryY, ballZ * 0.72);
-          desiredTarget.set(clamp(ballX * 0.4, -20, 20), 0, ballZ);
-          lerpRate = 0.08;
+          // Default: Main TV Broadcast Gantry (wide elevated perspective under roof canopy)
+          const gantryX = 58.0 / Math.sqrt(zoom);
+          const gantryY = Math.min(23.5, 22.5 / Math.sqrt(zoom));
+          desiredCamPos.set(gantryX, gantryY, ballZ * 0.78);
+          desiredTarget.set(0, 0, ballZ);
+          lerpRate = 0.06;
         }
 
         // Smooth camera gliding interpolation
