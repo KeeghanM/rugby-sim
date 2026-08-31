@@ -14,6 +14,7 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "./domain.ts";
 import { PITCH } from "./domain.ts";
+import { TEAMS } from "./teams.ts";
 
 const createPitch = (scene: Scene) => {
   const ground = CreateGround(
@@ -88,10 +89,14 @@ export const createRenderer = (
 
   const views = new Map(
     state.players.map((player) => {
-      const mesh = CreateCylinder(player.id, { diameter: 1, height: 2 }, scene);
+      const mesh = CreateCylinder(
+        player.id,
+        { diameter: player.weight / 100, height: 2 },
+        scene,
+      );
       const material = new StandardMaterial(`${player.id}-material`, scene);
       material.diffuseColor = Color3.FromHexString(
-        player.team === 0 ? "#1d4ed8" : "#dc2626",
+        TEAMS[player.team].color,
       );
       mesh.material = material;
       return [player.id, { mesh, material }] as const;
@@ -124,9 +129,11 @@ export const createRenderer = (
           game.phase.kind === "openPlay"
             ? "Open play"
             : game.phase.kind === "ruck"
-              ? `Ruck ${game.phase.stage} - ${game.phase.strategy}${game.phase.stage === "contest" ? ` ${Math.ceil(game.phase.releaseAfterSeconds - game.phase.elapsed)}s` : ""}${game.phase.counterRuck ? " - counter ruck" : ""}`
-              : `${game.phase.reason === "try" ? "Try - " : ""}Kickoff ${game.phase.stage}`;
-        scoreboard.textContent = `Blue ${game.scores[0]} - ${game.scores[1]} Red | ${phase}`;
+              ? `Ruck ${game.phase.stage} - ${game.phase.tempo} ${game.phase.play}${game.phase.counterRuck ? " - counter ruck" : ""}`
+              : game.phase.kind === "lineout"
+                ? `Lineout ${game.phase.stage}`
+                : `${game.phase.reason === "try" ? "Try - " : ""}Kickoff ${game.phase.stage}`;
+        scoreboard.textContent = `${TEAMS[0].name} ${game.scores[0]} - ${game.scores[1]} ${TEAMS[1].name} | ${phase}`;
       }
     },
   };

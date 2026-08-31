@@ -1,0 +1,126 @@
+[    2321ms] [LOG] BJS - [15:25:21]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[    2425ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  214839ms] [LOG] BJS - [15:28:54]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  214921ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  298252ms] [LOG] BJS - [15:30:17]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  298342ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  299086ms] ReferenceError: can't access lexical declaration 'attacking' before initialization
+    at computeCommands/< (http://127.0.0.1:5173/src/simulation.ts?t=1788186615897:230:7)
+    at computeCommands (http://127.0.0.1:5173/src/simulation.ts?t=1788186615897:222:18)
+    at updateGame (http://127.0.0.1:5173/src/simulation.ts?t=1788186615897:691:24)
+    at  (http://127.0.0.1:5173/src/index.ts?t=1788186615897:11:13)
+    at _renderFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3170:7)
+    at _processFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3153:16)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3161:10)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+[  326617ms] [LOG] BJS - [15:30:45]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  326718ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  449763ms] [LOG] BJS - [15:32:49]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  449841ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  498824ms] [LOG] BJS - [15:33:38]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  498914ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  679136ms] [LOG] BJS - [15:36:38]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  679225ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  703747ms] [LOG] BJS - [15:37:03]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  703844ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  712715ms] TypeError: can't access property "kicking", carrier.skills is undefined
+    at launchBall (http://127.0.0.1:5173/src/simulation.ts?t=1788187021285:287:17)
+    at updateKickoff (http://127.0.0.1:5173/src/simulation.ts?t=1788187021285:564:15)
+    at applyCommands (http://127.0.0.1:5173/src/simulation.ts?t=1788187021285:722:16)
+    at updateGame (http://127.0.0.1:5173/src/simulation.ts?t=1788187021285:727:16)
+    at  (http://127.0.0.1:5173/src/index.ts?t=1788187021285:11:13)
+    at _renderFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3170:7)
+    at _processFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3153:16)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3161:10)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+    at FrameRequestCallback*QueueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:2766:14)
+    at _queueNewFrame (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3182:12)
+    at _queueNewFrameForRenderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3189:33)
+    at _renderLoop (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3163:12)
+    at _AbstractEngine/this._boundRenderFunction (http://127.0.0.1:5173/node_modules/.vite/deps/chunk-I55MA7ZA.js?v=a39a67c7:3668:53)
+[  746621ms] [LOG] BJS - [15:37:45]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  746756ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  788137ms] [LOG] BJS - [15:38:27]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  788217ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519
+[  823991ms] [LOG] BJS - [15:39:03]: Babylon.js v9.23.0 - WebGL2 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-LOJLJCLY.js?v=a39a67c7:44
+[  824061ms] [WARNING] [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7" line: 519}] @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-F64RN26E.js?v=a39a67c7:519

@@ -32,6 +32,13 @@ export type Team = 0 | 1;
 export type Pod = "left" | "middle" | "right" | "backline";
 export type Position = { x: number; z: number };
 export type Position3 = Position & { y: number };
+export type PlayerSkills = {
+  decision: number;
+  handling: number;
+  passing: number;
+  kicking: number;
+  tackling: number;
+};
 
 export type Player = {
   id: string;
@@ -40,20 +47,29 @@ export type Player = {
   role: Role;
   pod: Pod;
   position: Position;
+  velocity: Position;
+  intentTarget: Position;
+  intentKind: string;
+  intentForSeconds: number;
+  decisionForSeconds: number;
   speed: number;
   weight: number;
   stamina: number;
   injuryPenalty: number;
   tackleCooldown: number;
   hardLineForSeconds: number;
+  kickOffside: boolean;
+  skills: PlayerSkills;
 };
 
 export type Ball = {
   position: Position3;
   velocity: Position3;
   carrierId: string | null;
-  flight: "pass" | "kick" | "kickoff" | null;
+  flight: "pass" | "kick" | "kickoff" | "lineout" | null;
   intendedReceiverId: string | null;
+  lastTouchedTeam: Team | null;
+  kickOrigin: Position | null;
 };
 
 export type Phase =
@@ -67,14 +83,23 @@ export type Phase =
     }
   | {
       kind: "ruck";
-      stage: "forming" | "contest" | "ready";
+      stage: "arrivals" | "secure" | "available";
       position: Position;
       attackingTeam: Team;
-      strategy: "slow" | "pickAndGo";
+      tempo: "quick" | "slow";
+      play: "pass" | "pickAndGo" | "boxKick" | "clearance";
       counterRuck: boolean;
       winningTeam: Team | null;
       elapsed: number;
-      releaseAfterSeconds: number;
+      attackers: string[];
+      defenders: string[];
+    }
+  | {
+      kind: "lineout";
+      stage: "forming" | "ready" | "inFlight";
+      position: Position;
+      throwingTeam: Team;
+      elapsed: number;
     };
 
 export type GameState = {
@@ -82,6 +107,8 @@ export type GameState = {
   ball: Ball;
   scores: [number, number];
   phase: Phase;
+  pendingClearanceKickerId: string | null;
+  defensiveLineZ: [number, number];
 };
 
 export const attackDirection = (team: Team) => (team === 0 ? 1 : -1);
