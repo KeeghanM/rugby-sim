@@ -42,8 +42,10 @@ export const desiredVelocity = (
   const dx = target.x - player.position.x;
   const dz = target.z - player.position.z;
   const length = Math.hypot(dx, dz);
-  // Stop close to target to avoid oscillation.
-  if (length < 0.35) return { x: 0, z: 0 };
-  const speed = effectiveSpeed(player, effort);
+  // Complete stop when virtually on target
+  if (length < 0.1) return { x: 0, z: 0 };
+  const maxSpeed = effectiveSpeed(player, effort);
+  // Smoothly ramp down speed inside 2.0m arrival radius so player stops cleanly without overshoot
+  const speed = length < 2.0 ? maxSpeed * (length / 2.0) : maxSpeed;
   return { x: (dx / length) * speed, z: (dz / length) * speed };
 };

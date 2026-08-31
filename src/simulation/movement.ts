@@ -7,10 +7,11 @@ import type { PlayerCommand, Random } from "./types.ts";
 
 // Advances current defensive line from phase and carrier position.
 export const advanceDefensiveLine = (state: GameState, deltaSeconds: number) => {
-  // Anchor defending line at ruck offside distance during ruck phases.
+  // Anchor defending line directly at ruck hindmost offside line
   if (state.phase.kind === "ruck") {
     const direction = attackDirection(state.phase.attackingTeam);
-    state.defensiveLineZ[otherTeam(state.phase.attackingTeam)] = state.phase.position.z + direction * 8;
+    state.defensiveLineZ[otherTeam(state.phase.attackingTeam)] =
+      state.phase.position.z + direction * 0.5;
     return;
   }
   // Leave line unchanged outside open play.
@@ -20,7 +21,7 @@ export const advanceDefensiveLine = (state: GameState, deltaSeconds: number) => 
   if (!carrier) return;
   const direction = attackDirection(carrier.team);
   const defendingTeam = otherTeam(carrier.team);
-  const limit = carrier.position.z + direction * 1.5;
+  const limit = carrier.position.z + direction * 0.5;
   const advanced = state.defensiveLineZ[defendingTeam] - direction * TEAMS[defendingTeam].lineSpeed * deltaSeconds;
   state.defensiveLineZ[defendingTeam] = direction === 1 ? Math.max(limit, advanced) : Math.min(limit, advanced);
 };

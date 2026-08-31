@@ -46,7 +46,7 @@ const hasBrokenLine = (players: Player[], carrier: Player) => {
   );
 };
 
-// Chooses two role-appropriate runners behind carrier to preserve live support.
+// Chooses three role-appropriate runners behind carrier to preserve live support.
 const selectSupportRunners = (
   players: Player[],
   carrier: Player,
@@ -85,7 +85,7 @@ const selectSupportRunners = (
       };
     })
     .sort((a, b) => a.priority - b.priority)
-    .slice(0, 2)
+    .slice(0, 3)
     .map(({ player }) => player.id);
 };
 
@@ -209,6 +209,14 @@ const chooseCarrierCommand = (
 
   const forcedClearance = state.pendingClearanceKickerId === carrier.id;
   const trapped = insideOwnTwentyTwo(carrier.team, carrier.position.z) && defendersAhead.length > 0;
+  const isFullbackReturn = carrier.role === ROLES.FullBack && insideOwnTwentyTwo(carrier.team, carrier.position.z);
+  const nearbyTeammates = players.filter(
+    (p) =>
+      p.team === carrier.team &&
+      p.id !== carrier.id &&
+      distance(p.position, carrier.position) <= 15,
+  );
+  const isStranded = nearbyTeammates.length === 0 && defendersAhead.length > 0;
   const recognisesClearance =
     random() >= (1 - effectiveSkill(carrier, "decision")) * 0.18;
   const canKick =
@@ -216,8 +224,8 @@ const chooseCarrierCommand = (
     carrier.role === ROLES.FlyHalf ||
     carrier.role === ROLES.FullBack ||
     carrier.role === ROLES.Wing;
-  // Kick when designated or trapped, provided role and decision skill permit it.
-  if ((forcedClearance || trapped) && canKick && recognisesClearance) {
+  // Stranded players or kick returns under chase execute clearance kicks immediately
+  if ((forcedClearance || trapped || isFullbackReturn || isStranded) && canKick && recognisesClearance) {
     result.ballAction = { kind: "kick", target: clearanceTarget(carrier, random) };
     return result;
   }
@@ -229,27 +237,39 @@ const chooseCarrierCommand = (
       result.ballAction = { kind: "pass", receiverId: kicker.id, clearance: true };
       return result;
     }
-    result.ballAction = { kind: "kick", target: clearanceTarget(carrier, random) };
-    return result;
   }
 
   // Keep carrying when no nearby defender forces a choice.
   if (defendersAhead.length === 0) return result;
-  const half = carrier.role === ROLES.ScrumHalf || carrier.role === ROLES.FlyHalf;
-  const centre = carrier.role === ROLES.InsideCentre || carrier.role === ROLES.OutsideCentre;
-  const weights = isForward(carrier)
-    ? [0.78, 0.1, 0.1]
-    : half
-      ? [0.25, 0.5, 0.15]
-      : centre
-        ? [0.4, 0.35, 0.2]
-        : [0.38, 0.12, 0.4];
+  const isTightFive =
+    carrier.role === ROLES.LooseHead ||
+    carrier.role === ROLES.Hooker ||
+    carrier.role === ROLES.TightHead ||
+    carrier.role === ROLES.Lock;
+  const isBackRow =
+    carrier.role === ROLES.BlindSideFlanker ||
+    carrier.role === ROLES.OpenSideFlanker ||
+    carrier.role === ROLES.NumberEight;
+  const isHalf = carrier.role === ROLES.ScrumHalf || carrier.role === ROLES.FlyHalf;
+  const isCentre = carrier.role === ROLES.InsideCentre || carrier.role === ROLES.OutsideCentre;
+
+  // Forwards (1-5) almost never kick (0%), back-row (6-8) rarely (0% open play)
+  const weights = isTightFive
+    ? [0.86, 0.08, 0.06]
+    : isBackRow
+      ? [0.76, 0.12, 0.12]
+      : isHalf
+        ? [0.22, 0.54, 0.14]
+        : isCentre
+          ? [0.44, 0.38, 0.16]
+          : [0.36, 0.18, 0.38];
+  const kickWeight = isTightFive || isBackRow ? 0 : isHalf ? 0.1 : isCentre ? 0.02 : 0.08;
   const tendencies = TEAMS[carrier.team].tendencies;
   const weighted = [
     weights[0] * tendencies.carry,
     weights[1] * tendencies.pass,
     weights[2] * tendencies.carry,
-    Math.max(0.01, 1 - weights[0] - weights[1] - weights[2]) * tendencies.kick,
+    kickWeight * tendencies.kick,
   ];
   const totalWeight = weighted.reduce((total, weight) => total + weight, 0);
   for (let index = 0; index < weighted.length; index += 1) weighted[index] /= totalWeight;
@@ -276,7 +296,14 @@ const chooseCarrierCommand = (
     };
     return result;
   }
-  result.ballAction = { kind: "kick", target: clearanceTarget(carrier, random) };
+  if (canKick) {
+    result.ballAction = { kind: "kick", target: clearanceTarget(carrier, random) };
+  } else {
+    result.target = {
+      x: carrier.position.x + (defendersAhead[0]?.position.x >= carrier.position.x ? -6 : 6),
+      z: carrier.position.z + direction * 10,
+    };
+  }
   return result;
 };
 
@@ -312,9 +339,20 @@ const computeFlightCommands = (state: GameState, players: Player[]) => {
       .filter(
         (player) => contestableKick && player.team !== kickingTeam,
       )
-      .sort((a, b) => distance(a.position, landing) - distance(b.position, landing))
+      .map((player) => {
+        const dist = distance(player.position, landing);
+        // Forwards and centres are the primary kickoff catchers; fullbacks prefer deep coverage unless closest
+        const isKickoff = state.ball.flight === "kickoff";
+        const priorityRole =
+          isForward(player) ||
+          player.role === ROLES.InsideCentre ||
+          player.role === ROLES.OutsideCentre;
+        const roleScore = isKickoff && !priorityRole ? 8 : 0;
+        return { player, score: dist + roleScore };
+      })
+      .sort((a, b) => a.score - b.score)
       .slice(0, 3)
-      .map((player) => player.id),
+      .map(({ player }) => player.id),
   );
 
   return players.map((player) => {
@@ -390,18 +428,20 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
   if (phase.kind === "lineout" && phase.stage !== "inFlight") {
     return players.map((player) => {
       const formation = TEAMS[player.team].formations;
+      const target = getLineoutTarget(
+        player,
+        phase.position,
+        phase.throwingTeam,
+        formation.lineoutMembers,
+        formation.lineoutNonParticipants,
+      );
+      const gap = distance(player.position, target);
       return command(
         player,
-        getLineoutTarget(
-          player,
-          phase.position,
-          phase.throwingTeam,
-          formation.lineoutMembers,
-          formation.lineoutNonParticipants,
-        ),
+        target,
         `lineout-${phase.stage}`,
         false,
-        phase.stage === "ready" ? "stand" : "jog",
+        gap > 8 ? "sprint" : gap > 1.5 ? "run" : "stand",
       );
     });
   }
@@ -517,23 +557,57 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       );
     }
     const aheadDistance = (player.position.z - carrier.position.z) * direction;
-    const offside = attacking && player.hardLineForSeconds === 0 && aheadDistance >= 0;
-    // Jog players immediately ahead of carrier back behind ball without forcing deep forward pods to retreat across field.
-    if (offside && aheadDistance <= 8) {
+    const isAheadOfBall = attacking && player.hardLineForSeconds === 0 && aheadDistance >= 0;
+    if (isAheadOfBall) {
+      const lateralDist = Math.abs(player.position.x - carrier.position.x);
+      // Small distance ahead (<= 3.5m): stand/wait for carrier to get inline
+      if (aheadDistance <= 3.5) {
+        return command(
+          player,
+          { x: player.laneX, z: player.position.z },
+          "await-carrier",
+          false,
+          "stand",
+        );
+      }
+      // If farther ahead, actively retreat back toward onside line (flaring outward if in direct channel)
+      const clearX =
+        lateralDist < 8
+          ? clamp(
+              player.position.x +
+                (player.position.x >= carrier.position.x ? 6 : -6),
+              -32,
+              32,
+            )
+          : player.laneX;
+      const targetZ = carrier.position.z - direction * 2.0;
+
+      // Speed graduated with distance and width:
+      const effort =
+        lateralDist > 16
+          ? aheadDistance > 18
+            ? "run"
+            : aheadDistance > 8
+              ? "jog"
+              : "stand"
+          : aheadDistance > 14
+            ? "sprint"
+            : aheadDistance > 6
+              ? "run"
+              : "jog";
+
       return command(
         player,
-        { x: player.laneX, z: carrier.position.z - direction * 2.5 },
+        { x: clearX, z: targetZ },
         "offside-recovery",
         false,
-        "jog",
+        effort,
       );
     }
-    // Commit nearest eligible defender to predictive tackle line.
-    if (
-      !attacking &&
-      player.id === tacklerId &&
-      distance(player.position, carrier.position) < (lineBroken ? 40 : 12)
-    ) {
+    // Any defender in range (or the designated sweeper/lead tackler) closes down and tackles carrier aggressively
+    const distToCarrier = distance(player.position, carrier.position);
+    const inTackleZone = !attacking && (player.id === tacklerId || distToCarrier <= 7);
+    if (inTackleZone && distToCarrier < (lineBroken ? 40 : 14)) {
       return command(
         player,
         {

@@ -96,8 +96,8 @@ export const LINEOUT_MEMBER_VARIANTS: Record<
   LineoutMembers,
   readonly number[]
 > = {
-  4: [1, 4, 5, 8],
-  5: [1, 4, 5, 6, 8],
+  4: [1, 3, 4, 5],
+  5: [1, 3, 4, 5, 8],
   6: [1, 3, 4, 5, 6, 8],
   7: [1, 3, 4, 5, 6, 7, 8],
 };
@@ -235,7 +235,7 @@ export const getRuckTarget = (
   if (!attacking) {
     return {
       x: clampX((DEFENCE_X[player.number - 1] ?? 0) + ruck.x * 0.25),
-      z: clampZ(ruck.z + direction * (8 + (player.number % 2) * 0.4)),
+      z: clampZ(ruck.z + direction * (0.5 + (player.number % 2) * 0.3)),
     };
   }
 
@@ -256,24 +256,44 @@ export const getLineoutTarget = (
 ): Position => {
   const touchSide = mark.x < 0 ? -1 : 1;
   const throwing = player.team === throwingTeam;
+  const teamDir = attackDirection(throwingTeam);
+  // Throwing hooker MUST stand directly on the touchline at mark
   if (throwing && player.role === ROLES.Hooker) {
-    return { x: touchSide * 34, z: mark.z };
+    return { x: touchSide * PITCH.touchLines.right, z: mark.z };
   }
+  // Defending hooker stands 2m in from touch in 5m tramline on defending side
+  if (!throwing && player.role === ROLES.Hooker) {
+    return {
+      x: touchSide * (PITCH.touchLines.right - 2),
+      z: clampZ(mark.z + teamDir * 2),
+    };
+  }
+
   const members = LINEOUT_MEMBER_VARIANTS[memberCount];
-  // Put selected forwards into line while remaining forwards join backs shape.
+  // Lineout participants form two parallel rows (5m to 15m from touch) across mark.z
   if (members.includes(player.number)) {
     const rank = members.indexOf(player.number);
     return {
-      x: touchSide * (31 - rank * 2.2),
-      z: clampZ(mark.z + attackDirection(throwingTeam) * (throwing ? -0.6 : 0.6)),
+      x: touchSide * (30 - rank * 2.0),
+      z: clampZ(mark.z + (throwing ? -teamDir * 0.5 : teamDir * 0.5)),
     };
   }
+
+  // Scrum-halves stand as lineout receivers near the base of the tunnel
+  if (player.role === ROLES.ScrumHalf) {
+    return {
+      x: touchSide * Math.max(16, 30 - memberCount * 2.0 + 2),
+      z: clampZ(mark.z + (throwing ? -teamDir * 2.5 : teamDir * 2.5)),
+    };
+  }
+
+  // Non-participant backs and extra forwards stand 10m back from the lineout mark
   const depth = player.role === ROLES.FullBack
-    ? nonParticipants === "maulDefence" ? 16 : 20
-    : nonParticipants === "split" ? 13 : nonParticipants === "maulDefence" ? 8 : 11;
+    ? nonParticipants === "maulDefence" ? 18 : 22
+    : nonParticipants === "split" ? 12 : nonParticipants === "maulDefence" ? 10 : 10;
   const width = nonParticipants === "split" ? 0.9 : nonParticipants === "maulDefence" ? 0.55 : 0.65;
   return {
     x: clampX(ATTACK_FORMATION[player.number - 1].x * width),
-    z: clampZ(mark.z + attackDirection(throwingTeam) * (throwing ? -depth : depth)),
+    z: clampZ(mark.z + (throwing ? -teamDir * depth : teamDir * depth)),
   };
 };
