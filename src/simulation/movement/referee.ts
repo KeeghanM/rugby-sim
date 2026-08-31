@@ -55,7 +55,75 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
     }
   }
 
-  // --- 2. STANDARD MATCH REFEREE POSITIONING ---
+  // --- 2. SET PIECE MARKS: Referee is first to the mark ---
+  if (phase.kind === "lineout") {
+    const touchSide = phase.position.x < 0 ? -1 : 1;
+    // Referee sprints directly to the 5m line mark of the lineout to set the tunnel
+    const targetX = touchSide * (PITCH.touchLines.right - 5.0);
+    const targetZ = phase.position.z;
+    const dx = targetX - state.referee.position.x;
+    const dz = targetZ - state.referee.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.3) {
+      const speed = dist > 10 ? 7.8 : dist > 3 ? 5.8 : 3.5;
+      state.referee.velocity = {
+        x: (dx / dist) * speed,
+        z: (dz / dist) * speed,
+      };
+      state.referee.position.x += state.referee.velocity.x * deltaSeconds;
+      state.referee.position.z += state.referee.velocity.z * deltaSeconds;
+    } else {
+      state.referee.velocity = { x: 0, z: 0 };
+    }
+    updateAssistantReferees(state, deltaSeconds);
+    return;
+  }
+
+  if (phase.kind === "scrum") {
+    // Referee sprints directly to the scrum tunnel to manage engagement
+    const targetX = clamp(phase.position.x + 2.2, -26, 26);
+    const targetZ = phase.position.z;
+    const dx = targetX - state.referee.position.x;
+    const dz = targetZ - state.referee.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.3) {
+      const speed = dist > 10 ? 7.8 : dist > 3 ? 5.8 : 3.5;
+      state.referee.velocity = {
+        x: (dx / dist) * speed,
+        z: (dz / dist) * speed,
+      };
+      state.referee.position.x += state.referee.velocity.x * deltaSeconds;
+      state.referee.position.z += state.referee.velocity.z * deltaSeconds;
+    } else {
+      state.referee.velocity = { x: 0, z: 0 };
+    }
+    updateAssistantReferees(state, deltaSeconds);
+    return;
+  }
+
+  if (phase.kind === "penalty" && phase.stage === "decision") {
+    // Referee stands right at the penalty mark
+    const targetX = clamp(phase.position.x, -26, 26);
+    const targetZ = phase.position.z;
+    const dx = targetX - state.referee.position.x;
+    const dz = targetZ - state.referee.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.3) {
+      const speed = dist > 10 ? 7.8 : 5.2;
+      state.referee.velocity = {
+        x: (dx / dist) * speed,
+        z: (dz / dist) * speed,
+      };
+      state.referee.position.x += state.referee.velocity.x * deltaSeconds;
+      state.referee.position.z += state.referee.velocity.z * deltaSeconds;
+    } else {
+      state.referee.velocity = { x: 0, z: 0 };
+    }
+    updateAssistantReferees(state, deltaSeconds);
+    return;
+  }
+
+  // --- 3. STANDARD MATCH REFEREE POSITIONING ---
   const ballPos = state.ball.carrierId
     ? (state.players.find((p) => p.id === state.ball.carrierId)?.position ??
       state.ball.position)
