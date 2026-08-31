@@ -44,6 +44,8 @@ export const createRenderer = (
     getZoom: cameras.getZoom,
     setZoom: cameras.setZoom,
     sync(game: GameState) {
+      cameras.sync(game);
+      const isRefCam = cameras.getCurrentShot() === "refCam";
       syncPlayers(
         game,
         views as any,
@@ -53,9 +55,9 @@ export const createRenderer = (
         carrierMarker as any,
         gainLinePlane as any,
         ball as any,
+        isRefCam,
       );
       env.updateScoreboards(game);
-      cameras.sync(game);
       syncUI(
         game,
         ui as any,

@@ -522,6 +522,7 @@ export const syncPlayers = (
   carrierMarker: any,
   gainLinePlane: any,
   ball: any,
+  isRefCam = false,
 ) => {
   const ruckPhase = game.phase.kind === "ruck" ? game.phase : null;
   const maulPhase = game.phase.kind === "maul" ? game.phase : null;
@@ -687,7 +688,8 @@ export const syncPlayers = (
     }
   }
 
-  // Referee position and facing
+  // Referee position and facing (hidden during first-person Ref-Cam POV)
+  refMesh.setEnabled(!isRefCam);
   refMesh.position.set(game.referee.position.x, 0.95, game.referee.position.z);
   const refSpeed = Math.hypot(game.referee.velocity.x, game.referee.velocity.z);
   if (refSpeed > 0.2) {

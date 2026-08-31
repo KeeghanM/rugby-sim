@@ -181,6 +181,7 @@ export const createCameras = (
     broadcastCam,
     freeCam,
     getCameraMode: () => cameraMode,
+    getCurrentShot: () => (cameraMode === "dynamic" ? currentShot : "free"),
     setCameraMode,
     getZoom: () => zoom,
     setZoom: (v: number) => {
@@ -272,16 +273,13 @@ export const createCameras = (
           shotDuration = 0;
         }
 
-        // --- 2. SIGHTLINES & POSITIONING (180-Degree Consistent TV Gantry) ---
+        // --- 2. SIGHTLINES & POSITIONING ---
         if (currentShot === "refCam") {
-          // Referee bodycam during set-piece setup
-          desiredCamPos.set(
-            Math.max(4.5, game.referee.position.x + 3.0),
-            2.1,
-            game.referee.position.z,
-          );
-          desiredTarget.set(ballX * 0.5, Math.max(0.5, ballY), ballZ);
-          lerpRate = 0.08;
+          // Direct first-person POV through referee's eyes (height ~1.76m)
+          const refPos = game.referee.position;
+          desiredCamPos.set(refPos.x, 1.76, refPos.z);
+          desiredTarget.set(ballX, Math.max(0.6, ballY), ballZ);
+          lerpRate = 0.16; // reactive first-person tracking
         } else if (currentShot === "goalLine") {
           // Corner gantry camera on broadcast side
           const targetTryLine =
