@@ -5,6 +5,7 @@ import { eng } from "./eng.ts";
 import { fra } from "./fra.ts";
 import { ire } from "./ire.ts";
 import { ita } from "./ita.ts";
+import { localClub } from "./local-club.ts";
 import { nz } from "./nz.ts";
 import { sa } from "./sa.ts";
 import { sco } from "./sco.ts";
@@ -21,6 +22,7 @@ export const INTERNATIONAL_PRESETS: Record<string, TeamDefinition> = {
   arg,
   wal,
   ita,
+  local: localClub,
 };
 
 export const TEAMS: Record<0 | 1, TeamDefinition> = {

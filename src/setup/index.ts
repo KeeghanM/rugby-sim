@@ -21,6 +21,10 @@ import {
   setStats,
   setTactics,
 } from "../teams/index.ts";
+import { ensureTacticalShapes, previewPositions } from "./preview.ts";
+import { renderShapeBoard } from "./shape-board-view.ts";
+import { renderSquad } from "./squad-view.ts";
+import { renderTactics } from "./tactics-view.ts";
 import {
   boundsFor,
   clamp,
@@ -33,10 +37,6 @@ import {
   toSpeedRating,
   toWeightRating,
 } from "./types.ts";
-import { ensureTacticalShapes, previewPositions } from "./preview.ts";
-import { renderSquad } from "./squad-view.ts";
-import { renderTactics } from "./tactics-view.ts";
-import { renderShapeBoard } from "./shape-board-view.ts";
 import { createWiring } from "./wiring.ts";
 
 type SetupView = "squad" | "tactics" | "shape";
@@ -169,7 +169,7 @@ export const createMatchSetup = (
           <label class="preset-selector">
             <span>Preset</span>
             <select data-preset-nation>
-              <option value="">Choose preset nation...</option>
+              <option value="">Choose preset team...</option>
               <option value="nz">New Zealand (All Blacks)</option>
               <option value="sa">South Africa (Springboks)</option>
               <option value="ire">Ireland</option>
@@ -180,6 +180,7 @@ export const createMatchSetup = (
               <option value="arg">Argentina (Los Pumas)</option>
               <option value="wal">Wales</option>
               <option value="ita">Italy (Azzurri)</option>
+              <option value="local">Northern RFC (Tier 5/6 England)</option>
             </select>
           </label>
           <button type="button" class="start-match" data-start>Kick off</button>
