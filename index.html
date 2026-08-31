@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Babylon.js App</title>
+    <title>Rugby Sim</title>
     <style>
         body {
             margin: 0;
@@ -16,9 +16,23 @@
             height: 100dvh;
             touch-action: none;
         }
+
+        #scoreboard {
+            position: fixed;
+            z-index: 1;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.6rem 1rem;
+            border-radius: 0.35rem;
+            background: rgb(0 0 0 / 75%);
+            color: white;
+            font: 600 1rem/1.2 system-ui, sans-serif;
+        }
     </style>
 </head>
 <body>
+    <output id="scoreboard" aria-live="polite"></output>
     <canvas id="renderCanvas"></canvas>
     <script type="module" src="/src/index.ts"></script>
 </body>
