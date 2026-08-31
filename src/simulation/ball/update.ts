@@ -59,9 +59,9 @@ export const updateBall = (
     const friction = Math.max(0, 1 - deltaSeconds * 1.8);
     state.ball.velocity.x *= friction;
     state.ball.velocity.z *= friction;
-    // Restart when rolling ball crosses dead-ball line within touchlines (not in touch).
+    // Restart when in-play rolling ball crosses dead-ball line within touchlines (not in touch).
     if (
-      state.phase.kind !== "lineout" &&
+      state.phase.kind === "openPlay" &&
       Math.abs(state.ball.position.x) < PITCH.touchLines.right &&
       Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
     ) {
@@ -167,9 +167,9 @@ export const updateBall = (
     return;
   }
 
-  // Restart with goal-line dropout when flight crosses dead-ball line within pitch width (not in touch).
+  // Restart with goal-line dropout when an in-play kick crosses dead-ball line within pitch width (not in touch).
   if (
-    state.phase.kind !== "lineout" &&
+    state.phase.kind === "openPlay" &&
     (state.ball.flight === "kick" ||
       state.ball.flight === "kickoff" ||
       state.ball.flight === "dropGoal") &&

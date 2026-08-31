@@ -530,13 +530,11 @@ export const syncPlayers = (
     const view = views.get(player.id);
     if (!view) continue;
 
-    const isTackledOrTackler =
-      ruckPhase !== null &&
-      (player.id === ruckPhase.tackledPlayerId ||
-        player.id === ruckPhase.tacklerId);
+    const isTackled =
+      ruckPhase !== null && player.id === ruckPhase.tackledPlayerId;
     const isRuckCleaner =
       ruckPhase !== null &&
-      !isTackledOrTackler &&
+      !isTackled &&
       (ruckPhase.joinedAttackers.includes(player.id) ||
         ruckPhase.joinedDefenders.includes(player.id)) &&
       Math.hypot(
@@ -578,7 +576,7 @@ export const syncPlayers = (
     while (diff > Math.PI) diff -= Math.PI * 2;
     view.mesh.rotation.y += diff * 0.28;
 
-    if (isTackledOrTackler) {
+    if (isTackled) {
       view.mesh.rotation.x = Math.PI / 2;
       view.mesh.position.set(player.position.x, 0.25, player.position.z);
     } else if (isRuckCleaner || isMaulBound) {

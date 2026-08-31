@@ -237,7 +237,8 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
   const attackers = new Set(phase.attackers);
   const defenders = new Set(phase.defenders);
   return players.map((player) => {
-    if (player.id === phase.tackledPlayerId || player.id === phase.tacklerId) {
+    // Tackled carrier presents ball on ground
+    if (player.id === phase.tackledPlayerId) {
       const frozen = command(
         player,
         player.position,
@@ -247,6 +248,18 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
       );
       frozen.freeze = true;
       return frozen;
+    }
+
+    // Law 14: Tackler rolls away from the ball and retreats behind defensive offside line
+    if (player.id === phase.tacklerId) {
+      const defDir = attackDirection(player.team);
+      const offsideZ = phase.position.z + defDir * 1.5;
+      const rollLateral = player.position.x >= phase.position.x ? 2.5 : -2.5;
+      const rollTarget = {
+        x: clamp(player.position.x + rollLateral, -32, 32),
+        z: clamp(offsideZ + defDir * 1.0, -56, 56),
+      };
+      return command(player, rollTarget, "tackler-roll-away", false, "run");
     }
     const joinsRuck = attackers.has(player.id) || defenders.has(player.id);
     const target = getRuckTarget(

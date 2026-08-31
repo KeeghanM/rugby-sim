@@ -72,13 +72,13 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
   distributor.velocity = { x: 0, z: 0 };
 
   // Staggered stand-up in reverse order of joining the ruck:
-  // Last joiner peels off first, earlier cleaners follow, tackled player and tackler stand up last.
+  // Last joiner peels off first, earlier cleaners follow, tackled player stands up last.
   const reversedJoiners = [...phase.joinOrder].reverse();
   reversedJoiners.forEach((playerId, index) => {
     const player = state.players.find((p) => p.id === playerId);
-    if (player) {
+    if (player && playerId !== phase.tackledPlayerId) {
       player.ruckRecoverySeconds =
-        (0.8 + index * 0.7) * (1.2 - overallSkill(player) * 0.4);
+        (0.6 + index * 0.6) * (1.2 - overallSkill(player) * 0.4);
     }
   });
 
@@ -86,11 +86,7 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     (p) => p.id === phase.tackledPlayerId,
   );
   if (tackledPlayer) {
-    tackledPlayer.ruckRecoverySeconds = 2.4 + reversedJoiners.length * 0.5;
-  }
-  const tackler = state.players.find((p) => p.id === phase.tacklerId);
-  if (tackler) {
-    tackler.ruckRecoverySeconds = 2.6 + reversedJoiners.length * 0.5;
+    tackledPlayer.ruckRecoverySeconds = 1.8 + reversedJoiners.length * 0.4;
   }
 
   // Free any player who was targeting but never actually joined
