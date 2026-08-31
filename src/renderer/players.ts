@@ -582,12 +582,11 @@ export const syncPlayers = (
       view.mesh.rotation.x = Math.PI / 2;
       view.mesh.position.set(player.position.x, 0.25, player.position.z);
     } else if (isRuckCleaner || isMaulBound) {
-      const leanDir = player.team === 0 ? 0.38 : -0.38;
-      view.mesh.rotation.x = leanDir;
+      // Forward lean into ruck (positive pitch angle tilts forward in local space for both teams)
+      view.mesh.rotation.x = 0.38;
       view.mesh.position.set(player.position.x, 0.85, player.position.z);
     } else if (player.ruckRecoverySeconds > 0) {
       // Disengaging / getting back up in reverse order after ruck
-      const leanDir = player.team === 0 ? 0.38 : -0.38;
       if (player.ruckRecoverySeconds > 1.8) {
         // Still prone on ground
         view.mesh.rotation.x = Math.PI / 2;
@@ -595,7 +594,7 @@ export const syncPlayers = (
       } else {
         // Pushing up / rising
         const progress = player.ruckRecoverySeconds / 1.8;
-        view.mesh.rotation.x = leanDir * progress;
+        view.mesh.rotation.x = 0.38 * progress;
         view.mesh.position.set(
           player.position.x,
           0.96 - 0.25 * progress,

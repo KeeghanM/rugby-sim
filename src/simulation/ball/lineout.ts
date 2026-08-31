@@ -29,18 +29,10 @@ export const startLineout = (
   }
 
   const throwingTeam = state.pendingLineoutTeam ?? otherTeam(kickingTeam);
-  state.ball = {
-    position: { x: Math.sign(x) * PITCH.touchLines.right, y: 0.15, z },
-    velocity: { x: 0, y: 0, z: 0 },
-    carrierId: null,
-    flight: null,
-    intendedReceiverId: null,
-    lastTouchedTeam: kickingTeam,
-    passerId: null,
-    kickerId: null,
-    kickOrigin: null,
-    bouncesRemaining: 0,
-  };
+  const touchSide = Math.sign(x) || 1;
+
+  // Let the old ball naturally fly/bounce out of bounds while the lineout is established
+  state.ball.carrierId = null;
   state.pendingClearanceKickerId = null;
   state.pendingLineoutTeam = null;
   state.possessionTeam = throwingTeam;
@@ -51,7 +43,7 @@ export const startLineout = (
   state.phase = {
     kind: "lineout",
     stage: "forming",
-    position: { x: Math.sign(x) * PITCH.touchLines.right, z },
+    position: { x: touchSide * PITCH.touchLines.right, z },
     throwingTeam,
     elapsed: 0,
   };

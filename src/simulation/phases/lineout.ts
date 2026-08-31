@@ -89,6 +89,26 @@ export const updateLineout = (
 
   // Wait for hooker and both lineout rows to form cleanly
   if (phase.stage === "forming") {
+    // AR delivers / spawns fresh match ball to the hooker at the touchline
+    if (
+      hooker &&
+      state.ball.carrierId !== hooker.id &&
+      (hookerReady || phase.elapsed >= 1.0)
+    ) {
+      state.ball = {
+        position: { x: phase.position.x, y: 1.25, z: phase.position.z },
+        velocity: { x: 0, y: 0, z: 0 },
+        carrierId: hooker.id,
+        flight: null,
+        intendedReceiverId: null,
+        lastTouchedTeam: phase.throwingTeam,
+        passerId: null,
+        kickerId: null,
+        kickOrigin: null,
+        bouncesRemaining: 0,
+      };
+    }
+
     if ((!hookerReady || !lineoutForwardsReady) && phase.elapsed < 14) return;
     phase.stage = "ready";
     phase.elapsed = 0;
