@@ -589,28 +589,45 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
   }
 };
 
-// Awards try and transitions to conversion kick attempt.
+// Awards try and transitions to visible conversion kick attempt.
 export const scoreTry = (state: GameState, team: Team) => {
   state.scores[team] += 5;
   const carrier = state.players.find((p) => p.id === state.ball.carrierId);
+  const teamDir = attackDirection(team);
   const tryX = clamp(carrier?.position.x ?? 0, -28, 28);
   const tryZ = team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
-  state.ball.carrierId = null;
-  state.ball.flight = null;
+  const teeSpot = { x: tryX, z: clamp(tryZ - teamDir * 22, -48, 48) };
+
+  // Place ball on conversion kicking tee
+  state.ball = {
+    position: { x: teeSpot.x, y: 0.15, z: teeSpot.z },
+    velocity: { x: 0, y: 0, z: 0 },
+    carrierId: null,
+    flight: null,
+    intendedReceiverId: null,
+    lastTouchedTeam: team,
+    kickOrigin: null,
+    bouncesRemaining: 0,
+  };
   state.pendingClearanceKickerId = null;
   state.formations[0] = rollTeamFormations(0);
   state.formations[1] = rollTeamFormations(1);
   state.phase = {
     kind: "conversion",
-    stage: "setup",
-    position: { x: tryX, z: tryZ },
+    stage: "forming",
+    position: teeSpot,
     kickingTeam: team,
     elapsed: 0,
+    isSuccess: null,
   };
 };
 
-// Simulates conversion kick after try
-export const updateConversion = (state: GameState, deltaSeconds: number, random: Random) => {
+// Simulates conversion kick after try with visible lineup, shot, and flight
+export const updateConversion = (
+  state: GameState,
+  deltaSeconds: number,
+  random: Random,
+) => {
   const phase = state.phase;
   if (phase.kind !== "conversion") return;
   phase.elapsed += deltaSeconds;
@@ -620,52 +637,68 @@ export const updateConversion = (state: GameState, deltaSeconds: number, random:
       (p) => p.team === phase.kickingTeam && p.role === ROLES.FlyHalf,
     ) ?? state.players.find((p) => p.team === phase.kickingTeam);
 
-  if (phase.stage === "setup") {
-    if (phase.elapsed < 2.0) return;
-    phase.stage = "kick";
+  // 1. Forming: kicker moves to tee, defenders behind try line, attackers in own half
+  if (phase.stage === "forming") {
+    const kickerInPlace =
+      kicker && distance(kicker.position, phase.position) <= 2.2;
+    if ((!kickerInPlace || phase.elapsed < 3.0) && phase.elapsed < 8.0) return;
+    phase.stage = "ready";
     phase.elapsed = 0;
     return;
   }
 
-  if (phase.stage === "kick") {
-    if (phase.elapsed < 1.0) return;
+  // 2. Ready: kicker pauses over tee before swinging through
+  if (phase.stage === "ready") {
+    if (phase.elapsed < 1.4) return;
     if (!kicker) return;
     const teamDir = attackDirection(phase.kickingTeam);
     const targetTryLine =
       phase.kickingTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
-    const anglePenalty = (Math.abs(phase.position.x) / 35) * 0.32;
+    const anglePenalty = (Math.abs(phase.position.x) / 35) * 0.35;
     const kickSkill = effectiveSkill(kicker, "kicking");
     const successChance = clamp(
-      0.92 - anglePenalty + kickSkill * 0.15,
+      0.9 - anglePenalty + kickSkill * 0.18,
       0.45,
       0.98,
     );
     const isSuccess = random() < successChance;
 
-    if (isSuccess) {
-      state.scores[phase.kickingTeam] += 2;
-    }
-    kicker.stamina = clamp(kicker.stamina - 0.5, 0, 100);
+    phase.isSuccess = isSuccess;
+    kicker.stamina = clamp(kicker.stamina - 0.4, 0, 100);
     launchBall(
       state,
       kicker,
       {
         x: isSuccess
-          ? (random() - 0.5) * 2
-          : (Math.sign(phase.position.x) || 1) * 8,
-        z: targetTryLine + teamDir * 6,
+          ? (random() - 0.5) * 3
+          : (Math.sign(phase.position.x) || 1) * 7.5,
+        z: targetTryLine + teamDir * 8,
       },
       "kick",
       null,
       random,
     );
-    state.phase = {
-      kind: "kickoff",
-      stage: "forming",
-      kickingTeam: otherTeam(phase.kickingTeam),
-      readyForSeconds: 0,
-      reason: "try",
-    };
+    phase.stage = "inFlight";
+    phase.elapsed = 0;
+    return;
+  }
+
+  // 3. In Flight: ball soars over crossbar, points award upon passing posts
+  if (phase.stage === "inFlight") {
+    if (phase.isSuccess && phase.elapsed >= 1.1) {
+      state.scores[phase.kickingTeam] += 2;
+      phase.isSuccess = false; // Credit points once
+    }
+    // After kick flight completes, transition smoothly to kickoff restart
+    if (state.ball.flight === null || phase.elapsed >= 2.6) {
+      state.phase = {
+        kind: "kickoff",
+        stage: "forming",
+        kickingTeam: otherTeam(phase.kickingTeam),
+        readyForSeconds: 0,
+        reason: "try",
+      };
+    }
   }
 };
 

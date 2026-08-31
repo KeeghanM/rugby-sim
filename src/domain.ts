@@ -137,10 +137,11 @@ export type Phase =
     }
   | {
       kind: "conversion";
-      stage: "setup" | "kick";
+      stage: "forming" | "ready" | "inFlight";
       position: Position;
       kickingTeam: Team;
       elapsed: number;
+      isSuccess: boolean | null;
     }
   | {
       kind: "penalty";

@@ -562,46 +562,55 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       return command(player, target, `scrum-${phase.stage}`, false, effort);
     });
   }
-  // Conversion kick setup: kicker 20m back, attackers behind kicker, defenders behind in-goal
+  // Conversion kick setup: kicker at tee spot, attackers in own half, defenders behind try line in-goal
   if (phase.kind === "conversion") {
     const teamDir = attackDirection(phase.kickingTeam);
+    const defendingTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
     return players.map((player) => {
       const isKicker =
         player.team === phase.kickingTeam && player.role === ROLES.FlyHalf;
+      // Kicker lines up at the kicking tee spot
       if (isKicker) {
+        const gap = distance(player.position, phase.position);
         return command(
           player,
-          {
-            x: phase.position.x,
-            z: clamp(phase.position.z - teamDir * 20, -50, 50),
-          },
+          phase.position,
           "conversion-kicker",
           false,
-          "run",
+          gap > 1.5 ? "run" : "stand",
         );
       }
-      const slotOffset = (player.slotIndex ?? 7) - 7;
+      const slotIdx = player.slotIndex ?? 7;
+      const slotOffset = slotIdx - 7;
+      // Scoring teammates jog back to their own half behind halfway
       if (player.team === phase.kickingTeam) {
+        const ownHalfZ = -teamDir * (8 + (slotIdx % 3) * 2.5);
+        const target = {
+          x: slotOffset * 3.5,
+          z: clamp(ownHalfZ, -55, 55),
+        };
+        const gap = distance(player.position, target);
         return command(
           player,
-          {
-            x: slotOffset * 3.5,
-            z: clamp(phase.position.z - teamDir * 26, -55, 55),
-          },
+          target,
           "conversion-support",
           false,
-          "run",
+          gap > 2 ? "run" : "stand",
         );
       }
+      // Defending team stands in-goal behind their own try line
+      const target = {
+        x: slotOffset * 4,
+        z: clamp(defendingTryLine + teamDir * 2.5, -58, 58),
+      };
+      const gap = distance(player.position, target);
       return command(
         player,
-        {
-          x: slotOffset * 4,
-          z: clamp(phase.position.z + teamDir * 2, -58, 58),
-        },
+        target,
         "conversion-defence",
         false,
-        "run",
+        gap > 2 ? "run" : "stand",
       );
     });
   }
