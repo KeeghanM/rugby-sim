@@ -1,6 +1,14 @@
 import type { TeamDefinition } from "../../domain.ts";
-import { arg, aus, nz, sa } from "./southern.ts";
-import { eng, fra, ire, ita, sco, wal } from "./northern.ts";
+import { arg } from "./arg.ts";
+import { aus } from "./aus.ts";
+import { eng } from "./eng.ts";
+import { fra } from "./fra.ts";
+import { ire } from "./ire.ts";
+import { ita } from "./ita.ts";
+import { nz } from "./nz.ts";
+import { sa } from "./sa.ts";
+import { sco } from "./sco.ts";
+import { wal } from "./wal.ts";
 
 export const INTERNATIONAL_PRESETS: Record<string, TeamDefinition> = {
   nz,

@@ -37,6 +37,7 @@ import { ensureTacticalShapes, previewPositions } from "./preview.ts";
 import { renderSquad } from "./squad-view.ts";
 import { renderTactics } from "./tactics-view.ts";
 import { renderShapeBoard } from "./shape-board-view.ts";
+import { createWiring } from "./wiring.ts";
 
 type SetupView = "squad" | "tactics" | "shape";
 
@@ -108,8 +109,6 @@ export const createMatchSetup = (
     });
   };
 
-
-
   const render = () => {
     const team = teams[selectedTeam];
     let content = "";
@@ -117,7 +116,12 @@ export const createMatchSetup = (
       content = renderSquad(teams, selectedTeam, selectedPlayer);
     else if (view === "tactics") content = renderTactics(teams, selectedTeam);
     else {
-      const positions = previewPositions(teams, selectedTeam, shapeContext, selectedShapeIndex);
+      const positions = previewPositions(
+        teams,
+        selectedTeam,
+        shapeContext,
+        selectedShapeIndex,
+      );
       content = renderShapeBoard(
         teams,
         selectedTeam,
@@ -187,268 +191,25 @@ export const createMatchSetup = (
     setTactics(teams, selectedTeam, next);
   };
 
-  const wirePitch = () => {
-    const pitch = root.querySelector<HTMLElement>("[data-pitch]");
-    if (!pitch) return;
-    const xBound = Number(pitch.dataset.xBound);
-    const zBound = Number(pitch.dataset.zBound);
-    for (const player of pitch.querySelectorAll<HTMLElement>(
-      "[data-shape-player]",
-    )) {
-      player.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        player.setPointerCapture(event.pointerId);
-        const positions = previewPositions(teams, selectedTeam, shapeContext, selectedShapeIndex);
-        const index = Number(player.dataset.shapePlayer);
-        const move = (pointer: PointerEvent) => {
-          const rect = pitch.getBoundingClientRect();
-          const x = clamp(
-            ((pointer.clientX - rect.left) / rect.width) * xBound * 2 - xBound,
-            -xBound,
-            xBound,
-          );
-          const z = clamp(
-            zBound - ((pointer.clientY - rect.top) / rect.height) * zBound * 2,
-            -zBound,
-            zBound,
-          );
-          positions[index] = { x, z };
-          player.style.setProperty(
-            "--x",
-            `${((x + xBound) / (xBound * 2)) * 100}%`,
-          );
-          player.style.setProperty(
-            "--z",
-            `${((zBound - z) / (zBound * 2)) * 100}%`,
-          );
-        };
-        const finish = () => {
-          const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-          if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
-          shapes[selectedShapeIndex].positions = positions.map((position) => ({
-            ...position,
-          }));
-          setTactics(teams, selectedTeam, {
-            tacticalShapes: { [shapeContext]: shapes },
-            customFormations: { [shapeContext]: positions },
-          });
-          player.removeEventListener("pointermove", move);
-          render();
-        };
-        player.addEventListener("pointermove", move);
-        player.addEventListener("pointerup", finish, { once: true });
-      });
-    }
-  };
-
-  const wire = () => {
-    root.querySelectorAll<HTMLElement>("[data-team-switch]").forEach((button) =>
-      button.addEventListener("click", () => {
-        selectedTeam = Number(button.dataset.teamSwitch) as Team;
-        selectedPlayer = 10;
-        selectedShapeIndex = 0;
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLElement>("[data-view]").forEach((button) =>
-      button.addEventListener("click", () => {
-        view = button.dataset.view as SetupView;
-        render();
-      }),
-    );
-    root
-      .querySelector<HTMLInputElement>("[data-team-name]")
-      ?.addEventListener("change", (event) => {
-        setStats(teams, selectedTeam, {
-          name: (event.currentTarget as HTMLInputElement).value,
-        });
-        render();
-      });
-    root
-      .querySelector<HTMLInputElement>("[data-team-color]")
-      ?.addEventListener("change", (event) => {
-        setStats(teams, selectedTeam, {
-          color: (event.currentTarget as HTMLInputElement).value,
-        });
-        render();
-      });
-    root
-      .querySelector<HTMLSelectElement>("[data-preset-nation]")
-      ?.addEventListener("change", (event) => {
-        const val = (event.currentTarget as HTMLSelectElement).value;
-        if (val) {
-          loadPreset(teams, selectedTeam, val);
-          selectedPlayer = 10;
-          selectedShapeIndex = 0;
-          render();
-        }
-      });
-    root
-      .querySelector<HTMLElement>("[data-start]")
-      ?.addEventListener("click", onStart);
-    root.querySelectorAll<HTMLElement>("[data-player]").forEach((button) =>
-      button.addEventListener("click", () => {
-        selectedPlayer = Number(button.dataset.player);
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLInputElement>("[data-rating]").forEach((input) =>
-      input.addEventListener("change", () => {
-        const rating = Number(input.value);
-        if (input.dataset.scope === "team") {
-          setTeamRating(input.dataset.rating!, rating);
-        } else {
-          setPlayerRating(input.dataset.rating!, rating);
-        }
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLInputElement>("[data-mix]").forEach((input) =>
-      input.addEventListener("change", () => {
-        adjustMix(
-          input.dataset.mix as "carry" | "pass" | "kick",
-          Number(input.value) / 100,
-        );
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLElement>("[data-pressure]").forEach((button) =>
-      button.addEventListener("click", () => {
-        const speeds = { patient: 3.7, balanced: 4.4, aggressive: 5.2 };
-        setStats(teams, selectedTeam, {
-          lineSpeed: speeds[button.dataset.pressure as keyof typeof speeds],
-        });
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLElement>("[data-maul]").forEach((button) =>
-      button.addEventListener("click", () => {
-        const choices = { move: 0.2, mixed: 0.5, drive: 0.8 };
-        setTactics(teams, selectedTeam, {
-          maul: choices[button.dataset.maul as keyof typeof choices],
-        });
-        render();
-      }),
-    );
-    root.querySelectorAll<HTMLElement>("[data-lineout]").forEach((button) =>
-      button.addEventListener("click", () => {
-        setTactics(teams, selectedTeam, {
-          formations: {
-            lineoutMembers: Number(button.dataset.lineout) as 4 | 5 | 6 | 7,
-          },
-        });
-        render();
-      }),
-    );
-    root
-      .querySelectorAll<HTMLElement>("[data-shape-context]")
-      .forEach((button) =>
-        button.addEventListener("click", () => {
-          shapeContext = button.dataset.shapeContext as FormationContext;
-          selectedShapeIndex = 0;
-          render();
-        }),
-      );
-    root.querySelectorAll<HTMLElement>("[data-shape-index]").forEach((button) =>
-      button.addEventListener("click", () => {
-        selectedShapeIndex = Number(button.dataset.shapeIndex);
-        render();
-      }),
-    );
-    root
-      .querySelector<HTMLElement>("[data-add-shape]")
-      ?.addEventListener("click", () => {
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        const context = shapeContexts.find(
-          (item) => item.value === shapeContext,
-        )!;
-        const newPlayIndex = shapes.length + 1;
-        shapes.push({
-          id: `${shapeContext}-${Date.now()}`,
-          name: `Play ${newPlayIndex}`,
-          weight: 50,
-          preset: String(context.presets[0]),
-        });
-        selectedShapeIndex = shapes.length - 1;
-        setTactics(teams, selectedTeam, {
-          tacticalShapes: { [shapeContext]: shapes },
-        });
-        render();
-      });
-    root
-      .querySelector<HTMLInputElement>("[data-shape-name]")
-      ?.addEventListener("change", (event) => {
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
-        shapes[selectedShapeIndex].name =
-          (event.currentTarget as HTMLInputElement).value.trim() ||
-          `Play ${selectedShapeIndex + 1}`;
-        setTactics(teams, selectedTeam, {
-          tacticalShapes: { [shapeContext]: shapes },
-        });
-        render();
-      });
-    root
-      .querySelector<HTMLInputElement>("[data-shape-weight]")
-      ?.addEventListener("input", (event) => {
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
-        shapes[selectedShapeIndex].weight = Number(
-          (event.currentTarget as HTMLInputElement).value,
-        );
-        setTactics(teams, selectedTeam, {
-          tacticalShapes: { [shapeContext]: shapes },
-        });
-        render();
-      });
-    root
-      .querySelector<HTMLElement>("[data-delete-shape]")
-      ?.addEventListener("click", () => {
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        if (shapes.length > 1) {
-          shapes.splice(selectedShapeIndex, 1);
-          selectedShapeIndex = Math.max(0, selectedShapeIndex - 1);
-          setTactics(teams, selectedTeam, {
-            tacticalShapes: { [shapeContext]: shapes },
-          });
-          render();
-        }
-      });
-    root.querySelectorAll<HTMLElement>("[data-preset]").forEach((button) =>
-      button.addEventListener("click", () => {
-        const context = shapeContexts.find(
-          (item) => item.value === shapeContext,
-        )!;
-        const preset =
-          context.formation === "lineoutMembers"
-            ? Number(button.dataset.preset)
-            : button.dataset.preset!;
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
-        shapes[selectedShapeIndex].preset = String(preset);
-        delete shapes[selectedShapeIndex].positions;
-        setTactics(teams, selectedTeam, {
-          formations: { [context.formation]: preset },
-          tacticalShapes: { [shapeContext]: shapes },
-          customFormations: { [shapeContext]: null },
-        });
-        render();
-      }),
-    );
-    root
-      .querySelector<HTMLElement>("[data-reset-shape]")
-      ?.addEventListener("click", () => {
-        const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
-        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
-        delete shapes[selectedShapeIndex].positions;
-        setTactics(teams, selectedTeam, {
-          tacticalShapes: { [shapeContext]: shapes },
-          customFormations: { [shapeContext]: null },
-        });
-        render();
-      });
-    wirePitch();
-  };
+  const { wire } = createWiring(
+    root,
+    teams,
+    () => selectedTeam,
+    (v) => (selectedTeam = v),
+    () => view,
+    (v) => (view = v),
+    () => selectedPlayer,
+    (v) => (selectedPlayer = v),
+    () => shapeContext,
+    (v) => (shapeContext = v),
+    () => selectedShapeIndex,
+    (v) => (selectedShapeIndex = v),
+    render,
+    onStart,
+    setPlayerRating,
+    setTeamRating,
+    adjustMix,
+  );
 
   render();
 };
