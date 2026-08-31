@@ -63,13 +63,18 @@ export const getOpenPlayTarget = (
   player: Player,
   carrier: Player,
   defensiveLineZ?: number,
-  markedOpponent?: Player,
 ): Position => {
   const ballDirection = attackDirection(carrier.team);
   if (player.team === carrier.team) {
     const slot = ATTACK_FORMATION[player.number - 1];
+    const x =
+      player.role === ROLES.ScrumHalf
+        ? carrier.position.x + 4
+        : player.role === ROLES.FlyHalf
+          ? carrier.position.x + 9
+          : player.laneX;
     return {
-      x: clampX(slot.x + carrier.position.x * 0.2),
+      x: clampX(x),
       z: clampZ(carrier.position.z + slot.z * ballDirection),
     };
   }
@@ -82,11 +87,7 @@ export const getOpenPlayTarget = (
   }
 
   return {
-    x: clampX(
-      markedOpponent
-        ? markedOpponent.position.x * 0.8 + (DEFENCE_X[player.number - 1] ?? 0) * 0.2
-        : (DEFENCE_X[player.number - 1] ?? 0) + carrier.position.x * 0.3,
-    ),
+    x: clampX(player.laneX),
     z: clampZ(
       defensiveLineZ ?? carrier.position.z + ballDirection * 3.5,
     ),

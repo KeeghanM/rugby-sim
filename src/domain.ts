@@ -47,6 +47,7 @@ export type Player = {
   role: Role;
   pod: Pod;
   position: Position;
+  laneX: number;
   velocity: Position;
   intentTarget: Position;
   intentKind: string;
