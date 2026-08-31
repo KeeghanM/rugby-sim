@@ -269,19 +269,68 @@ export const updateBall = (
   // Resolve bounce, roll, or loose ball when flight reaches ground.
   if (state.ball.position.y <= 0.15) {
     state.ball.position.y = 0.15;
-    // Let territorial kicks bounce before converting remaining momentum to roll.
-    if (
-      (state.ball.flight === "kick" || state.ball.flight === "kickoff") &&
-      state.ball.bouncesRemaining > 0
-    ) {
-      state.ball.velocity.y = Math.abs(state.ball.velocity.y) * 0.42;
-      state.ball.velocity.x *= 0.72;
-      state.ball.velocity.z *= 0.72;
+
+    const flight = state.ball.flight;
+    const isGrubber = flight === "grubber";
+    const isHighKick =
+      flight === "kick" || flight === "kickoff" || flight === "dropGoal";
+
+    // 1. Grubber bounce: runs straight with small skill-based deflection chance
+    if (isGrubber && state.ball.bouncesRemaining > 0) {
+      const kicker = state.players.find((p) => p.id === state.ball.kickerId);
+      const skill = kicker ? effectiveSkill(kicker, "kicking") : 0.8;
+      const deviationChance = 0.005 + (1 - skill) * 0.04; // 0.5% base up to 4.5%
+
+      if (random() < deviationChance) {
+        // Small random lateral nudge
+        state.ball.velocity.x += (random() - 0.5) * 2.2;
+      }
+
+      state.ball.velocity.y = Math.abs(state.ball.velocity.y) * 0.35;
+      state.ball.velocity.x *= 0.88;
+      state.ball.velocity.z *= 0.88;
       state.ball.bouncesRemaining -= 1;
       return;
     }
-    // Preserve horizontal kick momentum as rolling ball after final bounce.
-    if (state.ball.flight === "kick" || state.ball.flight === "kickoff") {
+
+    // 2. High kick / Bomb / Kickoff: realistic unpredictable rugby bounce dynamics!
+    if (isHighKick && state.ball.bouncesRemaining > 0) {
+      const kicker = state.players.find((p) => p.id === state.ball.kickerId);
+      const skill = kicker ? effectiveSkill(kicker, "kicking") : 0.8;
+
+      // Bounce restitution
+      state.ball.velocity.y =
+        Math.abs(state.ball.velocity.y) * (0.35 + random() * 0.25);
+
+      // High chance of lateral sideways deflection (40% base + up to 30% on low skill)
+      const lateralChance = 0.4 + (1 - skill) * 0.3;
+      if (random() < lateralChance) {
+        const lateralMagnitude = (random() - 0.5) * (4.5 + random() * 5.5);
+        state.ball.velocity.x += lateralMagnitude;
+      } else {
+        state.ball.velocity.x *= 0.65;
+      }
+
+      // Chance of check-up or reverse bounce back toward kicker
+      const bounceType = random();
+      if (bounceType < 0.25) {
+        // Reverse bounce: ball checks up and kicks backward toward the kicking side
+        state.ball.velocity.z =
+          -state.ball.velocity.z * (0.35 + random() * 0.45);
+      } else if (bounceType < 0.45) {
+        // Check-up dead bounce: loses horizontal momentum and bounces mostly upward
+        state.ball.velocity.z *= 0.25;
+      } else {
+        // Forward deflection
+        state.ball.velocity.z *= 0.65;
+      }
+
+      state.ball.bouncesRemaining -= 1;
+      return;
+    }
+
+    // Preserve horizontal momentum into a rolling ball after final bounce
+    if (isHighKick || isGrubber) {
       state.ball.velocity.y = 0;
       state.ball.velocity.x *= 0.65;
       state.ball.velocity.z *= 0.65;
@@ -289,6 +338,7 @@ export const updateBall = (
       state.ball.intendedReceiverId = null;
       return;
     }
+
     // Leave failed pass or lineout throw stationary and loose.
     state.ball.velocity = { x: 0, y: 0, z: 0 };
     state.ball.flight = null;

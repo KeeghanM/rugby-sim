@@ -92,6 +92,53 @@ const HAIR_COLORS = [
   "#292524",
 ];
 
+// Dynamic texture for official rugby match ball (4 panels with grip seams)
+const createRugbyBallTexture = (scene: Scene) => {
+  const dTex = new DynamicTexture(
+    "rugby-ball-tex",
+    { width: 512, height: 256 },
+    scene,
+    true,
+  );
+  const ctx = dTex.getContext() as unknown as CanvasRenderingContext2D;
+
+  // Leather base
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, 512, 256);
+
+  // 4 Gilbert-style chevron panel trim stripes
+  const panelW = 512 / 4;
+  for (let i = 0; i < 4; i++) {
+    const px = i * panelW;
+
+    // Panel border seam
+    ctx.strokeStyle = "#64748b";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px, 0, panelW, 256);
+
+    // Aerodynamic chevron curve in cyan & navy
+    ctx.fillStyle = i % 2 === 0 ? "#0284c7" : "#1e3a8a";
+    ctx.beginPath();
+    ctx.ellipse(px + panelW / 2, 128, panelW * 0.35, 45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Central grip pimple texture lines
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    for (let dy = 65; dy <= 185; dy += 24) {
+      ctx.fillRect(px + panelW / 2 - 10, dy, 20, 3);
+    }
+  }
+
+  // Valve dot on panel 0
+  ctx.fillStyle = "#0f172a";
+  ctx.beginPath();
+  ctx.arc(panelW / 2, 128, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  dTex.update(true);
+  return dTex;
+};
+
 // Creates a 512x512 dynamic texture for player jersey with big bold number on back
 const createPlayerTexture = (
   scene: Scene,
@@ -447,9 +494,12 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
   gainLineMat.alpha = 0.45;
   gainLinePlane.material = gainLineMat;
 
-  const ball = CreateSphere("ball", { diameter: 0.45 }, scene);
+  const ball = CreateSphere("ball", { diameter: 0.44, segments: 16 }, scene);
+  ball.scaling.set(0.72, 0.72, 1.28);
   const ballMaterial = new StandardMaterial("ball-material", scene);
-  ballMaterial.diffuseColor = Color3.FromHexString("#f5f5dc");
+  ballMaterial.diffuseTexture = createRugbyBallTexture(scene);
+  ballMaterial.specularColor = new Color3(0.18, 0.18, 0.18);
+  ballMaterial.specularPower = 32;
   ball.material = ballMaterial;
 
   return {
@@ -586,6 +636,39 @@ export const syncPlayers = (
     game.ball.position.y,
     game.ball.position.z,
   );
+
+  const hSpeed = Math.hypot(game.ball.velocity.x, game.ball.velocity.z);
+  const vSpeed = game.ball.velocity.y;
+  const ballSpeed = Math.hypot(hSpeed, vSpeed);
+
+  if (game.ball.carrierId) {
+    const carrier = game.players.find((p) => p.id === game.ball.carrierId);
+    if (carrier) {
+      ball.rotation.y = carrier.team === 0 ? 0.3 : Math.PI - 0.3;
+      ball.rotation.x = 0.35;
+      ball.rotation.z = 0.15;
+    }
+  } else if (game.ball.flight === "pass" || game.ball.flight === "lineout") {
+    const flightYaw = Math.atan2(game.ball.velocity.x, game.ball.velocity.z);
+    const flightPitch = -Math.atan2(vSpeed, Math.max(0.1, hSpeed));
+    ball.rotation.y = flightYaw;
+    ball.rotation.x = flightPitch;
+    ball.rotation.z += 0.32;
+  } else if (
+    game.ball.flight === "kick" ||
+    game.ball.flight === "kickoff" ||
+    game.ball.flight === "dropGoal"
+  ) {
+    const flightYaw = Math.atan2(game.ball.velocity.x, game.ball.velocity.z);
+    ball.rotation.y = flightYaw;
+    ball.rotation.x += 0.22;
+  } else if (game.ball.flight === "grubber" || game.ball.flight === "rolling") {
+    if (hSpeed > 0.1) {
+      const rollYaw = Math.atan2(game.ball.velocity.x, game.ball.velocity.z);
+      ball.rotation.y = rollYaw;
+      ball.rotation.x += hSpeed * 0.18;
+    }
+  }
 
   // Referee position and facing
   refMesh.position.set(game.referee.position.x, 0.95, game.referee.position.z);
