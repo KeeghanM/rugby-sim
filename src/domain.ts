@@ -50,7 +50,7 @@ export type PendingBallAction =
   | {
       kind: "kick";
       target: Position;
-      flight: "kick" | "kickoff" | "lineout" | "grubber";
+      flight: "kick" | "kickoff" | "lineout" | "grubber" | "dropGoal";
       remainingSeconds: number;
     };
 
@@ -84,7 +84,7 @@ export type Ball = {
   position: Position3;
   velocity: Position3;
   carrierId: string | null;
-  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | "grubber" | null;
+  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | "grubber" | "dropGoal" | null;
   intendedReceiverId: string | null;
   lastTouchedTeam: Team | null;
   kickOrigin: Position | null;
@@ -119,6 +119,7 @@ export type Phase =
       defenders: string[];
       tackledPlayerId: string;
       tacklerId: string;
+      joinOrder: string[];
     }
   | {
       kind: "lineout";

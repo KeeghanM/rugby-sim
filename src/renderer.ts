@@ -781,8 +781,10 @@ export const createRenderer = (
 
       const p = game.phase;
       let topLevelStatus = "OPEN PLAY";
-      if (p.kind === "openPlay") topLevelStatus = "OPEN PLAY";
-      else if (p.kind === "ruck") topLevelStatus = "RUCK";
+      if (p.kind === "openPlay") {
+        topLevelStatus =
+          game.ball.flight === "dropGoal" ? "DROP GOAL" : "OPEN PLAY";
+      } else if (p.kind === "ruck") topLevelStatus = "RUCK";
       else if (p.kind === "lineout") topLevelStatus = "LINEOUT";
       else if (p.kind === "scrum") topLevelStatus = "SCRUM";
       else if (p.kind === "kickoff") {

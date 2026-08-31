@@ -266,10 +266,52 @@ const chooseCarrierCommand = (
   }
   // Move ball to a kicker when trapped carrier lacks a kicking role.
   if (trapped && !canKick && recognisesClearance) {
-    const kicker = choosePassTarget(players, carrier, new Set([ROLES.ScrumHalf, ROLES.FlyHalf, ROLES.FullBack]));
+    const kicker = choosePassTarget(
+      players,
+      carrier,
+      new Set([ROLES.ScrumHalf, ROLES.FlyHalf, ROLES.FullBack]),
+    );
     // Pass to preferred kicker when one is available.
     if (kicker) {
-      result.ballAction = { kind: "pass", receiverId: kicker.id, clearance: true };
+      result.ballAction = {
+        kind: "pass",
+        receiverId: kicker.id,
+        clearance: true,
+      };
+      return result;
+    }
+  }
+
+  // Drop goal opportunity: within 38m, central angle <= 18m, defender space >= 4.5m
+  const targetTryLine =
+    carrier.team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+  const distToGoalLine = (targetTryLine - carrier.position.z) * direction;
+  const angleFromPosts = Math.abs(carrier.position.x);
+  const nearestDefDist = nearestOpponentDistance(players, carrier);
+  const canAttemptDropGoal =
+    canKick &&
+    carrier.skills.kicking >= 0.78 &&
+    distToGoalLine >= 12 &&
+    distToGoalLine <= 38 &&
+    angleFromPosts <= 18 &&
+    nearestDefDist >= 4.5;
+
+  if (canAttemptDropGoal) {
+    const proximityScore =
+      (1 - distToGoalLine / 40) * (1 - angleFromPosts / 22);
+    const spaceBonus = Math.min(1.5, nearestDefDist / 6);
+    const dropGoalChance =
+      0.28 *
+      proximityScore *
+      spaceBonus *
+      TEAMS[carrier.team].tendencies.kick *
+      3;
+    if (random() < dropGoalChance) {
+      result.ballAction = {
+        kind: "kick",
+        target: { x: (random() - 0.5) * 3, z: targetTryLine + direction * 6 },
+        flight: "dropGoal",
+      };
       return result;
     }
   }

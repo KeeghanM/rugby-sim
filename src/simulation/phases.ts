@@ -89,6 +89,12 @@ const startRuck = (
     kickOrigin: null,
     bouncesRemaining: 0,
   };
+  const joinOrder = [
+    carrier.id,
+    tackler.id,
+    ...attackers.filter((id) => id !== carrier.id),
+    ...defenders.filter((id) => id !== tackler.id),
+  ];
   state.phase = {
     kind: "ruck",
     stage: "arrivals",
@@ -103,6 +109,7 @@ const startRuck = (
     defenders,
     tackledPlayerId: carrier.id,
     tacklerId: tackler.id,
+    joinOrder,
   };
   // Reverse phase direction only when contact reaches current touch-side limit.
   if (carrier.position.x <= -25) state.attackFlow[carrier.team] = 1;
@@ -239,10 +246,15 @@ const executeRuckPlay = (state: GameState, random: Random) => {
     PITCH.deadBallLines.north - 1,
   );
 
-  // Start short recovery clock for everyone who committed body weight to ruck.
-  for (const player of state.players) {
-    if (player.ruckRecoverySeconds > 0) player.ruckRecoverySeconds = 3;
-  }
+  // Staggered clean-up in game seconds: players leave the ruck one by one in REVERSE joining order
+  // Last arriving cleaners disengage first (6s), early cleaners next (12-18s), tackled/tackler get up last (24-30s game time)
+  const reversedJoiners = [...phase.joinOrder].reverse();
+  reversedJoiners.forEach((playerId, index) => {
+    const player = state.players.find((p) => p.id === playerId);
+    if (player) {
+      player.ruckRecoverySeconds = 6 + index * 5.5;
+    }
+  });
 
   // Update attack phase count and move gainline to this ruck mark
   if (team === state.possessionTeam) {
@@ -388,6 +400,12 @@ export const updateRuck = (state: GameState, deltaSeconds: number, random: Rando
           1,
           phase.tackledPlayerId,
         ),
+      ];
+      phase.joinOrder = [
+        phase.tacklerId,
+        phase.tackledPlayerId,
+        ...phase.attackers.filter((id) => id !== phase.tacklerId),
+        ...phase.defenders.filter((id) => id !== phase.tackledPlayerId),
       ];
       // Mark newly committed turnover participants unavailable for immediate passes.
       for (const player of state.players) {

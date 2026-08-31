@@ -5,7 +5,7 @@ export type BallAction =
   | {
       kind: "kick";
       target: Position;
-      flight?: "kick" | "kickoff" | "lineout" | "grubber";
+      flight?: "kick" | "kickoff" | "lineout" | "grubber" | "dropGoal";
     };
 
 export type Effort = "stand" | "jog" | "run" | "sprint";

@@ -9,7 +9,7 @@ export const launchBall = (
   state: GameState,
   carrier: Player,
   target: Position,
-  flight: "pass" | "kick" | "kickoff" | "lineout" | "grubber",
+  flight: "pass" | "kick" | "kickoff" | "lineout" | "grubber" | "dropGoal",
   intendedReceiverId: string | null,
   random: Random = Math.random,
 ) => {
@@ -218,9 +218,38 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
   state.ball.position.z += state.ball.velocity.z * deltaSeconds;
   state.ball.velocity.y -= GRAVITY * deltaSeconds;
 
+  // Check for drop goal passing cleanly over crossbar (y >= 3m) between uprights (width 5.6m)
+  if (state.ball.flight === "dropGoal") {
+    const kickingTeam = state.ball.lastTouchedTeam ?? 0;
+    const dir = attackDirection(kickingTeam);
+    const targetTryLine =
+      dir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
+    const hasReachedGoalLine = (state.ball.position.z - targetTryLine) * dir >= 0;
+
+    if (hasReachedGoalLine) {
+      const isBetweenUprights = Math.abs(state.ball.position.x) <= 2.8;
+      const isOverCrossbar = state.ball.position.y >= 3.0;
+
+      if (isBetweenUprights && isOverCrossbar) {
+        state.scores[kickingTeam] += 3;
+        state.ball.flight = null;
+        state.phase = {
+          kind: "kickoff",
+          stage: "forming",
+          kickingTeam: otherTeam(kickingTeam),
+          readyForSeconds: 0,
+          reason: "try",
+        };
+        return;
+      }
+    }
+  }
+
   // Restart with goal-line dropout when flight crosses either dead-ball line.
   if (
-    (state.ball.flight === "kick" || state.ball.flight === "kickoff") &&
+    (state.ball.flight === "kick" ||
+      state.ball.flight === "kickoff" ||
+      state.ball.flight === "dropGoal") &&
     Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
   ) {
     startGoalLineDropout(state, state.ball.position.z);

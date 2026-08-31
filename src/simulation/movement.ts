@@ -306,6 +306,45 @@ const resolvePreparedAction = (
     if (pending.clearance) state.pendingClearanceKickerId = receiver.id;
     return;
   }
+  // Check for chargedowns when kicker is rushed by a charging defender
+  const direction = attackDirection(carrier.team);
+  const chargingDefender = state.players.find(
+    (p) =>
+      p.team !== carrier.team &&
+      p.ruckRecoverySeconds === 0 &&
+      distance(p.position, carrier.position) <= 2.2 &&
+      (p.position.z - carrier.position.z) * direction > -0.3,
+  );
+
+  if (chargingDefender) {
+    const dist = distance(chargingDefender.position, carrier.position);
+    const isChargedDown =
+      random() <
+      (dist < 1.4 ? 0.38 : 0.18) * (1.15 - carrier.skills.kicking * 0.25);
+    if (isChargedDown) {
+      // CHARGED DOWN! Ball ricochets erratically off the defender's body
+      carrier.stamina = clamp(carrier.stamina - 0.6, 0, 100);
+      chargingDefender.stamina = clamp(chargingDefender.stamina - 0.4, 0, 100);
+      state.ball = {
+        position: { ...carrier.position, y: 0.8 },
+        velocity: {
+          x: (random() - 0.5) * 8,
+          y: 1.4,
+          z: -direction * (6 + random() * 8),
+        },
+        carrierId: null,
+        flight: "rolling",
+        intendedReceiverId: null,
+        lastTouchedTeam: carrier.team,
+        kickOrigin: { ...carrier.position },
+        bouncesRemaining: 3,
+      };
+      state.pendingClearanceKickerId = null;
+      state.recentSubstitution = `CHARGED DOWN by #${chargingDefender.number} (${chargingDefender.role})!`;
+      return;
+    }
+  }
+
   carrier.stamina = clamp(carrier.stamina - 0.8, 0, 100);
   launchBall(state, carrier, pending.target, pending.flight, null, random);
   state.pendingClearanceKickerId = null;
@@ -331,7 +370,7 @@ export const applyCommands = (
       : Math.max(0, player.hardLineForSeconds - deltaSeconds);
     player.ruckRecoverySeconds = Math.max(
       0,
-      player.ruckRecoverySeconds - deltaSeconds,
+      player.ruckRecoverySeconds - deltaSeconds * 6,
     );
     player.decisionForSeconds =
       next.decisionForSeconds ??
