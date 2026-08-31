@@ -884,11 +884,13 @@ export const createRenderer = (
                 <th>Player / Role</th>
                 <th>Distance Ran</th>
                 <th>Carried</th>
-                <th>Tackles (Made/Miss)</th>
+                <th>Tackles</th>
                 <th>Tries</th>
-                <th>Line Breaks</th>
+                <th>Breaks</th>
                 <th>Passes</th>
                 <th>Kicks</th>
+                <th>Knock-ons</th>
+                <th>Pens</th>
               </tr>
             `;
           }
@@ -934,6 +936,14 @@ export const createRenderer = (
             (sum, p) => sum + p.stats.totalKicks,
             0,
           );
+          const totalKnockOns = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.knockOns,
+            0,
+          );
+          const totalPens = allTeamPlayers.reduce(
+            (sum, p) => sum + p.stats.penaltiesConceded,
+            0,
+          );
 
           const tacklePct =
             totalTacklesMade + totalTacklesMissed > 0
@@ -966,8 +976,8 @@ export const createRenderer = (
               <span class="summary-val">${totalTries} tries · ${totalBreaks} breaks</span>
             </div>
             <div class="summary-item">
-              <span class="summary-label">Pass & Kick Accuracy</span>
-              <span class="summary-val">Pass ${passPct}% (${totalPassesSucc}/${totalPassesAtt}) · Kick ${kickPct}% (${totalKicksSucc}/${totalKicksAtt})</span>
+              <span class="summary-label">Discipline & Errors</span>
+              <span class="summary-val">${totalKnockOns} knock-ons · ${totalPens} pens conceded</span>
             </div>
           `;
 
@@ -983,11 +993,13 @@ export const createRenderer = (
                   </td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#e2e8f0;">${formatDist(s.distanceCovered)}</span></td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600; color:#38bdf8;">${formatDist(s.distanceCarried)}</span></td>
-                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.tacklesMade} <span style="color:#94a3b8;font-size:0.75rem;">(${s.tacklesMissed} miss)</span></span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.tacklesMade} <span style="color:#94a3b8;font-size:0.75rem;">(${s.tacklesMissed})</span></span></td>
                   <td>${s.triesScored > 0 ? `<span class="stat-highlight-gold">🏉 ${s.triesScored}</span>` : `<span style="color:#64748b;">0</span>`}</td>
                   <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? 'color:#f87171;' : 'color:#64748b;'}">${s.knockOns}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? 'color:#ef4444;' : 'color:#64748b;'}">${s.penaltiesConceded}</span></td>
                 </tr>
               `;
             })
@@ -1010,6 +1022,8 @@ export const createRenderer = (
                   <td>${s.lineBreaks > 0 ? `<span class="stat-highlight-cyan">⚡ ${s.lineBreaks}</span>` : `<span style="color:#64748b;">0</span>`}</td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulPasses}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalPasses}</span></span></td>
                   <td><span style="font-family:ui-monospace, monospace; font-weight:600;">${s.successfulKicks}<span style="color:#94a3b8;font-size:0.75rem;">/${s.totalKicks}</span></span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.knockOns > 0 ? 'color:#f87171;' : 'color:#64748b;'}">${s.knockOns}</span></td>
+                  <td><span style="font-family:ui-monospace, monospace; font-weight:600; ${s.penaltiesConceded > 0 ? 'color:#ef4444;' : 'color:#64748b;'}">${s.penaltiesConceded}</span></td>
                 </tr>
               `;
             })
@@ -1017,7 +1031,7 @@ export const createRenderer = (
 
           managerRosterTbody.innerHTML = `
             ${activeRows}
-            <tr><td colspan="9" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
+            <tr><td colspan="11" style="padding: 0.6rem 0.6rem 0.3rem; font-weight:700; color:#94a3b8; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; border-top:1px solid rgb(255 255 255 / 15%); background:rgb(0 0 0 / 20%);">Substitutes Bench</td></tr>
             ${benchRows}
           `;
         } else {

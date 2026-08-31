@@ -360,6 +360,7 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
     if (catcher) {
       // Knock-on: fumble forward on failed handling check awards scrum to opposition
       if (random() < (1 - effectiveSkill(catcher, "handling")) * 0.25) {
+        catcher.stats.knockOns += 1;
         startScrum(state, otherTeam(catcher.team), catcher.position);
         return;
       }

@@ -51,6 +51,8 @@ export type PlayerStats = {
   totalKicks: number;
   successfulPasses: number;
   totalPasses: number;
+  penaltiesConceded: number;
+  knockOns: number;
 };
 
 export type PendingBallAction =

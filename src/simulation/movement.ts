@@ -298,6 +298,7 @@ const resolvePreparedAction = (
       (receiver.position.z - carrier.position.z) *
       attackDirection(carrier.team);
     if (passDepth > 1.4) {
+      carrier.stats.knockOns += 1;
       startScrum(state, otherTeam(carrier.team), carrier.position);
       return;
     }

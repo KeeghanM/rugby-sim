@@ -198,6 +198,13 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return false;
   }
 
+  // High tackle / illegal tackle penalty check
+  if (random() < (1 - tacklerSkill) * 0.035) {
+    tackler.tackleCooldown = 1.0;
+    startPenalty(state, carrier.team, carrier.position, tackler);
+    return true;
+  }
+
   // Tackle made!
   tackler.stats.tacklesMade += 1;
 
@@ -411,6 +418,19 @@ export const updateRuck = (state: GameState, deltaSeconds: number, random: Rando
       phase.elapsed >= (phase.tempo === "quick" ? 1.0 : 2.2);
 
     if (arrivalsTimeout || (attackersArrived >= 1 && defendersArrived >= 0)) {
+      // Breakdown penalty check (holding on vs not releasing/hands in ruck)
+      if (random() < 0.035) {
+        const isAttackerInfraction = random() < 0.4;
+        if (isAttackerInfraction) {
+          const carrier = state.players.find((p) => p.id === phase.tackledPlayerId);
+          startPenalty(state, otherTeam(phase.attackingTeam), phase.position, carrier);
+        } else {
+          const tackler = state.players.find((p) => p.id === phase.tacklerId);
+          startPenalty(state, phase.attackingTeam, phase.position, tackler);
+        }
+        return;
+      }
+
       const jackleMultiplier =
         defendersArrived > 0 && attackersArrived === 0 ? 1.85 : 1.0;
       const attackWeight = groupWeight(state, phase.joinedAttackers);
@@ -829,7 +849,11 @@ export const startPenalty = (
   state: GameState,
   awardedTeam: Team,
   position: Position,
+  offender?: Player,
 ) => {
+  if (offender) {
+    offender.stats.penaltiesConceded += 1;
+  }
   const targetTryLine =
     awardedTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
   const distToTryLine = Math.abs(targetTryLine - position.z);

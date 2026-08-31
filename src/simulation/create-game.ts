@@ -13,6 +13,8 @@ const createInitialStats = (): PlayerStats => ({
   totalKicks: 0,
   successfulPasses: 0,
   totalPasses: 0,
+  penaltiesConceded: 0,
+  knockOns: 0,
 });
 
 // Creates initial teams, bench substitutes, ball, score, kickoff, and defensive lines.
