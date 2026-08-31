@@ -1,15 +1,28 @@
 import { attackDirection, type GameState, PITCH, type Player, type Position, ROLES } from "../domain.ts";
 import { getKickoffTarget, getLineoutTarget, getOpenPlayTarget, getRuckTarget, isForward } from "../formations.ts";
 import { TEAMS } from "../teams.ts";
-import { clamp, distance, GRAVITY, insideOwnTwentyTwo } from "./math.ts";
-import type { PlayerCommand, Random } from "./types.ts";
+import {
+  clamp,
+  distance,
+  effectiveSkill,
+  GRAVITY,
+  insideOwnTwentyTwo,
+} from "./math.ts";
+import type { Effort, PlayerCommand, Random } from "./types.ts";
 
 // Creates a movement command with shared defaults.
-const command = (player: Player, target: Position, intentKind: string, immediate = false): PlayerCommand => ({
+const command = (
+  player: Player,
+  target: Position,
+  intentKind: string,
+  immediate = false,
+  effort: Effort = "run",
+): PlayerCommand => ({
   playerId: player.id,
   target,
   intentKind,
   immediate,
+  effort,
 });
 
 // Finds nearest opposing-player distance for space evaluation.
@@ -22,6 +35,60 @@ const nearestOpponentDistance = (players: Player[], player: Player) =>
     Infinity,
   );
 
+// Reports whether carrier has passed every defender except sweeping fullback.
+const hasBrokenLine = (players: Player[], carrier: Player) => {
+  const direction = attackDirection(carrier.team);
+  return !players.some(
+    (player) =>
+      player.team !== carrier.team &&
+      player.role !== ROLES.FullBack &&
+      (player.position.z - carrier.position.z) * direction > 0,
+  );
+};
+
+// Chooses two role-appropriate runners behind carrier to preserve live support.
+const selectSupportRunners = (
+  players: Player[],
+  carrier: Player,
+  lineBroken: boolean,
+) => {
+  const direction = attackDirection(carrier.team);
+  const central = Math.abs(carrier.position.x) < 15;
+  return players
+    .filter(
+      (player) =>
+        player.team === carrier.team &&
+        player.id !== carrier.id &&
+        player.ruckRecoverySeconds === 0,
+    )
+    .map((player) => {
+      const preferred = central
+        ? isForward(player) ||
+          player.role === ROLES.FlyHalf ||
+          player.role === ROLES.InsideCentre
+        : player.role === ROLES.Wing ||
+          player.role === ROLES.InsideCentre ||
+          player.role === ROLES.OutsideCentre ||
+          player.role === ROLES.FlyHalf ||
+          player.role === ROLES.OpenSideFlanker ||
+          player.role === ROLES.NumberEight;
+      return {
+        player,
+        priority:
+          (preferred ? 0 : 20) +
+          Math.max(
+            0,
+            (player.position.z - carrier.position.z) * direction,
+          ) *
+            1.5 +
+          distance(player.position, carrier.position),
+      };
+    })
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 2)
+    .map(({ player }) => player.id);
+};
+
 // Selects best legal support runner for a pass.
 const choosePassTarget = (
   players: Player[],
@@ -33,6 +100,7 @@ const choosePassTarget = (
       (player) =>
         player.team === carrier.team &&
         player.id !== carrier.id &&
+        player.ruckRecoverySeconds === 0 &&
         (!preferredRoles || preferredRoles.has(player.role)) &&
         (player.position.z - carrier.position.z) * attackDirection(carrier.team) <= 0.5 &&
         (player.position.z - carrier.position.z) * attackDirection(carrier.team) >=
@@ -75,12 +143,7 @@ const chooseCarrierCommand = (
   random: Random,
 ): PlayerCommand => {
   const direction = attackDirection(carrier.team);
-  const lineBroken = !players.some(
-    (player) =>
-      player.team !== carrier.team &&
-      player.role !== ROLES.FullBack &&
-      (player.position.z - carrier.position.z) * direction > 0,
-  );
+  const lineBroken = hasBrokenLine(players, carrier);
   // Sprint directly toward goal when primary defensive line is broken.
   if (lineBroken) {
     const sprint = command(
@@ -88,12 +151,15 @@ const chooseCarrierCommand = (
       { x: carrier.position.x, z: carrier.team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south },
       "line-break",
       true,
+      "sprint",
     );
     sprint.decisionForSeconds = 1;
     return sprint;
   }
   // Retain current carrier intent while decision timer remains active.
-  if (carrier.decisionForSeconds > 0) return command(carrier, carrier.intentTarget, "carrier");
+  if (carrier.decisionForSeconds > 0) {
+    return command(carrier, carrier.intentTarget, "carrier", false, "run");
+  }
 
   const defendersAhead = players
     .filter(
@@ -104,12 +170,19 @@ const chooseCarrierCommand = (
         distance(player.position, carrier.position) < 10,
     )
     .sort((a, b) => distance(a.position, carrier.position) - distance(b.position, carrier.position));
-  const result = command(carrier, { x: carrier.position.x, z: carrier.position.z + direction * 20 }, "carrier");
+  const result = command(
+    carrier,
+    { x: carrier.position.x, z: carrier.position.z + direction * 20 },
+    "carrier",
+    false,
+    "run",
+  );
   result.decisionForSeconds = 0.45;
 
   const forcedClearance = state.pendingClearanceKickerId === carrier.id;
   const trapped = insideOwnTwentyTwo(carrier.team, carrier.position.z) && defendersAhead.length > 0;
-  const recognisesClearance = random() >= (1 - carrier.skills.decision) * 0.18;
+  const recognisesClearance =
+    random() >= (1 - effectiveSkill(carrier, "decision")) * 0.18;
   const canKick =
     carrier.role === ROLES.ScrumHalf ||
     carrier.role === ROLES.FlyHalf ||
@@ -185,9 +258,27 @@ const predictedLanding = (state: GameState): Position => {
 const computeFlightCommands = (state: GameState, players: Player[]) => {
   const landing = predictedLanding(state);
   const kickingTeam = state.ball.lastTouchedTeam;
+  const contestableKick =
+    state.ball.flight === "kick" ||
+    state.ball.flight === "kickoff" ||
+    state.ball.flight === "rolling";
   const eligibleChasers = new Set(
     players
-      .filter((player) => player.team === kickingTeam && !player.kickOffside)
+      .filter(
+        (player) =>
+          contestableKick &&
+          player.team === kickingTeam &&
+          !player.kickOffside,
+      )
+      .sort((a, b) => distance(a.position, landing) - distance(b.position, landing))
+      .slice(0, 3)
+      .map((player) => player.id),
+  );
+  const receivingCatchers = new Set(
+    players
+      .filter(
+        (player) => contestableKick && player.team !== kickingTeam,
+      )
       .sort((a, b) => distance(a.position, landing) - distance(b.position, landing))
       .slice(0, 3)
       .map((player) => player.id),
@@ -196,17 +287,41 @@ const computeFlightCommands = (state: GameState, players: Player[]) => {
   return players.map((player) => {
     // Recover behind kick origin when player began ahead of kicker.
     if (player.kickOffside && state.ball.kickOrigin) {
-      return command(player, { x: player.position.x, z: state.ball.kickOrigin.z - attackDirection(player.team) * 2 }, "kick-offside", true);
+      return command(
+        player,
+        { x: player.position.x, z: state.ball.kickOrigin.z - attackDirection(player.team) * 2 },
+        "kick-offside",
+        true,
+        "run",
+      );
+    }
+    // Move intended pass or lineout receiver toward imperfect landing point.
+    if (player.id === state.ball.intendedReceiverId) {
+      return command(player, landing, "flight-receive", false, "sprint");
     }
     // Send nearest eligible kicking-team players toward landing point.
-    if (eligibleChasers.has(player.id)) return command(player, landing, "kick-chase");
+    if (eligibleChasers.has(player.id)) {
+      return command(player, landing, "kick-chase", false, "sprint");
+    }
+    // Send nearest receiving-team players toward territorial kick landing point.
+    if (receivingCatchers.has(player.id)) {
+      return command(player, landing, "kick-receive", false, "sprint");
+    }
     // Send defending fullback to receive kick.
-    if (player.team !== kickingTeam && player.role === ROLES.FullBack) return command(player, landing, "kick-receive");
+    if (player.team !== kickingTeam && player.role === ROLES.FullBack) {
+      return command(player, landing, "kick-receive", false, "sprint");
+    }
     // Position defending wings around landing point for cover.
     if (player.team !== kickingTeam && player.role === ROLES.Wing) {
-      return command(player, { x: clamp(landing.x + (player.number % 2 ? -10 : 10), -32, 32), z: landing.z }, "kick-cover");
+      return command(
+        player,
+        { x: clamp(landing.x + (player.number % 2 ? -10 : 10), -32, 32), z: landing.z },
+        "kick-cover",
+        false,
+        "run",
+      );
     }
-    return command(player, player.intentTarget, "kick-hold");
+    return command(player, player.intentTarget, "kick-hold", false, "jog");
   });
 };
 
@@ -222,21 +337,42 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
 
   // Hold kickoff formation until ball enters flight.
   if (phase.kind === "kickoff" && phase.stage !== "inFlight") {
-    return players.map((player) => command(player, getKickoffTarget(player, phase.kickingTeam), `kickoff-${phase.stage}`));
+    return players.map((player) =>
+      command(
+        player,
+        getKickoffTarget(player, phase.kickingTeam, phase.reason),
+        `kickoff-${phase.stage}`,
+        false,
+        phase.stage === "ready" ? "stand" : "run",
+      ),
+    );
   }
   // Hold lineout formation until throw enters flight.
   if (phase.kind === "lineout" && phase.stage !== "inFlight") {
-    return players.map((player) => command(player, getLineoutTarget(player, phase.position, phase.throwingTeam), `lineout-${phase.stage}`));
+    return players.map((player) =>
+      command(
+        player,
+        getLineoutTarget(player, phase.position, phase.throwingTeam),
+        `lineout-${phase.stage}`,
+        false,
+        phase.stage === "ready" ? "stand" : "jog",
+      ),
+    );
   }
   // Position ruck participants and surrounding attacking shape.
   if (phase.kind === "ruck") {
     const attackers = new Set(phase.attackers);
     const defenders = new Set(phase.defenders);
-    return players.map((player) => command(
-      player,
-      getRuckTarget(player, phase.position, phase.attackingTeam, attackers, defenders),
-      `ruck-${phase.stage}-${attackers.has(player.id) || defenders.has(player.id) ? "join" : player.pod}`,
-    ));
+    return players.map((player) => {
+      const joinsRuck = attackers.has(player.id) || defenders.has(player.id);
+      return command(
+        player,
+        getRuckTarget(player, phase.position, phase.attackingTeam, attackers, defenders),
+        `ruck-${phase.stage}-${joinsRuck ? "join" : player.pod}`,
+        false,
+        joinsRuck ? "run" : "jog",
+      );
+    });
   }
   // Switch to flight-specific positioning while ball is airborne.
   if (state.ball.flight) return computeFlightCommands(state, players);
@@ -250,12 +386,29 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
         .filter((player) => player.team === team)
         .sort((a, b) => distance(a.position, target) - distance(b.position, target))[0].id,
     ));
-    return players.map((player) => command(player, chasers.has(player.id) ? target : player.intentTarget, "loose-ball"));
+    return players.map((player) =>
+      command(
+        player,
+        chasers.has(player.id) ? target : player.intentTarget,
+        "loose-ball",
+        false,
+        chasers.has(player.id) ? "sprint" : "jog",
+      ),
+    );
   }
 
-  const tacklerId = players
-    .filter((player) => player.team !== carrier.team && (player.role !== ROLES.FullBack || distance(player.position, carrier.position) < 18))
-    .sort((a, b) => distance(a.position, carrier.position) - distance(b.position, carrier.position))[0]?.id;
+  const lineBroken = hasBrokenLine(players, carrier);
+  const fullback = players.find(
+    (player) => player.team !== carrier.team && player.role === ROLES.FullBack,
+  );
+  const lineTackler = players
+    .filter((player) => player.team !== carrier.team && player.role !== ROLES.FullBack)
+    .sort(
+      (a, b) =>
+        distance(a.position, carrier.position) - distance(b.position, carrier.position),
+    )[0];
+  const tacklerId = lineBroken ? fullback?.id ?? lineTackler?.id : lineTackler?.id;
+  const supportRunnerIds = selectSupportRunners(players, carrier, lineBroken);
 
   return players.map((player) => {
     // Let carrier-specific decision logic own carrier command.
@@ -263,12 +416,54 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
     const attacking = player.team === carrier.team;
     const target = getOpenPlayTarget(player, carrier, attacking ? undefined : state.defensiveLineZ[player.team]);
     const direction = attackDirection(player.team);
+    const supportIndex = supportRunnerIds.indexOf(player.id);
+    // Drive selected support runners onto close inside and outside shoulders.
+    if (supportIndex >= 0) {
+      const side = player.position.x < carrier.position.x
+        ? -1
+        : player.position.x > carrier.position.x
+          ? 1
+          : supportIndex === 0
+            ? -1
+            : 1;
+      return command(
+        player,
+        {
+          x: clamp(carrier.position.x + side * (3 + supportIndex * 2), -32, 32),
+          z: carrier.position.z - direction * (2.5 + supportIndex * 1.5),
+        },
+        lineBroken ? "line-break-support" : "support",
+        false,
+        lineBroken ? "sprint" : "run",
+      );
+    }
     const offside = attacking && player.hardLineForSeconds === 0 && (player.position.z - carrier.position.z) * direction >= -0.5;
-    // Recover attacking player behind ball when offside.
-    if (offside) return command(player, { x: target.x, z: carrier.position.z - direction * 2.5 }, "offside-recovery", true);
+    // Jog players ahead of carrier back toward eligibility without freezing whole team.
+    if (offside) {
+      return command(
+        player,
+        { x: player.laneX, z: carrier.position.z - direction * 2.5 },
+        "offside-recovery",
+        false,
+        "jog",
+      );
+    }
     // Commit nearest eligible defender to predictive tackle line.
-    if (!attacking && player.id === tacklerId && distance(player.position, carrier.position) < 12) {
-      return command(player, { x: carrier.position.x + carrier.velocity.x * 0.45, z: carrier.position.z + carrier.velocity.z * 0.45 }, "tackle", true);
+    if (
+      !attacking &&
+      player.id === tacklerId &&
+      distance(player.position, carrier.position) < (lineBroken ? 40 : 12)
+    ) {
+      return command(
+        player,
+        {
+          x: carrier.position.x + carrier.velocity.x * 0.45,
+          z: carrier.position.z + carrier.velocity.z * 0.45,
+        },
+        lineBroken ? "last-defender-tackle" : "tackle",
+        true,
+        "sprint",
+      );
     }
     const canRunHardLine =
       attacking &&
@@ -279,10 +474,22 @@ export const computeCommands = (state: GameState, random: Random = Math.random):
       random() < 0.008;
     // Start or continue hard attacking line when eligible.
     if (canRunHardLine || player.hardLineForSeconds > 0) {
-      const hardLine = command(player, { x: carrier.position.x, z: carrier.position.z + direction * 4 }, "hard-line");
+      const hardLine = command(
+        player,
+        { x: carrier.position.x, z: carrier.position.z + direction * 4 },
+        "hard-line",
+        false,
+        "sprint",
+      );
       hardLine.startHardLine = canRunHardLine;
       return hardLine;
     }
-    return command(player, target, attacking ? `attack-${player.pod}` : "defence-line");
+    return command(
+      player,
+      target,
+      attacking ? `attack-${player.pod}` : "defence-line",
+      false,
+      attacking ? "jog" : "run",
+    );
   });
 };

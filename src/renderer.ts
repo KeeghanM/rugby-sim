@@ -132,7 +132,9 @@ export const createRenderer = (
               ? `Ruck ${game.phase.stage} - ${game.phase.tempo} ${game.phase.play}${game.phase.counterRuck ? " - counter ruck" : ""}`
               : game.phase.kind === "lineout"
                 ? `Lineout ${game.phase.stage}`
-                : `${game.phase.reason === "try" ? "Try - " : ""}Kickoff ${game.phase.stage}`;
+                : game.phase.reason === "goalLineDropout"
+                  ? `Goal-line dropout ${game.phase.stage}`
+                  : `${game.phase.reason === "try" ? "Try - " : ""}Kickoff ${game.phase.stage}`;
         scoreboard.textContent = `${TEAMS[0].name} ${game.scores[0]} - ${game.scores[1]} ${TEAMS[1].name} | ${phase}`;
       }
     },

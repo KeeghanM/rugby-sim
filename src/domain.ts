@@ -60,6 +60,7 @@ export type Player = {
   tackleCooldown: number;
   hardLineForSeconds: number;
   kickOffside: boolean;
+  ruckRecoverySeconds: number;
   skills: PlayerSkills;
 };
 
@@ -67,10 +68,11 @@ export type Ball = {
   position: Position3;
   velocity: Position3;
   carrierId: string | null;
-  flight: "pass" | "kick" | "kickoff" | "lineout" | null;
+  flight: "pass" | "kick" | "kickoff" | "lineout" | "rolling" | null;
   intendedReceiverId: string | null;
   lastTouchedTeam: Team | null;
   kickOrigin: Position | null;
+  bouncesRemaining: number;
 };
 
 export type Phase =
@@ -80,7 +82,7 @@ export type Phase =
       stage: "forming" | "ready" | "inFlight";
       kickingTeam: Team;
       readyForSeconds: number;
-      reason: "matchStart" | "try";
+      reason: "matchStart" | "try" | "goalLineDropout";
     }
   | {
       kind: "ruck";

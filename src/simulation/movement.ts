@@ -39,6 +39,23 @@ const separatedVelocity = (state: GameState, player: Player, velocity: Position)
   return { x, z };
 };
 
+// Applies effort cost or low-intensity recovery before movement is resolved.
+const updateStamina = (
+  player: Player,
+  next: PlayerCommand,
+  deltaSeconds: number,
+) => {
+  const atTarget = distance(player.position, next.target) < 0.35;
+  const rate = atTarget || next.effort === "stand"
+    ? 1.2
+    : next.effort === "jog"
+      ? 0.35
+      : next.effort === "sprint"
+        ? -2
+        : -0.55;
+  player.stamina = clamp(player.stamina + rate * deltaSeconds, 0, 100);
+};
+
 // Applies commands, movement, ball actions, tackles, and phase updates for one tick.
 export const applyCommands = (
   state: GameState,
@@ -50,15 +67,24 @@ export const applyCommands = (
     const player = state.players.find(({ id }) => id === next.playerId)!;
     player.tackleCooldown = Math.max(0, player.tackleCooldown - deltaSeconds);
     player.hardLineForSeconds = next.startHardLine ? 1.5 : Math.max(0, player.hardLineForSeconds - deltaSeconds);
+    player.ruckRecoverySeconds = Math.max(
+      0,
+      player.ruckRecoverySeconds - deltaSeconds,
+    );
     player.decisionForSeconds = next.decisionForSeconds ?? Math.max(0, player.decisionForSeconds - deltaSeconds);
     player.intentForSeconds = Math.max(0, player.intentForSeconds - deltaSeconds);
+    updateStamina(player, next, deltaSeconds);
     // Refresh intent when command is immediate, changes kind, or previous intent expires.
     if (next.immediate || player.intentKind !== next.intentKind || player.intentForSeconds === 0) {
       player.intentTarget = { ...next.target };
       player.intentKind = next.intentKind;
       player.intentForSeconds = 0.35 + (player.number % 4) * 0.07;
     }
-    const desired = separatedVelocity(state, player, desiredVelocity(player, player.intentTarget));
+    const desired = separatedVelocity(
+      state,
+      player,
+      desiredVelocity(player, player.intentTarget, next.effort),
+    );
     const maxChange = 7 * deltaSeconds;
     const changeX = desired.x - player.velocity.x;
     const changeZ = desired.z - player.velocity.z;
@@ -103,12 +129,14 @@ export const applyCommands = (
     const receiver = state.players.find((player) => player.id === action.receiverId);
     // Ignore invalid receiver while preserving carrier possession.
     if (receiver?.team === carrier.team) {
+      carrier.stamina = clamp(carrier.stamina - 0.25, 0, 100);
       launchBall(state, carrier, receiver.position, "pass", receiver.id, random);
       // Designate receiver as next clearance kicker when pass requested it.
       if (action.clearance) state.pendingClearanceKickerId = receiver.id;
     }
   // Launch kick from current carrier and clear pending clearance designation.
   } else if (carrier && action?.kind === "kick") {
+    carrier.stamina = clamp(carrier.stamina - 0.8, 0, 100);
     launchBall(state, carrier, action.target, action.flight ?? "kick", null, random);
     state.pendingClearanceKickerId = null;
   }
@@ -129,6 +157,6 @@ export const applyCommands = (
     if (currentCarrier && attemptTackle(state, random)) return;
   }
   updateRuck(state, deltaSeconds, random);
-  updateKickoff(state, deltaSeconds);
+  updateKickoff(state, deltaSeconds, random);
   updateLineout(state, deltaSeconds);
 };

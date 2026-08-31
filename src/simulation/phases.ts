@@ -1,8 +1,14 @@
-import { attackDirection, type GameState, otherTeam, type Player, type Position, ROLES, type Team } from "../domain.ts";
+import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, ROLES, type Team } from "../domain.ts";
 import { getKickoffTarget, getLineoutTarget, isForward } from "../formations.ts";
 import { TEAMS } from "../teams.ts";
 import { carryBall, launchBall } from "./ball.ts";
-import { clamp, distance, effectiveWeight, insideOwnTwentyTwo } from "./math.ts";
+import {
+  clamp,
+  distance,
+  effectiveSkill,
+  effectiveWeight,
+  insideOwnTwentyTwo,
+} from "./math.ts";
 import type { Random } from "./types.ts";
 
 // Selects nearest forwards from one team for phase participation.
@@ -30,6 +36,16 @@ const chooseRuckPlay = (team: Team, position: Position, random: Random) => {
 const startRuck = (state: GameState, carrier: Player, random: Random) => {
   const attackers = closestForwards(state, carrier.team, carrier.position, 3);
   const defenders = closestForwards(state, otherTeam(carrier.team), carrier.position, 2);
+  // Prevent carrier and committed cleaners from becoming immediate pass targets.
+  for (const player of state.players) {
+    if (
+      player.id === carrier.id ||
+      attackers.includes(player.id) ||
+      defenders.includes(player.id)
+    ) {
+      player.ruckRecoverySeconds = 999;
+    }
+  }
   state.ball = {
     position: { ...carrier.position, y: 0.15 },
     velocity: { x: 0, y: 0, z: 0 },
@@ -38,6 +54,7 @@ const startRuck = (state: GameState, carrier: Player, random: Random) => {
     intendedReceiverId: null,
     lastTouchedTeam: carrier.team,
     kickOrigin: null,
+    bouncesRemaining: 0,
   };
   state.phase = {
     kind: "ruck",
@@ -65,9 +82,10 @@ export const attemptTackle = (state: GameState, random: Random) => {
   // Abort when no defender is close and ready enough to tackle.
   if (!tackler) return false;
   tackler.tackleCooldown = 1;
-  tackler.stamina = Math.max(0, tackler.stamina - 1);
+  tackler.stamina = Math.max(0, tackler.stamina - 2);
   const chance = clamp(
-    (0.62 + (effectiveWeight(tackler) - effectiveWeight(carrier)) / 180) * (0.55 + tackler.skills.tackling * 0.45),
+    (0.62 + (effectiveWeight(tackler) - effectiveWeight(carrier)) / 180) *
+      (0.55 + effectiveSkill(tackler, "tackling") * 0.45),
     0.25,
     0.92,
   );
@@ -94,6 +112,10 @@ const executeRuckPlay = (state: GameState, random: Random) => {
   // Wait when winning team has no scrum-half.
   if (!nine) return;
 
+  // Start short recovery clock for everyone who committed body weight to ruck.
+  for (const player of state.players) {
+    if (player.ruckRecoverySeconds > 0) player.ruckRecoverySeconds = 3;
+  }
   for (const player of state.players) player.laneX = player.position.x;
 
   // Give ball to nearest forward for pick-and-go.
@@ -102,9 +124,13 @@ const executeRuckPlay = (state: GameState, random: Random) => {
       .filter((player) => player.team === team && isForward(player))
       .sort((a, b) => distance(a.position, phase.position) - distance(b.position, phase.position))[0];
     // Establish possession when forward runner exists.
-    if (runner) carryBall(state, runner);
+    if (runner) {
+      runner.stamina = clamp(runner.stamina - 0.3, 0, 100);
+      carryBall(state, runner);
+    }
   // Launch box kick from scrum-half when selected.
   } else if (phase.play === "boxKick") {
+    nine.stamina = clamp(nine.stamina - 0.8, 0, 100);
     launchBall(
       state,
       nine,
@@ -120,6 +146,7 @@ const executeRuckPlay = (state: GameState, random: Random) => {
     );
     // Pass when fly-half receiver exists.
     if (receiver) {
+      nine.stamina = clamp(nine.stamina - 0.25, 0, 100);
       launchBall(state, nine, receiver.position, "pass", receiver.id, random);
       // Mark receiver to clear after clearance ruck play.
       if (phase.play === "clearance") state.pendingClearanceKickerId = receiver.id;
@@ -157,6 +184,12 @@ export const updateRuck = (state: GameState, deltaSeconds: number, random: Rando
       phase.attackingTeam = phase.winningTeam;
       phase.attackers = closestForwards(state, phase.attackingTeam, phase.position, 3);
       phase.defenders = closestForwards(state, otherTeam(phase.attackingTeam), phase.position, 2);
+      // Mark newly committed turnover participants unavailable for immediate passes.
+      for (const player of state.players) {
+        if (phase.attackers.includes(player.id) || phase.defenders.includes(player.id)) {
+          player.ruckRecoverySeconds = 999;
+        }
+      }
       phase.play = chooseRuckPlay(phase.attackingTeam, phase.position, random);
     }
     phase.stage = "secure";
@@ -187,14 +220,26 @@ export const updateRuck = (state: GameState, deltaSeconds: number, random: Rando
 };
 
 // Advances kickoff formation, pause, flight, and open-play transition.
-export const updateKickoff = (state: GameState, deltaSeconds: number) => {
+export const updateKickoff = (
+  state: GameState,
+  deltaSeconds: number,
+  random: Random,
+) => {
   const phase = state.phase;
   // Ignore update outside kickoff phase.
   if (phase.kind !== "kickoff") return;
   // Wait until all players reach kickoff formation.
   if (phase.stage === "forming") {
     // Enter ready stage once every player reaches target.
-    if (state.players.every((player) => distance(player.position, getKickoffTarget(player, phase.kickingTeam)) <= 1)) {
+    if (
+      state.players.every(
+        (player) =>
+          distance(
+            player.position,
+            getKickoffTarget(player, phase.kickingTeam, phase.reason),
+          ) <= 1,
+      )
+    ) {
       phase.stage = "ready";
       phase.readyForSeconds = 0;
     }
@@ -205,11 +250,32 @@ export const updateKickoff = (state: GameState, deltaSeconds: number) => {
     phase.readyForSeconds += deltaSeconds;
     // Preserve pre-kick pause.
     if (phase.readyForSeconds < 0.75) return;
-    const kicker = state.players.find((player) => player.team === phase.kickingTeam && player.role === ROLES.FlyHalf);
-    const receiver = state.players.find((player) => player.team !== phase.kickingTeam && player.role === ROLES.FullBack);
-    // Wait when required kicker or receiver is unavailable.
-    if (!kicker || !receiver) return;
-    launchBall(state, kicker, receiver.position, "kickoff", receiver.id);
+    const kicker = state.players.find(
+      (player) =>
+        player.team === phase.kickingTeam && player.role === ROLES.FlyHalf,
+    );
+    // Wait when required kicker unavailable.
+    if (!kicker) return;
+    const receivingTeam = otherTeam(phase.kickingTeam);
+    const receivingDirection = attackDirection(receivingTeam);
+    const receivingTryLine =
+      receivingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    const kickingTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    // Choose territory rather than person: normal kickoff lands in receiving 22.
+    const targetPosition = phase.reason === "goalLineDropout"
+      ? {
+          x: (random() - 0.5) * 36,
+          z:
+            kickingTryLine +
+            attackDirection(phase.kickingTeam) * (22 + random() * 10),
+        }
+      : {
+          x: (random() - 0.5) * 44,
+          z: receivingTryLine + receivingDirection * (10 + random() * 10),
+        };
+    kicker.stamina = clamp(kicker.stamina - 0.8, 0, 100);
+    launchBall(state, kicker, targetPosition, "kickoff", null, random);
     phase.stage = "inFlight";
     return;
   }
@@ -245,6 +311,7 @@ export const updateLineout = (state: GameState, deltaSeconds: number) => {
     const jumper = state.players.find((player) => player.team === phase.throwingTeam && player.role === ROLES.Lock);
     // Wait when hooker or jumper is unavailable.
     if (!hooker || !jumper) return;
+    hooker.stamina = clamp(hooker.stamina - 0.25, 0, 100);
     launchBall(state, hooker, jumper.position, "lineout", jumper.id);
     phase.stage = "inFlight";
     return;

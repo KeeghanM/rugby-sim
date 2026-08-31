@@ -47,14 +47,29 @@ const clampZ = (z: number) =>
 
 export const isForward = (player: Pick<Player, "role">) => FORWARDS.has(player.role);
 
-export const getKickoffTarget = (player: Player, kickingTeam: Team): Position => {
+export const getKickoffTarget = (
+  player: Player,
+  kickingTeam: Team,
+  reason: "matchStart" | "try" | "goalLineDropout",
+): Position => {
   const slot = ATTACK_FORMATION[player.number - 1];
+  // Place goal-line dropout teams around their own line and receiving side near 22.
+  if (reason === "goalLineDropout") {
+    const direction = attackDirection(kickingTeam);
+    const tryLine = kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    const depth = player.team === kickingTeam
+      ? 1 + (player.number % 3)
+      : 22 + (player.number % 4) * 2;
+    return { x: slot.x, z: tryLine + direction * depth };
+  }
+  // Hold kicking side just behind halfway for normal restarts.
   if (player.team === kickingTeam) {
     return {
       x: slot.x,
       z: -attackDirection(player.team) * (1 + (player.number % 3) * 1.5),
     };
   }
+  // Set receiving side inside its own 22 with fullback deepest.
   const depth = player.role === ROLES.FullBack ? 38 : 30 + (player.number % 4) * 2;
   return { x: slot.x, z: -attackDirection(player.team) * depth };
 };

@@ -13,3 +13,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Playwright
+.playwright-cli/

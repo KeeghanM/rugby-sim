@@ -1,5 +1,5 @@
 import { attackDirection, type GameState, otherTeam, PITCH, type Player, type Position, type Team } from "../domain.ts";
-import { clamp, distance, GRAVITY } from "./math.ts";
+import { clamp, distance, effectiveSkill, GRAVITY } from "./math.ts";
 import type { Random } from "./types.ts";
 
 // Launches ball toward target with skill-based error and ballistic velocity.
@@ -11,7 +11,10 @@ export const launchBall = (
   intendedReceiverId: string | null,
   random: Random = Math.random,
 ) => {
-  const skill = flight === "kick" || flight === "kickoff" ? carrier.skills.kicking : carrier.skills.passing;
+  const skill =
+    flight === "kick" || flight === "kickoff"
+      ? effectiveSkill(carrier, "kicking")
+      : effectiveSkill(carrier, "passing");
   const error = (1 - skill) * (flight === "pass" || flight === "lineout" ? 5 : 18);
   const actualTarget = {
     x: target.x + (random() - 0.5) * error,
@@ -31,6 +34,7 @@ export const launchBall = (
     intendedReceiverId,
     lastTouchedTeam: carrier.team,
     kickOrigin: flight === "kick" || flight === "kickoff" ? { ...carrier.position } : null,
+    bouncesRemaining: flight === "kick" || flight === "kickoff" ? 2 : 0,
   };
   // Mark teammates ahead of kicker offside for kick and kickoff flights.
   if (flight === "kick" || flight === "kickoff") {
@@ -44,6 +48,29 @@ export const launchBall = (
   }
 };
 
+// Converts a ball crossing dead-ball line into defending goal-line dropout.
+const startGoalLineDropout = (state: GameState, z: number) => {
+  const defendingTeam: Team = z < 0 ? 0 : 1;
+  state.ball = {
+    position: { x: 0, y: 0.15, z: defendingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north },
+    velocity: { x: 0, y: 0, z: 0 },
+    carrierId: null,
+    flight: null,
+    intendedReceiverId: null,
+    lastTouchedTeam: defendingTeam,
+    kickOrigin: null,
+    bouncesRemaining: 0,
+  };
+  state.pendingClearanceKickerId = null;
+  state.phase = {
+    kind: "kickoff",
+    stage: "forming",
+    kickingTeam: defendingTeam,
+    readyForSeconds: 0,
+    reason: "goalLineDropout",
+  };
+};
+
 // Transfers grounded or caught ball into player possession.
 export const carryBall = (state: GameState, player: Player) => {
   state.ball.carrierId = player.id;
@@ -53,6 +80,7 @@ export const carryBall = (state: GameState, player: Player) => {
   state.ball.position = { ...player.position, y: 1.25 };
   state.ball.lastTouchedTeam = player.team;
   state.ball.kickOrigin = null;
+  state.ball.bouncesRemaining = 0;
   for (const teammate of state.players) teammate.kickOffside = false;
 };
 
@@ -66,6 +94,7 @@ const startLineout = (state: GameState, kickingTeam: Team, z: number, x: number)
     intendedReceiverId: null,
     lastTouchedTeam: kickingTeam,
     kickOrigin: null,
+    bouncesRemaining: 0,
   };
   state.pendingClearanceKickerId = null;
   state.phase = {
@@ -95,10 +124,63 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
     return;
   }
 
+  // Move grounded kick with friction until rolling speed is exhausted.
+  if (state.ball.flight === "rolling") {
+    state.ball.position.x += state.ball.velocity.x * deltaSeconds;
+    state.ball.position.z += state.ball.velocity.z * deltaSeconds;
+    const friction = Math.max(0, 1 - deltaSeconds * 1.8);
+    state.ball.velocity.x *= friction;
+    state.ball.velocity.z *= friction;
+    // Restart when rolling ball crosses dead-ball line.
+    if (
+      Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
+    ) {
+      startGoalLineDropout(state, state.ball.position.z);
+      return;
+    }
+    // Award lineout when rolling kick crosses touchline.
+    if (Math.abs(state.ball.position.x) >= PITCH.touchLines.right) {
+      startLineout(
+        state,
+        state.ball.lastTouchedTeam ?? 0,
+        clamp(state.ball.position.z, PITCH.tryLines.south, PITCH.tryLines.north),
+        state.ball.position.x,
+      );
+      return;
+    }
+    const rollingPicker = state.players
+      .filter((player) => distance(player.position, state.ball.position) <= 1.1)
+      .sort(
+        (a, b) =>
+          distance(a.position, state.ball.position) -
+          distance(b.position, state.ball.position),
+      )[0];
+    // Give moving ball to first player reaching its rolling path.
+    if (rollingPicker) {
+      carryBall(state, rollingPicker);
+      return;
+    }
+    // Stop ball once rolling momentum is negligible.
+    if (Math.hypot(state.ball.velocity.x, state.ball.velocity.z) < 0.2) {
+      state.ball.velocity = { x: 0, y: 0, z: 0 };
+      state.ball.flight = null;
+    }
+    return;
+  }
+
   state.ball.position.x += state.ball.velocity.x * deltaSeconds;
   state.ball.position.y += state.ball.velocity.y * deltaSeconds;
   state.ball.position.z += state.ball.velocity.z * deltaSeconds;
   state.ball.velocity.y -= GRAVITY * deltaSeconds;
+
+  // Restart with goal-line dropout when flight crosses either dead-ball line.
+  if (
+    (state.ball.flight === "kick" || state.ball.flight === "kickoff") &&
+    Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
+  ) {
+    startGoalLineDropout(state, state.ball.position.z);
+    return;
+  }
 
   // Start lineout when normal kick crosses either touchline.
   if (state.ball.flight === "kick" && Math.abs(state.ball.position.x) >= PITCH.touchLines.right) {
@@ -125,7 +207,7 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
     // Resolve handling outcome when eligible catcher reaches ball.
     if (catcher) {
       // Drop ball loose when handling check fails.
-      if (random() < (1 - catcher.skills.handling) * 0.25) {
+      if (random() < (1 - effectiveSkill(catcher, "handling")) * 0.25) {
         state.ball.position.x = clamp(state.ball.position.x + (random() - 0.5) * 3, PITCH.touchLines.left, PITCH.touchLines.right);
         state.ball.position.y = 0.15;
         state.ball.velocity = { x: 0, y: 0, z: 0 };
@@ -133,13 +215,35 @@ export const updateBall = (state: GameState, deltaSeconds: number, random: Rando
         state.ball.intendedReceiverId = null;
         return;
       }
+      catcher.stamina = clamp(catcher.stamina - 0.15, 0, 100);
       carryBall(state, catcher);
       return;
     }
   }
-  // Stop uncaught ball when it reaches ground.
+  // Resolve bounce, roll, or loose ball when flight reaches ground.
   if (state.ball.position.y <= 0.15) {
     state.ball.position.y = 0.15;
+    // Let territorial kicks bounce before converting remaining momentum to roll.
+    if (
+      (state.ball.flight === "kick" || state.ball.flight === "kickoff") &&
+      state.ball.bouncesRemaining > 0
+    ) {
+      state.ball.velocity.y = Math.abs(state.ball.velocity.y) * 0.42;
+      state.ball.velocity.x *= 0.72;
+      state.ball.velocity.z *= 0.72;
+      state.ball.bouncesRemaining -= 1;
+      return;
+    }
+    // Preserve horizontal kick momentum as rolling ball after final bounce.
+    if (state.ball.flight === "kick" || state.ball.flight === "kickoff") {
+      state.ball.velocity.y = 0;
+      state.ball.velocity.x *= 0.65;
+      state.ball.velocity.z *= 0.65;
+      state.ball.flight = "rolling";
+      state.ball.intendedReceiverId = null;
+      return;
+    }
+    // Leave failed pass or lineout throw stationary and loose.
     state.ball.velocity = { x: 0, y: 0, z: 0 };
     state.ball.flight = null;
     state.ball.intendedReceiverId = null;

@@ -28,6 +28,7 @@ export const createGame = (): GameState => ({
         tackleCooldown: 0,
         hardLineForSeconds: 0,
         kickOffside: false,
+        ruckRecoverySeconds: 0,
         skills: profile.skills,
       };
     }),
@@ -40,6 +41,7 @@ export const createGame = (): GameState => ({
     intendedReceiverId: null,
     lastTouchedTeam: null,
     kickOrigin: null,
+    bouncesRemaining: 0,
   },
   scores: [0, 0],
   phase: {
