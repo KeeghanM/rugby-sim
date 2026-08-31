@@ -13,68 +13,45 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
 
   const phase = state.phase;
 
-  // --- 1. KICKOFF BALL RETRIEVAL BY REFEREE ---
+  // --- 1. KICKOFF BALL DELIVERY BY REFEREE ---
   // If in kickoff phase and the fly-half (10) doesn't have the ball yet,
-  // the referee runs to the ball, picks it up, runs to the 10, and hands it over.
+  // the referee spawns a fresh ball (never running off into the stands),
+  // jogs to the 10, and hands it over at the kickoff mark.
   if (phase.kind === "kickoff" && phase.stage === "forming") {
     const kicker = state.players.find(
       (p) => p.team === phase.kickingTeam && p.role === ROLES.FlyHalf,
     );
 
     if (kicker && state.ball.carrierId !== kicker.id) {
-      const refHasBall = state.ball.carrierId === "referee";
+      // Referee spawns / carries the new match ball
+      state.ball.carrierId = "referee";
+      state.ball.flight = null;
+      state.ball.position.x = state.referee.position.x;
+      state.ball.position.y = 1.1;
+      state.ball.position.z = state.referee.position.z;
 
-      if (refHasBall) {
-        // Carry ball with referee
-        state.ball.position.x = state.referee.position.x;
-        state.ball.position.y = 1.1;
-        state.ball.position.z = state.referee.position.z;
+      // Move towards the kicker within pitch bounds
+      const targetX = clamp(kicker.position.x, -25, 25);
+      const targetZ = clamp(kicker.position.z, -48, 48);
+      const dx = targetX - state.referee.position.x;
+      const dz = targetZ - state.referee.position.z;
+      const dist = Math.hypot(dx, dz);
 
-        // Move towards the kicker
-        const targetX = kicker.position.x;
-        const targetZ = kicker.position.z;
-        const dx = targetX - state.referee.position.x;
-        const dz = targetZ - state.referee.position.z;
-        const dist = Math.hypot(dx, dz);
-
-        if (dist <= 1.5) {
-          // Hand ball to kicker!
-          carryBall(state, kicker);
-          state.referee.velocity = { x: 0, z: 0 };
-        } else {
-          const speed = dist > 15 ? 7.5 : dist > 5 ? 5.5 : 3.5;
-          state.referee.velocity = {
-            x: (dx / dist) * speed,
-            z: (dz / dist) * speed,
-          };
-          state.referee.position.x += state.referee.velocity.x * deltaSeconds;
-          state.referee.position.z += state.referee.velocity.z * deltaSeconds;
-        }
-        updateAssistantReferees(state, deltaSeconds);
-        return;
+      if (dist <= 1.5) {
+        // Hand ball to kicker!
+        carryBall(state, kicker);
+        state.referee.velocity = { x: 0, z: 0 };
       } else {
-        // Move towards the ball on the pitch
-        const dx = state.ball.position.x - state.referee.position.x;
-        const dz = state.ball.position.z - state.referee.position.z;
-        const dist = Math.hypot(dx, dz);
-
-        if (dist <= 1.2) {
-          // Pick up the ball!
-          state.ball.carrierId = "referee";
-          state.ball.flight = null;
-          state.referee.velocity = { x: 0, z: 0 };
-        } else {
-          const speed = dist > 15 ? 7.5 : dist > 5 ? 5.5 : 3.5;
-          state.referee.velocity = {
-            x: (dx / dist) * speed,
-            z: (dz / dist) * speed,
-          };
-          state.referee.position.x += state.referee.velocity.x * deltaSeconds;
-          state.referee.position.z += state.referee.velocity.z * deltaSeconds;
-        }
-        updateAssistantReferees(state, deltaSeconds);
-        return;
+        const speed = dist > 15 ? 7.5 : dist > 5 ? 5.5 : 3.5;
+        state.referee.velocity = {
+          x: (dx / dist) * speed,
+          z: (dz / dist) * speed,
+        };
+        state.referee.position.x += state.referee.velocity.x * deltaSeconds;
+        state.referee.position.z += state.referee.velocity.z * deltaSeconds;
       }
+      updateAssistantReferees(state, deltaSeconds);
+      return;
     }
   }
 

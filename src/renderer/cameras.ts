@@ -201,7 +201,7 @@ export const createCameras = (
         const phaseChanged = phase.kind !== lastPhaseKind;
         lastPhaseKind = phase.kind;
 
-        // --- 1. PRIORITY EVENTS (Immediate cinematic cuts) ---
+        // --- 1. PRIORITY EVENTS (180-Degree Consistent TV Director) ---
         let chosenShot: DynamicShotType = currentShot;
         let lerpRate = 0.08;
 
@@ -209,7 +209,7 @@ export const createCameras = (
           (ball.flight === "kick" ||
             ball.flight === "kickoff" ||
             ball.flight === "dropGoal") &&
-          hSpeed > 8;
+          hSpeed > 7;
 
         const isBreakaway =
           carrier && (carrier.lineBreakActive || carrier.breakawaySeconds > 0);
@@ -223,23 +223,19 @@ export const createCameras = (
         } else if (isBreakaway) {
           chosenShot = "breakawayChase";
         } else if (isGoalKickPhase) {
-          if (phase.stage === "inFlight") {
-            chosenShot = "goalLine";
-          } else {
-            chosenShot = shotDuration > 4.5 ? "goalLine" : "refCam";
-          }
+          chosenShot = "goalLine";
         } else if (phase.kind === "scrum" || phase.kind === "lineout") {
-          if (phaseChanged || shotDuration >= 5.0) {
-            chosenShot = Math.random() < 0.65 ? "refCam" : "sidelineTight";
+          if (phaseChanged || shotDuration >= 5.5) {
+            chosenShot = Math.random() < 0.6 ? "refCam" : "sidelineTight";
           }
         } else if (Math.abs(ballZ) >= 28) {
-          // Inside 22m red-zone attack
-          if (shotDuration >= 4.5) {
+          // 22m Red-Zone Attack
+          if (shotDuration >= 5.0) {
             chosenShot = Math.random() < 0.45 ? "goalLine" : "broadcast";
           }
         } else {
-          // Open play midfield
-          if (shotDuration >= 5.5) {
+          // Neutral Midfield Open Play (Hold broadcast for continuity)
+          if (shotDuration >= 6.0) {
             chosenShot = Math.random() < 0.25 ? "sidelineTight" : "broadcast";
           }
         }
@@ -249,66 +245,67 @@ export const createCameras = (
           shotDuration = 0;
         }
 
-        // --- 2. EVALUATE TARGET CAMERA POSITIONS & SIGHTLINES ---
+        // --- 2. 180-DEGREE BROADCAST AXIS (Cameras strictly stay on East Side X > 0) ---
+        // Team 0 (South -> North) always flows Left-to-Right across the viewer's screen.
+        // Team 1 (North -> South) always flows Right-to-Left. Never cross the 50/line.
         if (currentShot === "flyOver") {
-          // Aerial cable-cam tracking behind and above the ball in flight
+          // Broadcast Cable-Cam: elevated along East sideline trailing the flight
           const kDir =
             ball.velocity.z !== 0 ? Math.sign(ball.velocity.z) : attackDir;
           desiredCamPos.set(
-            clamp(ballX * 0.6, -22, 22),
-            Math.min(23.0, Math.max(8.0, ballY + 6.5)),
-            ballZ - kDir * 11.0,
+            28.0,
+            Math.min(22.5, Math.max(9.5, ballY + 7.0)),
+            ballZ - kDir * 9.0,
           );
           desiredTarget.set(
-            ballX,
-            Math.max(0.5, ballY * 0.5),
+            clamp(ballX * 0.4, -18, 18),
+            Math.max(0.5, ballY * 0.4),
             ballZ + kDir * 14.0,
           );
-          lerpRate = 0.12;
+          lerpRate = 0.1;
         } else if (currentShot === "breakawayChase") {
-          // Dramatic follower chase cam behind sprinting line-breaker
+          // Elevated tracking from broadcast side
           if (carrier) {
-            desiredCamPos.set(
-              carrier.position.x * 0.75,
-              4.8,
-              carrier.position.z - attackDir * 8.5,
-            );
+            desiredCamPos.set(26.0, 5.2, carrier.position.z - attackDir * 6.5);
             desiredTarget.set(
-              carrier.position.x,
+              carrier.position.x * 0.5,
               1.2,
-              carrier.position.z + attackDir * 7.5,
+              carrier.position.z + attackDir * 6.0,
             );
-            lerpRate = 0.14;
+            lerpRate = 0.12;
           }
         } else if (currentShot === "refCam") {
-          // Referee bodycam / over-shoulder perspective
+          // Ref cam anchored on broadcast side of referee
           desiredCamPos.set(
-            game.referee.position.x,
-            1.85,
+            Math.max(5.0, game.referee.position.x + 3.5),
+            2.1,
             game.referee.position.z,
           );
-          desiredTarget.set(ballX, Math.max(0.5, ballY), ballZ);
-          lerpRate = 0.1;
+          desiredTarget.set(ballX * 0.6, Math.max(0.5, ballY), ballZ);
+          lerpRate = 0.09;
         } else if (currentShot === "sidelineTight") {
-          // Low-angle pitchside jib camera along touchline
-          const touchSide = ballX < 0 ? -37.5 : 37.5;
-          desiredCamPos.set(touchSide, 3.4, ballZ - attackDir * 4.5);
-          desiredTarget.set(ballX * 0.5, 0.8, ballZ + attackDir * 3.0);
+          // Low pitchside camera on EAST broadcast touchline (never crossing to West)
+          desiredCamPos.set(37.2, 3.2, ballZ - attackDir * 3.5);
+          desiredTarget.set(ballX * 0.4, 0.9, ballZ + attackDir * 2.5);
           lerpRate = 0.08;
         } else if (currentShot === "goalLine") {
-          // Elevated in-goal gantry camera behind the goal posts
+          // Corner gantry camera on broadcast side (X = +26 > 0)
           const targetTryLine =
             attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
-          const endPosZ = targetTryLine + attackDir * 18.0;
-          desiredCamPos.set(0, Math.min(23.5, 20.5 / Math.sqrt(zoom)), endPosZ);
-          desiredTarget.set(ballX * 0.5, 1.5, targetTryLine - attackDir * 6.0);
+          const endPosZ = targetTryLine + attackDir * 14.0;
+          desiredCamPos.set(
+            26.0,
+            Math.min(22.0, 19.5 / Math.sqrt(zoom)),
+            endPosZ,
+          );
+          desiredTarget.set(0, 2.0, targetTryLine - attackDir * 6.0);
           lerpRate = 0.07;
         } else {
-          // Default: Main TV Broadcast Gantry under the roof
+          // Default: Main TV Broadcast Gantry under the roof canopy (X = +52)
           const gantryX = 52.0 / Math.sqrt(zoom);
           const gantryY = Math.min(23.5, 21.0 / Math.sqrt(zoom));
           desiredCamPos.set(gantryX, gantryY, ballZ * 0.72);
-          desiredTarget.set(ballX * 0.5, 0, ballZ);
+          desiredTarget.set(clamp(ballX * 0.4, -20, 20), 0, ballZ);
           lerpRate = 0.08;
         }
 
