@@ -261,9 +261,9 @@ export const createEnvironment = (scene: Scene) => {
     return board;
   };
 
-  // Touchline & dead-ball ad hoardings
-  createAdBoard("ad-west", 0.35, 124, new Vector3(-38.2, 0.55, 0));
-  createAdBoard("ad-east", 0.35, 124, new Vector3(38.2, 0.55, 0));
+  // Touchline & dead-ball ad hoardings (placed behind touch judge running lane)
+  createAdBoard("ad-west", 0.35, 124, new Vector3(-38.5, 0.55, 0));
+  createAdBoard("ad-east", 0.35, 124, new Vector3(38.5, 0.55, 0));
   createAdBoard("ad-south", 76.6, 0.35, new Vector3(0, 0.55, -64.2));
   createAdBoard("ad-north", 76.6, 0.35, new Vector3(0, 0.55, 64.2));
 
@@ -280,7 +280,7 @@ export const createEnvironment = (scene: Scene) => {
       { width: 0.6, height: 1.2, depth: 118 },
       scene,
     );
-    barrier.position.set(side * 39.8, 0.6, 0);
+    barrier.position.set(side * 40.8, 0.6, 0);
     barrier.material = concreteStandMat;
 
     // Lower Tier (Raked Seating Deck)
@@ -691,13 +691,13 @@ export const createEnvironment = (scene: Scene) => {
   dugoutMat.specularColor = Color3.White();
 
   const createDugout = (name: string, z: number) => {
-    // Canopy roof
+    // Canopy roof set back behind touchline & ad board
     const shelter = CreateBox(
       `${name}-shelter`,
-      { width: 2.8, height: 2.2, depth: 8.5 },
+      { width: 2.6, height: 2.2, depth: 8.5 },
       scene,
     );
-    shelter.position.set(-36.8, 1.1, z);
+    shelter.position.set(-41.5, 1.1, z);
     shelter.material = dugoutMat;
 
     // Bench seating
@@ -706,7 +706,7 @@ export const createEnvironment = (scene: Scene) => {
       { width: 1.2, height: 0.5, depth: 7.8 },
       scene,
     );
-    bench.position.set(-37.2, 0.45, z);
+    bench.position.set(-41.8, 0.45, z);
     bench.material = seatMatLower;
   };
 
@@ -719,7 +719,7 @@ export const createEnvironment = (scene: Scene) => {
     { width: 4.5, height: 2.6, depth: 6.0 },
     scene,
   );
-  tunnelArch.position.set(-40.2, 1.3, 0);
+  tunnelArch.position.set(-43.5, 1.3, 0);
   const tunnelMat = new StandardMaterial("tunnel-mat", scene);
   tunnelMat.diffuseColor = Color3.FromHexString("#1e293b");
   tunnelMat.emissiveColor = Color3.FromHexString("#0f172a");
@@ -728,10 +728,10 @@ export const createEnvironment = (scene: Scene) => {
   // Red carpet walkway from tunnel to touchline
   const carpet = CreateGround(
     "tunnel-carpet",
-    { width: 3.5, height: 3.5 },
+    { width: 3.5, height: 4.5 },
     scene,
   );
-  carpet.position.set(-36.8, 0.025, 0);
+  carpet.position.set(-40.0, 0.025, 0);
   const carpetMat = new StandardMaterial("carpet-mat", scene);
   carpetMat.diffuseColor = Color3.FromHexString("#dc2626");
   carpetMat.specularColor = Color3.Black();

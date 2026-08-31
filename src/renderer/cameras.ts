@@ -32,7 +32,7 @@ export const createCameras = (
   freeCam.keysRight = [68];
   (freeCam as unknown as { inertia: number }).inertia = 0.5;
 
-  let cameraMode: CameraMode = "free";
+  let cameraMode: CameraMode = "halfway";
   let goalLineSide: GoalLineSide = "south";
   let autoFollowBall = true;
   let zoom = 1;
@@ -41,15 +41,19 @@ export const createCameras = (
   const BASE_BROADCAST_DIST = 85;
   const BASE_FREE_FOV = 0.8;
 
-  scene.activeCamera = freeCam;
+  scene.activeCamera = broadcastCam;
 
   const positionBroadcastCamera = () => {
-    // Higher zoom = closer distance to pitch (zoomed in)
-    const d = BASE_BROADCAST_DIST / zoom;
     if (cameraMode === "halfway") {
-      broadcastCam.position.set(d, d, 0);
+      // Main TV broadcast gantry camera positioned under the roof canopy (height ~20m < 27m roof)
+      const posX = 52 / Math.sqrt(zoom);
+      const posY = Math.min(23.5, 21 / Math.sqrt(zoom));
+      broadcastCam.position.set(posX, posY, 0);
     } else if (cameraMode === "goalLine") {
-      broadcastCam.position.set(0, d, goalLineSide === "south" ? -d : d);
+      // Elevated goal-line gantry camera under end-stand roof
+      const posZ = (70 / Math.sqrt(zoom)) * (goalLineSide === "south" ? -1 : 1);
+      const posY = Math.min(23.5, 21 / Math.sqrt(zoom));
+      broadcastCam.position.set(0, posY, posZ);
     }
   };
 
