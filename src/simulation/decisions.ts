@@ -22,6 +22,7 @@ import {
   GRAVITY,
   insideOwnTwentyTwo,
 } from "./math.ts";
+import { getActiveShapePositions } from "../teams.ts";
 import type { Effort, PlayerCommand, Random } from "./types.ts";
 
 // Creates a movement command with shared defaults.
@@ -638,11 +639,12 @@ export const computeCommands = (
           phase.reason,
           state.formations[phase.kickingTeam].kickoffAttack,
           state.formations[player.team].kickoffDefence,
-          state.teams[player.team].customFormations[
+          getActiveShapePositions(
+            state.teams[player.team],
             player.team === phase.kickingTeam
               ? "kickoffAttack"
-              : "kickoffDefence"
-          ],
+              : "kickoffDefence",
+          ),
         ),
         `kickoff-${phase.stage}`,
         false,
@@ -681,9 +683,10 @@ export const computeCommands = (
         phase.feedingTeam,
         formation.scrumAttack,
         formation.scrumDefence,
-        state.teams[player.team].customFormations[
-          player.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence"
-        ],
+        getActiveShapePositions(
+          state.teams[player.team],
+          player.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence",
+        ),
       );
       const gap = distance(player.position, target);
       const isPackForward = isForward(player);
@@ -953,9 +956,10 @@ export const computeCommands = (
       attacking ? undefined : state.defensiveLineZ[player.team],
       state.formations[player.team].openAttack,
       state.formations[player.team].openDefence,
-      state.teams[player.team].customFormations[
-        attacking ? "openAttack" : "openDefence"
-      ],
+      getActiveShapePositions(
+        state.teams[player.team],
+        attacking ? "openAttack" : "openDefence",
+      ),
     );
     const direction = attackDirection(player.team);
     // Keep former ruck participants bound to contact area until recovery expires.

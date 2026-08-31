@@ -15,7 +15,7 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../formations.ts";
-import { rollTeamFormations } from "../teams.ts";
+import { getActiveShapePositions, rollTeamFormations } from "../teams.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "./ball.ts";
 import {
   clamp,
@@ -676,7 +676,7 @@ export const updateKickoff = (
           phase.reason,
           state.formations[phase.kickingTeam].kickoffAttack,
           state.formations[kicker.team].kickoffDefence,
-          state.teams[kicker.team].customFormations.kickoffAttack,
+          getActiveShapePositions(state.teams[kicker.team], "kickoffAttack"),
         )
       : null;
     const kickerReady =
@@ -689,9 +689,12 @@ export const updateKickoff = (
         phase.reason,
         state.formations[phase.kickingTeam].kickoffAttack,
         state.formations[player.team].kickoffDefence,
-        state.teams[player.team].customFormations[
-          player.team === phase.kickingTeam ? "kickoffAttack" : "kickoffDefence"
-        ],
+        getActiveShapePositions(
+          state.teams[player.team],
+          player.team === phase.kickingTeam
+            ? "kickoffAttack"
+            : "kickoffDefence",
+        ),
       );
       return distance(player.position, target) <= 2.5;
     }).length;
@@ -1501,9 +1504,10 @@ export const updateScrum = (
         phase.feedingTeam,
         state.formations[p.team].scrumAttack,
         state.formations[p.team].scrumDefence,
-        state.teams[p.team].customFormations[
-          p.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence"
-        ],
+        getActiveShapePositions(
+          state.teams[p.team],
+          p.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence",
+        ),
       );
       return distance(p.position, target) <= 2.0;
     });

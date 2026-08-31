@@ -5,6 +5,7 @@ import {
   type Player,
   type PlayerSkills,
   type Position,
+  type TacticalShape,
   type Team,
 } from "./domain.ts";
 import {
@@ -17,6 +18,7 @@ import { createGame } from "./simulation/create-game.ts";
 import {
   getPlayerProfile,
   getRolePhysicals,
+  loadPreset,
   setStats,
   setTactics,
 } from "./teams.ts";
@@ -132,9 +134,47 @@ export const createMatchSetup = (
   let view: SetupView = "squad";
   let selectedPlayer = 10;
   let shapeContext: FormationContext = "openAttack";
+  let selectedShapeIndex = 0;
 
   setTactics(teams, 0, { formationVariation: 0 });
   setTactics(teams, 1, { formationVariation: 0 });
+
+  const ensureTacticalShapes = (
+    teamId: Team,
+    context: FormationContext,
+  ): TacticalShape[] => {
+    if (!teams[teamId].tacticalShapes) {
+      teams[teamId].tacticalShapes = {};
+    }
+    let shapes = teams[teamId].tacticalShapes![context];
+    if (!shapes || shapes.length === 0) {
+      const configItem = shapeContexts.find((c) => c.value === context)!;
+      const defaultPreset = String(
+        teams[teamId].formations[configItem.formation],
+      );
+      shapes = [
+        {
+          id: `${context}-1`,
+          name: "Play 1 (Primary)",
+          weight: 60,
+          preset: defaultPreset,
+          positions: teams[teamId].customFormations[context]?.map((p) => ({
+            ...p,
+          })),
+        },
+        {
+          id: `${context}-2`,
+          name: "Play 2 (Alternate)",
+          weight: 40,
+          preset: configItem.presets[1]
+            ? String(configItem.presets[1])
+            : defaultPreset,
+        },
+      ];
+      teams[teamId].tacticalShapes![context] = shapes;
+    }
+    return shapes;
+  };
 
   const players = () =>
     ATTACK_FORMATION.map((slot, index) => ({
@@ -196,14 +236,31 @@ export const createMatchSetup = (
   };
 
   const previewPositions = (): Position[] => {
+    const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+    if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+    const currentShape = shapes[selectedShapeIndex] ?? shapes[0];
+
+    if (currentShape.positions && currentShape.positions.length > 0) {
+      return currentShape.positions.map((position) => ({ ...position }));
+    }
+
     const custom = teams[selectedTeam].customFormations[shapeContext];
     if (custom) return custom.map((position) => ({ ...position }));
+
     const game = createGame(teams, () => 0.5);
     const ownPlayers = game.players.filter(
       (player) => player.team === selectedTeam,
     );
     const direction = selectedTeam === 0 ? 1 : -1;
-    const formation = game.formations[selectedTeam];
+    const formation = { ...game.formations[selectedTeam] };
+    if (currentShape.preset) {
+      const contextItem = shapeContexts.find(
+        (item) => item.value === shapeContext,
+      );
+      if (contextItem) {
+        (formation as any)[contextItem.formation] = currentShape.preset;
+      }
+    }
     const opponentCarrier = game.players.find(
       (player) =>
         player.team === otherTeam(selectedTeam) && player.number === 10,
@@ -370,9 +427,20 @@ export const createMatchSetup = (
   const renderShape = () => {
     const team = teams[selectedTeam];
     const context = shapeContexts.find((item) => item.value === shapeContext)!;
+    const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+    if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+    const currentShape = shapes[selectedShapeIndex] ?? shapes[0];
+    const totalWeight = shapes.reduce(
+      (sum, s) => sum + Math.max(0, s.weight),
+      0,
+    );
+    const probabilityPercent =
+      totalWeight > 0
+        ? Math.round((currentShape.weight / totalWeight) * 100)
+        : 100;
     const positions = previewPositions();
     const bounds = boundsFor(shapeContext);
-    const currentPreset = team.formations[context.formation];
+
     return `
       <div class="shape-layout">
         <aside class="shape-menu">
@@ -380,8 +448,47 @@ export const createMatchSetup = (
           ${shapeContexts.map((item) => `<button type="button" data-shape-context="${item.value}" class="${shapeContext === item.value ? "selected" : ""}">${item.label}</button>`).join("")}
         </aside>
         <section class="shape-workbench">
-          <div class="section-heading"><div><span>Drag shirts to adjust</span><h2>${context.label}</h2></div><button type="button" class="reset-shape" data-reset-shape>Reset preset</button></div>
-          <div class="preset-row">${context.presets.map((preset) => `<button type="button" data-preset="${preset}" class="${String(currentPreset) === String(preset) && !team.customFormations[shapeContext] ? "selected" : ""}">${text(String(preset))}</button>`).join("")}</div>
+          <div class="section-heading">
+            <div>
+              <span>Tactical Play Variations</span>
+              <h2>${context.label}</h2>
+            </div>
+            <button type="button" class="reset-shape" data-reset-shape>Reset to preset</button>
+          </div>
+
+          <div class="shape-tabs-bar">
+            <div class="shape-tabs-list">
+              ${shapes
+                .map(
+                  (s, idx) => `
+                <button type="button" class="shape-tab-btn ${idx === selectedShapeIndex ? "selected" : ""}" data-shape-index="${idx}">
+                  <b>${escapeHtml(s.name)}</b>
+                  <span>${totalWeight > 0 ? Math.round((s.weight / totalWeight) * 100) : 100}%</span>
+                </button>`,
+                )
+                .join("")}
+              <button type="button" class="add-shape-btn" data-add-shape>+ Add Play</button>
+            </div>
+          </div>
+
+          <div class="shape-controls-card">
+            <label class="shape-name-control">
+              <span>Play Name</span>
+              <input type="text" data-shape-name value="${escapeHtml(currentShape.name)}" placeholder="e.g. Blue Strike, Green Pods..." />
+            </label>
+            <label class="shape-weight-control">
+              <span>Usage Weight</span>
+              <input type="range" min="5" max="100" step="5" value="${currentShape.weight}" data-shape-weight />
+              <output>${probabilityPercent}% chance</output>
+            </label>
+            ${shapes.length > 1 ? `<button type="button" class="delete-shape-btn" data-delete-shape title="Delete play">✕ Delete</button>` : ""}
+          </div>
+
+          <div class="preset-row">
+            <span class="preset-label">Base template:</span>
+            ${context.presets.map((preset) => `<button type="button" data-preset="${preset}" class="${currentShape.preset === String(preset) && !currentShape.positions ? "selected" : ""}">${text(String(preset))}</button>`).join("")}
+          </div>
+
           <div class="pitch-board" data-pitch data-x-bound="${bounds.x}" data-z-bound="${bounds.z}">
             <span class="pitch-half"></span><span class="pitch-22 north"></span><span class="pitch-22 south"></span>
             ${positions.map((position, index) => `<button type="button" class="shape-player" data-shape-player="${index}" style="--x:${((position.x + bounds.x) / (bounds.x * 2)) * 100}%;--z:${((bounds.z - position.z) / (bounds.z * 2)) * 100}%;--team-color:${team.color}">${index + 1}</button>`).join("")}
@@ -399,6 +506,22 @@ export const createMatchSetup = (
           <div class="team-switcher">
             ${([0, 1] as const).map((teamId) => `<button type="button" data-team-switch="${teamId}" class="${selectedTeam === teamId ? "selected" : ""}" style="--swatch:${teams[teamId].color}"><i></i>${escapeHtml(teams[teamId].name)}</button>`).join("")}
           </div>
+          <label class="preset-selector">
+            <span>Preset</span>
+            <select data-preset-nation>
+              <option value="">Choose preset nation...</option>
+              <option value="nz">New Zealand (All Blacks)</option>
+              <option value="sa">South Africa (Springboks)</option>
+              <option value="ire">Ireland</option>
+              <option value="fra">France (Les Bleus)</option>
+              <option value="eng">England</option>
+              <option value="sco">Scotland</option>
+              <option value="aus">Australia (Wallabies)</option>
+              <option value="arg">Argentina (Los Pumas)</option>
+              <option value="wal">Wales</option>
+              <option value="ita">Italy (Azzurri)</option>
+            </select>
+          </label>
           <button type="button" class="start-match" data-start>Kick off</button>
         </header>
         <nav class="config-tabs">
@@ -471,7 +594,13 @@ export const createMatchSetup = (
           );
         };
         const finish = () => {
+          const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+          if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+          shapes[selectedShapeIndex].positions = positions.map((position) => ({
+            ...position,
+          }));
           setTactics(teams, selectedTeam, {
+            tacticalShapes: { [shapeContext]: shapes },
             customFormations: { [shapeContext]: positions },
           });
           player.removeEventListener("pointermove", move);
@@ -488,6 +617,7 @@ export const createMatchSetup = (
       button.addEventListener("click", () => {
         selectedTeam = Number(button.dataset.teamSwitch) as Team;
         selectedPlayer = 10;
+        selectedShapeIndex = 0;
         render();
       }),
     );
@@ -512,6 +642,17 @@ export const createMatchSetup = (
           color: (event.currentTarget as HTMLInputElement).value,
         });
         render();
+      });
+    root
+      .querySelector<HTMLSelectElement>("[data-preset-nation]")
+      ?.addEventListener("change", (event) => {
+        const val = (event.currentTarget as HTMLSelectElement).value;
+        if (val) {
+          loadPreset(teams, selectedTeam, val);
+          selectedPlayer = 10;
+          selectedShapeIndex = 0;
+          render();
+        }
       });
     root
       .querySelector<HTMLElement>("[data-start]")
@@ -575,9 +716,75 @@ export const createMatchSetup = (
       .forEach((button) =>
         button.addEventListener("click", () => {
           shapeContext = button.dataset.shapeContext as FormationContext;
+          selectedShapeIndex = 0;
           render();
         }),
       );
+    root.querySelectorAll<HTMLElement>("[data-shape-index]").forEach((button) =>
+      button.addEventListener("click", () => {
+        selectedShapeIndex = Number(button.dataset.shapeIndex);
+        render();
+      }),
+    );
+    root
+      .querySelector<HTMLElement>("[data-add-shape]")
+      ?.addEventListener("click", () => {
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        const context = shapeContexts.find(
+          (item) => item.value === shapeContext,
+        )!;
+        const newPlayIndex = shapes.length + 1;
+        shapes.push({
+          id: `${shapeContext}-${Date.now()}`,
+          name: `Play ${newPlayIndex}`,
+          weight: 50,
+          preset: String(context.presets[0]),
+        });
+        selectedShapeIndex = shapes.length - 1;
+        setTactics(teams, selectedTeam, {
+          tacticalShapes: { [shapeContext]: shapes },
+        });
+        render();
+      });
+    root
+      .querySelector<HTMLInputElement>("[data-shape-name]")
+      ?.addEventListener("change", (event) => {
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+        shapes[selectedShapeIndex].name =
+          (event.currentTarget as HTMLInputElement).value.trim() ||
+          `Play ${selectedShapeIndex + 1}`;
+        setTactics(teams, selectedTeam, {
+          tacticalShapes: { [shapeContext]: shapes },
+        });
+        render();
+      });
+    root
+      .querySelector<HTMLInputElement>("[data-shape-weight]")
+      ?.addEventListener("input", (event) => {
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+        shapes[selectedShapeIndex].weight = Number(
+          (event.currentTarget as HTMLInputElement).value,
+        );
+        setTactics(teams, selectedTeam, {
+          tacticalShapes: { [shapeContext]: shapes },
+        });
+        render();
+      });
+    root
+      .querySelector<HTMLElement>("[data-delete-shape]")
+      ?.addEventListener("click", () => {
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        if (shapes.length > 1) {
+          shapes.splice(selectedShapeIndex, 1);
+          selectedShapeIndex = Math.max(0, selectedShapeIndex - 1);
+          setTactics(teams, selectedTeam, {
+            tacticalShapes: { [shapeContext]: shapes },
+          });
+          render();
+        }
+      });
     root.querySelectorAll<HTMLElement>("[data-preset]").forEach((button) =>
       button.addEventListener("click", () => {
         const context = shapeContexts.find(
@@ -587,8 +794,13 @@ export const createMatchSetup = (
           context.formation === "lineoutMembers"
             ? Number(button.dataset.preset)
             : button.dataset.preset!;
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+        shapes[selectedShapeIndex].preset = String(preset);
+        delete shapes[selectedShapeIndex].positions;
         setTactics(teams, selectedTeam, {
           formations: { [context.formation]: preset },
+          tacticalShapes: { [shapeContext]: shapes },
           customFormations: { [shapeContext]: null },
         });
         render();
@@ -597,7 +809,11 @@ export const createMatchSetup = (
     root
       .querySelector<HTMLElement>("[data-reset-shape]")
       ?.addEventListener("click", () => {
+        const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
+        if (selectedShapeIndex >= shapes.length) selectedShapeIndex = 0;
+        delete shapes[selectedShapeIndex].positions;
         setTactics(teams, selectedTeam, {
+          tacticalShapes: { [shapeContext]: shapes },
           customFormations: { [shapeContext]: null },
         });
         render();

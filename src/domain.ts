@@ -64,6 +64,14 @@ export type PlayerStats = {
   forwardPasses: number;
 };
 
+export type TacticalShape = {
+  id: string;
+  name: string;
+  weight: number;
+  preset?: string;
+  positions?: Position[];
+};
+
 export type TeamDefinition = {
   name: string;
   color: string;
@@ -74,6 +82,7 @@ export type TeamDefinition = {
   weightMultiplier: number;
   formations: ActiveTeamFormations;
   customFormations: Partial<Record<FormationContext, Position[]>>;
+  tacticalShapes?: Partial<Record<FormationContext, TacticalShape[]>>;
   defaultSkills: PlayerSkills;
   playerOverrides: Partial<
     Record<

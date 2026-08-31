@@ -919,6 +919,33 @@
         box-shadow: inset 0 -2px var(--swatch);
       }
 
+      .preset-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .preset-selector select {
+        padding: 0.45rem 0.75rem;
+        background: #1e293b;
+        color: #f1f5f9;
+        border: 1px solid #475569;
+        border-radius: 0.4rem;
+        font-weight: 700;
+        font-size: 0.76rem;
+        cursor: pointer;
+        outline: none;
+      }
+
+      .preset-selector select:focus {
+        border-color: #38bdf8;
+      }
+
       .start-match {
         justify-self: end;
         border: 1px solid rgb(56 189 248 / 50%);
@@ -1340,10 +1367,161 @@
         padding: clamp(1rem, 2vw, 1.75rem);
       }
 
+      .shape-tabs-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+      }
+
+      .shape-tabs-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+
+      .shape-tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.8rem;
+        background: #1e293b;
+        border: 1px solid rgb(255 255 255 / 10%);
+        border-radius: 0.4rem;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 0.75rem;
+      }
+
+      .shape-tab-btn b {
+        color: #e2e8f0;
+      }
+
+      .shape-tab-btn span {
+        display: inline-block;
+        padding: 0.1rem 0.35rem;
+        background: rgb(56 189 248 / 20%);
+        color: #38bdf8;
+        border-radius: 0.25rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+      }
+
+      .shape-tab-btn.selected {
+        background: #334155;
+        border-color: var(--active-team);
+        box-shadow: 0 0 0 1px var(--active-team);
+      }
+
+      .shape-tab-btn.selected b {
+        color: #fff;
+      }
+
+      .add-shape-btn {
+        padding: 0.45rem 0.75rem;
+        background: transparent;
+        border: 1px dashed #64748b;
+        border-radius: 0.4rem;
+        color: #38bdf8;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 800;
+      }
+
+      .add-shape-btn:hover {
+        background: rgb(56 189 248 / 12%);
+        border-color: #38bdf8;
+      }
+
+      .shape-controls-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        background: rgb(0 0 0 / 25%);
+        border: 1px solid rgb(255 255 255 / 8%);
+        border-radius: 0.45rem;
+        margin-bottom: 0.85rem;
+      }
+
+      .shape-name-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #94a3b8;
+      }
+
+      .shape-name-control input {
+        padding: 0.35rem 0.6rem;
+        background: #0f172a;
+        border: 1px solid #475569;
+        border-radius: 0.35rem;
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 0.76rem;
+        width: 170px;
+      }
+
+      .shape-name-control input:focus {
+        border-color: #38bdf8;
+        outline: none;
+      }
+
+      .shape-weight-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #94a3b8;
+      }
+
+      .shape-weight-control input[type="range"] {
+        width: 100px;
+        accent-color: #38bdf8;
+      }
+
+      .shape-weight-control output {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #38bdf8;
+        min-width: 70px;
+      }
+
+      .delete-shape-btn {
+        margin-left: auto;
+        padding: 0.35rem 0.65rem;
+        background: rgb(239 68 68 / 15%);
+        border: 1px solid rgb(239 68 68 / 30%);
+        border-radius: 0.35rem;
+        color: #f87171;
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+
+      .delete-shape-btn:hover {
+        background: rgb(239 68 68 / 30%);
+        border-color: #ef4444;
+      }
+
       .preset-row {
         display: flex;
+        align-items: center;
         gap: 0.45rem;
         margin-bottom: 1rem;
+      }
+
+      .preset-label {
+        color: #94a3b8;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-right: 0.25rem;
       }
 
       .pitch-board {
