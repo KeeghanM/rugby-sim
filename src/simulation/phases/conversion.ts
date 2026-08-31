@@ -182,13 +182,14 @@ export const updateConversion = (
     kicker.stamina = clamp(kicker.stamina - 0.4, 0, 100);
     kicker.stats.totalKicks += 1;
 
-    const distToPosts = Math.abs(targetTryLine - phase.position.z);
-    const duration = Math.max(1.4, distToPosts / 18);
     const targetX = isSuccess
       ? (random() - 0.5) * 2.6
       : (Math.sign(phase.position.x) || 1) * (5.5 + random() * 4);
-    const targetZ = targetTryLine + teamDir * 8;
-    const peakHeight = isSuccess ? 6.5 + random() * 2 : 2.2 + random() * 2;
+    // Ball flies deep through and beyond the goal posts into in-goal / dead-ball area
+    const targetZ = targetTryLine + teamDir * (18 + random() * 8);
+    const distToTarget = Math.abs(targetZ - phase.position.z);
+    const duration = Math.max(1.8, distToTarget / 20);
+    const peakHeight = isSuccess ? 7.5 + random() * 2.5 : 2.5 + random() * 2.5;
 
     state.ball = {
       position: { x: phase.position.x, y: 0.2, z: phase.position.z },
@@ -204,7 +205,7 @@ export const updateConversion = (
       passerId: null,
       kickerId: kicker.id,
       kickOrigin: { ...phase.position },
-      bouncesRemaining: 1,
+      bouncesRemaining: 2,
     };
 
     phase.stage = "inFlight";
@@ -226,12 +227,11 @@ export const updateConversion = (
       phase.isSuccess = false; // Credit points once
     }
 
-    // After kick flight completes, transition smoothly to kickoff restart
+    // After kick flight naturally lands/bounces, transition smoothly to kickoff restart
     if (
-      (state.ball.flight === null && phase.elapsed >= 1.5) ||
-      phase.elapsed >= 3.2
+      phase.elapsed >= 3.8 ||
+      (phase.elapsed >= 2.0 && state.ball.position.y <= 0.2)
     ) {
-      state.ball.flight = null;
       state.phase = {
         kind: "kickoff",
         stage: "forming",

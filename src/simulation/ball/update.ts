@@ -144,7 +144,8 @@ export const updateBall = (
             state.substitutes.find((s) => s.id === state.ball.kickerId);
           if (kicker) kicker.stats.successfulKicks += 1;
         }
-        state.ball.flight = null;
+        // Let the ball continue soaring through the air over the posts
+        state.ball.flight = "kick";
         state.phase = {
           kind: "kickoff",
           stage: "forming",
@@ -152,22 +153,17 @@ export const updateBall = (
           readyForSeconds: 0,
           reason: "try",
         };
-        return;
       }
     }
   }
 
-  // Goal attempts are resolved by their scoring phase, never normal kick restarts.
+  // Goal attempts (conversion / penalty goal) continue naturally into dead-ball/in-goal
   const isGoalAttempt =
     (state.phase.kind === "conversion" ||
       (state.phase.kind === "penalty" && state.phase.choice === "goal")) &&
     state.phase.stage === "inFlight";
   if (isGoalAttempt) {
-    if (state.ball.position.y <= 0.15) {
-      state.ball.position.y = 0.15;
-      state.ball.velocity = { x: 0, y: 0, z: 0 };
-      state.ball.flight = null;
-    }
+    // Ball continues flying, bouncing, and rolling through in-goal
     return;
   }
 
