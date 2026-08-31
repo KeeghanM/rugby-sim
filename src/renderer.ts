@@ -20,7 +20,8 @@ import type { GameState } from "./domain.ts";
 import { PITCH } from "./domain.ts";
 import { isForward } from "./formations.ts";
 
-export type CameraMode = "ball" | "halfway" | "free";
+export type CameraMode = "halfway" | "goalLine" | "free";
+type GoalLineSide = "south" | "north";
 
 const createPitch = (scene: Scene) => {
   const ground = CreateGround(
@@ -333,19 +334,13 @@ export const createRenderer = (
   const scene = new Scene(engine);
   createEnvironment(scene);
 
-  // Cameras — three modes, one active at a time. Rendering only.
-  const halfwayCam = new FreeCamera(
-    "halfwayCam",
-    new Vector3(0, 85, -85),
+  const broadcastCam = new FreeCamera(
+    "broadcastCam",
+    new Vector3(85, 85, 0),
     scene,
   );
-  halfwayCam.setTarget(Vector3.Zero());
-  // halfway fixed: no keyboard movement, mouse drag still rotates but we keep it minimal
-  halfwayCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
-
-  const ballCam = new FreeCamera("ballCam", new Vector3(0, 55, -65), scene);
-  ballCam.setTarget(Vector3.Zero());
-  ballCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
+  broadcastCam.setTarget(Vector3.Zero());
+  broadcastCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
 
   const freeCam = new UniversalCamera(
     "freeCam",
@@ -364,23 +359,15 @@ export const createRenderer = (
   (freeCam as unknown as { inertia: number }).inertia = 0.5;
 
   let cameraMode: CameraMode = "halfway";
+  let goalLineSide: GoalLineSide = "south";
+  let autoFollowBall = true;
   let zoom = 1;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.3;
-  const BASE_HALFWAY_DIST = 85;
-  const BASE_BALL_HEIGHT = 42;
-  const BASE_BALL_BACK = 58;
+  const BASE_BROADCAST_DIST = 85;
   const BASE_FREE_FOV = 0.8;
 
-  const cameras: Record<CameraMode, FreeCamera | UniversalCamera> = {
-    halfway: halfwayCam,
-    ball: ballCam,
-    free: freeCam,
-  };
-
-  // start with halfway
-  scene.activeCamera = halfwayCam;
-  halfwayCam.attachControl(canvas, true);
+  scene.activeCamera = broadcastCam;
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.92;
@@ -403,15 +390,87 @@ export const createRenderer = (
       return [player.id, { mesh, material }] as const;
     }),
   );
+
+  const REF_PALETTE = [
+    "#facc15", // Fluorescent Yellow
+    "#ec4899", // Hot Pink
+    "#06b6d4", // Cyan
+    "#f97316", // Bright Orange
+    "#a855f7", // Vivid Purple
+    "#ffffff", // White
+    "#18181b", // Charcoal
+    "#84cc16", // Lime Green
+  ];
+
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const clean = hex.replace("#", "");
+    const num = parseInt(
+      clean.length === 3
+        ? clean
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : clean,
+      16,
+    );
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  };
+
+  const colorDistance = (c1: string, c2: string): number => {
+    const [r1, g1, b1] = hexToRgb(c1);
+    const [r2, g2, b2] = hexToRgb(c2);
+    const rMean = (r1 + r2) / 2;
+    const deltaR = r1 - r2;
+    const deltaG = g1 - g2;
+    const deltaB = b1 - b2;
+    return Math.sqrt(
+      (2 + rMean / 256) * deltaR * deltaR +
+        4 * deltaG * deltaG +
+        (2 + (255 - rMean) / 256) * deltaB * deltaB,
+    );
+  };
+
+  const getContrastingRefColor = (color0: string, color1: string): string => {
+    let bestColor = REF_PALETTE[0];
+    let maxMinDistance = -1;
+    for (const candidate of REF_PALETTE) {
+      const d0 = colorDistance(candidate, color0);
+      const d1 = colorDistance(candidate, color1);
+      const dPitch = colorDistance(candidate, "#3f9b0b");
+      const score = Math.min(d0, d1, dPitch * 1.1);
+      if (score > maxMinDistance) {
+        maxMinDistance = score;
+        bestColor = candidate;
+      }
+    }
+    return bestColor;
+  };
+
   const refMesh = CreateCylinder(
     "referee",
     { diameter: 0.85, height: 1.95 },
     scene,
   );
+  const refColorHex = getContrastingRefColor(
+    state.teams[0].color,
+    state.teams[1].color,
+  );
   const refMat = new StandardMaterial("referee-material", scene);
-  refMat.diffuseColor = Color3.FromHexString("#84cc16");
-  refMat.emissiveColor = Color3.FromHexString("#365314");
+  refMat.diffuseColor = Color3.FromHexString(refColorHex);
+  refMat.emissiveColor = Color3.FromHexString(refColorHex).scale(0.2);
   refMesh.material = refMat;
+
+  // Overhead carrier indicator (inverted chevron / diamond hovering above carrier's head)
+  const carrierMarker = CreateCylinder(
+    "carrierMarker",
+    { diameterTop: 0.5, diameterBottom: 0, height: 0.45, tessellation: 6 },
+    scene,
+  );
+  const carrierMarkerMat = new StandardMaterial("carrierMarkerMat", scene);
+  carrierMarkerMat.diffuseColor = Color3.FromHexString("#facc15");
+  carrierMarkerMat.emissiveColor = Color3.FromHexString("#fbbf24");
+  carrierMarker.material = carrierMarkerMat;
+  carrierMarker.setEnabled(false);
 
   // Semi-transparent glowing gain line ribbon across pitch width
   const gainLinePlane = CreateGround(
@@ -573,11 +632,25 @@ export const createRenderer = (
   const camButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
   );
+  const goalLineSideControl = document.getElementById("goal-line-side-control");
+  const goalLineSideButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-goal-side]"),
+  );
+  const autoFollowRow = document.getElementById("auto-follow-row");
+  const autoFollowToggle = document.getElementById(
+    "auto-follow-toggle",
+  ) as HTMLInputElement | null;
 
   const updateCamButtons = () => {
     for (const b of camButtons) {
       b.classList.toggle("active", b.dataset.cam === cameraMode);
     }
+    for (const b of goalLineSideButtons) {
+      b.classList.toggle("active", b.dataset.goalSide === goalLineSide);
+    }
+    if (goalLineSideControl)
+      goalLineSideControl.hidden = cameraMode !== "goalLine";
+    if (autoFollowRow) autoFollowRow.hidden = cameraMode === "free";
   };
   const updateZoomDisplay = () => {
     if (zoomDisplay) zoomDisplay.textContent = `${zoom.toFixed(1)}×`;
@@ -589,47 +662,49 @@ export const createRenderer = (
     }
   };
 
-  const applyZoomImmediate = () => {
+  const positionBroadcastCamera = () => {
+    const d = BASE_BROADCAST_DIST * zoom;
     if (cameraMode === "halfway") {
-      const d = BASE_HALFWAY_DIST * zoom;
-      halfwayCam.position.set(0, d, -d);
-      halfwayCam.setTarget(Vector3.Zero());
-    } else if (cameraMode === "free") {
+      broadcastCam.position.set(d, d, 0);
+    } else if (cameraMode === "goalLine") {
+      broadcastCam.position.set(0, d, goalLineSide === "south" ? -d : d);
+    }
+  };
+
+  const updateCameraControls = () => {
+    broadcastCam.detachControl();
+    freeCam.detachControl();
+    if (cameraMode === "free") freeCam.attachControl(canvas, true);
+    else if (!autoFollowBall) broadcastCam.attachControl(canvas, true);
+  };
+
+  const applyZoomImmediate = () => {
+    if (cameraMode === "free") {
       // free zoom = FOV dolly; smaller FOV = zoom in
       const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
       freeCam.fov = fov;
+    } else {
+      positionBroadcastCamera();
     }
-    // ball zoom applied per-frame via offset scale in sync()
     updateZoomDisplay();
   };
 
   const setCameraMode = (mode: CameraMode) => {
     if (mode === cameraMode) return;
-    // detach all
-    for (const c of Object.values(cameras)) c.detachControl();
     cameraMode = mode;
-    const next = cameras[mode];
-    scene.activeCamera = next;
-    next.attachControl(canvas, true);
-    if (mode === "halfway") {
-      const d = BASE_HALFWAY_DIST * zoom;
-      halfwayCam.position.set(0, d, -d);
-      halfwayCam.setTarget(Vector3.Zero());
-    } else if (mode === "free") {
+    scene.activeCamera = mode === "free" ? freeCam : broadcastCam;
+    if (mode === "free") {
       const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
       freeCam.fov = fov;
-    }
-    // ball snap on switch to avoid lerp from far away
-    if (mode === "ball") {
-      const bx = state.ball.position.x;
-      const bz = state.ball.position.z;
-      ballCam.position.set(
-        bx,
-        BASE_BALL_HEIGHT * zoom,
-        bz - BASE_BALL_BACK * zoom,
+    } else {
+      positionBroadcastCamera();
+      broadcastCam.setTarget(
+        autoFollowBall
+          ? new Vector3(state.ball.position.x, 0, state.ball.position.z)
+          : Vector3.Zero(),
       );
-      ballCam.setTarget(new Vector3(bx, 0, bz));
     }
+    updateCameraControls();
     updateCamButtons();
     updateZoomDisplay();
   };
@@ -637,7 +712,23 @@ export const createRenderer = (
   for (const btn of camButtons) {
     btn.addEventListener("click", () => {
       const m = btn.dataset.cam as CameraMode | undefined;
-      if (m === "ball" || m === "halfway" || m === "free") setCameraMode(m);
+      if (m === "goalLine" || m === "halfway" || m === "free") setCameraMode(m);
+    });
+  }
+  for (const btn of goalLineSideButtons) {
+    btn.addEventListener("click", () => {
+      const side = btn.dataset.goalSide as GoalLineSide | undefined;
+      if (side !== "south" && side !== "north") return;
+      goalLineSide = side;
+      if (cameraMode === "goalLine") positionBroadcastCamera();
+      updateCamButtons();
+    });
+  }
+  if (autoFollowToggle) {
+    autoFollowBall = autoFollowToggle.checked;
+    autoFollowToggle.addEventListener("change", () => {
+      autoFollowBall = autoFollowToggle.checked;
+      updateCameraControls();
     });
   }
   if (zoomSlider) {
@@ -667,7 +758,7 @@ export const createRenderer = (
       setManagerOpen(!managerOpen);
     }
     if (e.key === "c" || e.key === "C") {
-      const order: CameraMode[] = ["halfway", "ball", "free"];
+      const order: CameraMode[] = ["halfway", "goalLine", "free"];
       const idx = order.indexOf(cameraMode);
       setCameraMode(order[(idx + 1) % order.length]);
     }
@@ -688,11 +779,12 @@ export const createRenderer = (
 
   // cached vectors to avoid alloc per frame
   const ballTarget = new Vector3(0, 0, 0);
-  const desiredBallPos = new Vector3(0, 0, 0);
   const tempWorld = new Vector3();
   const tempProj = new Vector3();
 
   // initial zoom display
+  updateCamButtons();
+  updateCameraControls();
   updateZoomDisplay();
   applyZoomImmediate();
 
@@ -749,8 +841,26 @@ export const createRenderer = (
 
         view.material.emissiveColor =
           player.id === game.ball.carrierId
-            ? Color3.FromHexString("#facc15")
+            ? view.material.diffuseColor.scale(0.35)
             : Color3.Black();
+      }
+
+      const carrier = game.players.find((p) => p.id === game.ball.carrierId);
+      if (carrier) {
+        const carrierView = views.get(carrier.id);
+        if (carrierView) {
+          carrierMarker.setEnabled(true);
+          carrierMarker.position.set(
+            carrier.position.x,
+            carrierView.mesh.position.y + 1.45,
+            carrier.position.z,
+          );
+          carrierMarker.rotation.y += 0.04;
+        } else {
+          carrierMarker.setEnabled(false);
+        }
+      } else {
+        carrierMarker.setEnabled(false);
       }
       ball.position.set(
         game.ball.position.x,
@@ -770,26 +880,11 @@ export const createRenderer = (
       }
 
       // Camera per-frame behaviour
-      if (cameraMode === "ball") {
-        // Follow ball with smooth lerp. Target stays on ground under ball.
+      if (cameraMode !== "free" && autoFollowBall) {
         ballTarget.set(game.ball.position.x, 0, game.ball.position.z);
-        desiredBallPos.set(
-          ballTarget.x,
-          BASE_BALL_HEIGHT * zoom,
-          ballTarget.z - BASE_BALL_BACK * zoom,
-        );
-        // clamp X so camera doesn't drift too far outside stands at extreme wings
-        desiredBallPos.x *= 0.35;
-        // lerp position and target for smoothness
-        Vector3.LerpToRef(
-          ballCam.position,
-          desiredBallPos,
-          0.07,
-          ballCam.position,
-        );
-        const curTarget = ballCam.getTarget();
+        const curTarget = broadcastCam.getTarget();
         const nextTarget = Vector3.Lerp(curTarget, ballTarget, 0.09);
-        ballCam.setTarget(nextTarget);
+        broadcastCam.setTarget(nextTarget);
       } else if (cameraMode === "free") {
         // held Q/E vertical nudge per frame (WASD handled by Babylon inputs)
         if (heldKeys.has("q"))
@@ -868,8 +963,10 @@ export const createRenderer = (
       }
       if (tvStatus) tvStatus.textContent = topLevelStatus;
       const showShotClock =
-        (p.kind === "conversion" && p.stage !== "inFlight") ||
-        (p.kind === "penalty" && p.choice === "goal" && p.stage !== "inFlight");
+        (p.kind === "conversion" && p.stage === "ready") ||
+        (p.kind === "penalty" &&
+          p.choice === "goal" &&
+          p.stage === "executing");
       if (tvShotClock) {
         tvShotClock.hidden = !showShotClock;
         if (showShotClock)

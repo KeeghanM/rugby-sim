@@ -696,8 +696,22 @@ export const updateKickoff = (
       return distance(player.position, target) <= 2.5;
     }).length;
 
+    const kickingTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    const kickDir = attackDirection(phase.kickingTeam);
+    const allKickingBehindTryLine = state.players
+      .filter((player) => player.team === phase.kickingTeam)
+      .every((player) => (player.position.z - kickingTryLine) * kickDir <= 0.2);
+
+    const isGoalLine = phase.reason === "goalLineDropout";
+    const isFormed = isGoalLine
+      ? kickerReady &&
+        allKickingBehindTryLine &&
+        (inPlaceCount >= 22 || phase.readyForSeconds >= 8)
+      : (kickerReady && inPlaceCount >= 22) || phase.readyForSeconds >= 12;
+
     // Transition to ready once kicker is set and team is largely formed, or after timeout
-    if ((kickerReady && inPlaceCount >= 22) || phase.readyForSeconds >= 12) {
+    if (isFormed || phase.readyForSeconds >= 20) {
       phase.stage = "ready";
       phase.readyForSeconds = 0;
     }
@@ -708,6 +722,19 @@ export const updateKickoff = (
     phase.readyForSeconds += deltaSeconds;
     // Preserve pre-kick pause.
     if (phase.readyForSeconds < 0.75) return;
+    const kickingTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    const kickDir = attackDirection(phase.kickingTeam);
+    const allKickingBehindTryLine = state.players
+      .filter((player) => player.team === phase.kickingTeam)
+      .every((player) => (player.position.z - kickingTryLine) * kickDir <= 0.2);
+    if (
+      phase.reason === "goalLineDropout" &&
+      !allKickingBehindTryLine &&
+      phase.readyForSeconds < 12
+    ) {
+      return;
+    }
     const kicker = state.players.find(
       (player) =>
         player.team === phase.kickingTeam && player.role === ROLES.FlyHalf,
@@ -718,8 +745,6 @@ export const updateKickoff = (
     const receivingDirection = attackDirection(receivingTeam);
     const receivingTryLine =
       receivingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
-    const kickingTryLine =
-      phase.kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
     // Choose territory rather than person: normal kickoff lands in receiving 22.
     const targetPosition =
       phase.reason === "goalLineDropout"
@@ -1038,11 +1063,14 @@ export const scoreTry = (
     state.players.find((p) => p.team === team && p.role === ROLES.FlyHalf) ??
     state.players.find((p) => p.team === team);
 
-  // Place ball on conversion kicking tee
+  // Ball stays with try scorer to carry back to the tee spot
+  const ballCarrier = carrier ?? kicker ?? null;
   state.ball = {
-    position: { x: teeSpot.x, y: 0.15, z: teeSpot.z },
+    position: ballCarrier
+      ? { x: ballCarrier.position.x, y: 1.25, z: ballCarrier.position.z }
+      : { x: teeSpot.x, y: 0.15, z: teeSpot.z },
     velocity: { x: 0, y: 0, z: 0 },
-    carrierId: null,
+    carrierId: ballCarrier?.id ?? null,
     flight: null,
     intendedReceiverId: null,
     lastTouchedTeam: team,
@@ -1083,12 +1111,55 @@ export const updateConversion = (
     ) ??
     state.players.find((p) => p.team === phase.kickingTeam);
 
+  // While ball is being carried to tee, place on ground when carrier reaches tee spot
+  if (state.ball.carrierId) {
+    const carrier = state.players.find((p) => p.id === state.ball.carrierId);
+    if (carrier && distance(carrier.position, phase.position) <= 1.5) {
+      state.ball.carrierId = null;
+      state.ball.position = {
+        x: phase.position.x,
+        y: 0.15,
+        z: phase.position.z,
+      };
+    }
+  }
+
   // 1. Forming: kicker moves to tee, defenders behind try line, attackers in own half
   if (phase.stage === "forming") {
     const kickerInPlace =
       kicker && distance(kicker.position, phase.position) <= 2.2;
-    if ((!kickerInPlace || phase.elapsed < 2.5) && phase.elapsed < 7.0) return;
+    const teamDir = attackDirection(phase.kickingTeam);
+    const defendingTryLine =
+      phase.kickingTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+    const defendersBehindGoalLine = state.players
+      .filter((p) => p.team !== phase.kickingTeam)
+      .every((p) => (p.position.z - defendingTryLine) * teamDir >= -0.2);
+    const attackersInPlace = state.players
+      .filter((p) => p.team === phase.kickingTeam && p.id !== kicker?.id)
+      .every(
+        (p) =>
+          p.position.z * teamDir <= 6.0 ||
+          distance(p.position, p.intentTarget) <= 4.0,
+      );
+
+    const ballAtTee = state.ball.carrierId === null;
+    const isFormed =
+      ballAtTee &&
+      kickerInPlace &&
+      defendersBehindGoalLine &&
+      (attackersInPlace || phase.elapsed >= 6.0);
+
+    if (!isFormed && phase.elapsed < 20.0) return;
+    if (state.ball.carrierId) {
+      state.ball.carrierId = null;
+      state.ball.position = {
+        x: phase.position.x,
+        y: 0.15,
+        z: phase.position.z,
+      };
+    }
     phase.stage = "ready";
+    phase.elapsed = 0;
     return;
   }
 

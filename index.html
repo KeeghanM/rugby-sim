@@ -1581,10 +1581,34 @@
             <button type="button" data-cam="halfway" class="cam-btn active">
               Halfway
             </button>
-            <button type="button" data-cam="ball" class="cam-btn">Ball</button>
+            <button type="button" data-cam="goalLine" class="cam-btn">
+              Goal line
+            </button>
             <button type="button" data-cam="free" class="cam-btn">Free</button>
           </div>
+          <div id="goal-line-side-control" hidden>
+            <span class="cam-hint">Goal side</span>
+            <div class="cam-buttons">
+              <button
+                type="button"
+                data-goal-side="south"
+                class="cam-btn active"
+              >
+                South
+              </button>
+              <button type="button" data-goal-side="north" class="cam-btn">
+                North
+              </button>
+            </div>
+          </div>
         </div>
+        <label class="toggle-row" id="auto-follow-row" for="auto-follow-toggle">
+          <span>Auto-follow ball</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="auto-follow-toggle" checked />
+            <span class="slider"></span>
+          </div>
+        </label>
         <div class="control-row">
           <div class="control-header">
             <span>Zoom</span>
@@ -1599,8 +1623,8 @@
             value="1"
           />
           <span class="cam-hint"
-            >Halfway/Ball: distance · Free: FOV + WASD + drag · Q/E
-            up/down</span
+            >Broadcast: distance · disable follow to drag · Free: FOV + WASD +
+            drag · Q/E up/down</span
           >
         </div>
         <label class="toggle-row" for="debug-toggle">

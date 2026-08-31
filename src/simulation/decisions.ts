@@ -60,20 +60,28 @@ const hasBrokenLine = (
   const defendingTeam = otherTeam(carrier.team);
   const defLineZ = state.defensiveLineZ[defendingTeam];
 
-  // Carrier must be past the defensive line into the backfield
+  // Carrier is past the primary defensive line into the backfield
   const pastLineDistance = (carrier.position.z - defLineZ) * direction;
-  if (pastLineDistance < 2.5) return false;
+  if (pastLineDistance > 0.5) return true;
+
+  // Frontline defenders ahead of the carrier
+  const frontlineAhead = players.filter(
+    (p) =>
+      p.team === defendingTeam &&
+      p.role !== ROLES.FullBack &&
+      (p.position.z - carrier.position.z) * direction > 0,
+  );
+  if (frontlineAhead.length <= 1) return true;
 
   // Frontline defenders that carrier has genuinely beaten behind them
   const frontlineBeaten = players.filter(
     (p) =>
-      p.team !== carrier.team &&
+      p.team === defendingTeam &&
       p.role !== ROLES.FullBack &&
-      (carrier.position.z - p.position.z) * direction > 0 &&
-      distance(p.position, carrier.position) < 25,
+      (carrier.position.z - p.position.z) * direction > 0,
   );
 
-  return frontlineBeaten.length >= 1;
+  return frontlineBeaten.length >= 2;
 };
 
 // Chooses three role-appropriate runners behind carrier to preserve live support.
@@ -734,23 +742,26 @@ export const computeCommands = (
       );
     });
   }
-  // Conversion kick setup: kicker at tee spot, attackers in own half, defenders behind try line in-goal
+  // Conversion kick setup: kicker at tee spot, ball carried to tee, attackers in own half, defenders behind try line in-goal
   if (phase.kind === "conversion") {
     const teamDir = attackDirection(phase.kickingTeam);
     const defendingTryLine =
       phase.kickingTeam === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
     return players.map((player) => {
       const isKicker =
-        player.team === phase.kickingTeam && player.role === ROLES.FlyHalf;
-      // Kicker lines up at the kicking tee spot
-      if (isKicker) {
+        player.team === phase.kickingTeam &&
+        (player.id === phase.kickerId || player.role === ROLES.FlyHalf);
+      const isCarrier = player.id === state.ball.carrierId;
+
+      // Kicker or ball carrier runs to the kicking tee spot
+      if (isKicker || isCarrier) {
         const gap = distance(player.position, phase.position);
         return command(
           player,
           phase.position,
-          "conversion-kicker",
+          isCarrier ? "conversion-carrier" : "conversion-kicker",
           false,
-          gap > 1.5 ? "run" : "stand",
+          gap > 1.2 ? "run" : "stand",
         );
       }
       const slotIdx = player.slotIndex ?? 7;
@@ -904,13 +915,22 @@ export const computeCommands = (
   }
 
   const lineBroken = hasBrokenLine(state, players, carrier);
+  const defendingTeam = otherTeam(carrier.team);
+  const ballDirection = attackDirection(carrier.team);
+
+  const defendersAhead = players.filter(
+    (player) =>
+      player.team === defendingTeam &&
+      (player.position.z - carrier.position.z) * ballDirection > 0,
+  );
+
   const fullback = players.find(
-    (player) => player.team !== carrier.team && player.role === ROLES.FullBack,
+    (player) => player.team === defendingTeam && player.role === ROLES.FullBack,
   );
   const lineTackler = players
     .filter(
       (player) =>
-        player.team !== carrier.team && player.role !== ROLES.FullBack,
+        player.team === defendingTeam && player.role !== ROLES.FullBack,
     )
     .sort(
       (a, b) =>
@@ -1015,21 +1035,70 @@ export const computeCommands = (
         effort,
       );
     }
-    // Any defender in range (or the designated sweeper/lead tackler) closes down and tackles carrier aggressively
-    const distToCarrier = distance(player.position, carrier.position);
-    const inTackleZone =
-      !attacking && (player.id === tacklerId || distToCarrier <= 7);
-    if (inTackleZone && distToCarrier < (lineBroken ? 40 : 14)) {
-      return command(
-        player,
-        {
-          x: carrier.position.x + carrier.velocity.x * 0.45,
-          z: carrier.position.z + carrier.velocity.z * 0.45,
-        },
-        lineBroken ? "last-defender-tackle" : "tackle",
-        true,
-        "sprint",
-      );
+
+    if (!attacking) {
+      const distToCarrier = distance(player.position, carrier.position);
+      const isFullback = player.role === ROLES.FullBack;
+      const isAheadOfCarrier =
+        (player.position.z - carrier.position.z) * ballDirection > 0;
+      const isLastDefenderAhead =
+        isAheadOfCarrier && (defendersAhead.length <= 1 || isFullback);
+
+      if (lineBroken) {
+        // Line broken: any defender ahead or in range closes down and tackles aggressively
+        if (isAheadOfCarrier || isFullback || distToCarrier <= 35) {
+          return command(
+            player,
+            {
+              x: carrier.position.x + carrier.velocity.x * 0.45,
+              z: carrier.position.z + carrier.velocity.z * 0.45,
+            },
+            "last-defender-tackle",
+            true,
+            "sprint",
+          );
+        }
+        // Scramble / cover defense pursuing from behind
+        return command(
+          player,
+          {
+            x: carrier.position.x,
+            z: carrier.position.z + carrier.velocity.z * 0.25,
+          },
+          "cover-defence",
+          false,
+          "sprint",
+        );
+      }
+
+      // In regular play: fullback closes down if last defender or carrier is close/threatening
+      if (isFullback && (isLastDefenderAhead || distToCarrier <= 18)) {
+        return command(
+          player,
+          {
+            x: carrier.position.x + carrier.velocity.x * 0.45,
+            z: carrier.position.z + carrier.velocity.z * 0.45,
+          },
+          "last-defender-tackle",
+          true,
+          "sprint",
+        );
+      }
+
+      // Standard frontline tackle zone
+      const inTackleZone = player.id === tacklerId || distToCarrier <= 7;
+      if (inTackleZone && distToCarrier < 14) {
+        return command(
+          player,
+          {
+            x: carrier.position.x + carrier.velocity.x * 0.45,
+            z: carrier.position.z + carrier.velocity.z * 0.45,
+          },
+          "tackle",
+          true,
+          "sprint",
+        );
+      }
     }
     const canRunHardLine =
       attacking &&

@@ -261,9 +261,13 @@ export const getOpenPlayTarget = (
   // Fullback on defence stays deep (22m-27m) to sweep kicks and tackle line breaks
   if (player.role === ROLES.FullBack) {
     const variant = OPEN_DEFENCE_VARIANTS[defenceFormation];
+    const defTryLine =
+      player.team === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
+    const maxDepth = Math.max(0, Math.abs(defTryLine - carrier.position.z) - 5);
+    const depth = Math.min(variant.fullbackDepth, maxDepth);
     return {
       x: clampX(carrier.position.x * 0.45),
-      z: clampZ(carrier.position.z + ballDirection * variant.fullbackDepth),
+      z: clampZ(carrier.position.z + ballDirection * depth),
     };
   }
 
