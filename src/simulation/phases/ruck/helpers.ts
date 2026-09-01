@@ -31,9 +31,7 @@ import {
 } from "../../math.ts";
 import type { Random } from "../../types.ts";
 
-// Selects nearest players to target a ruck.
-// If ruck has <= 2 players, ANY nearby player (backs or forwards) hits it.
-// If 3+ players already in ruck, only forwards will join.
+// Sparse rucks recruit any nearby player; established rucks penalise backs so forwards preserve width.
 const selectRuckTargeters = (
   state: GameState,
   team: Team,
@@ -60,7 +58,6 @@ const selectRuckTargeters = (
   return candidates.slice(0, targetCount).map(({ player }) => player.id);
 };
 
-// Chooses next ruck play from field position and team tendencies.
 export const chooseRuckPlay = (
   state: GameState,
   team: Team,
@@ -85,6 +82,7 @@ export const chooseRuckPlay = (
     ten ? effectiveSkill(ten, "kicking") : 0,
   );
   const weights = {
+    // Own-22 pressure shifts good decision-makers toward distribution and territorial clearance.
     pickAndGo:
       tendencies.carry * (inOwnTwentyTwo ? 0.7 + (1 - decision) * 0.6 : 0.45),
     pass: tendencies.pass * (inOwnTwentyTwo ? 0.7 + decision * 0.4 : 1),
@@ -105,7 +103,6 @@ export const chooseRuckPlay = (
   return "pass" as const;
 };
 
-// Converts successful tackle into initialized ruck state.
 export const startRuck = (
   state: GameState,
   carrier: Player,
@@ -115,18 +112,18 @@ export const startRuck = (
   carrier.pendingBallAction = null;
   carrier.lineBreakActive = false;
 
-  // Law 14: Tackler must immediately release and roll away laterally from the ball/gate
+  // Law 14 requires tackler to release and move away; lateral displacement clears arrival gate.
   const rollLateral = tackler.position.x >= carrier.position.x ? 1.6 : -1.6;
   const defDir = attackDirection(tackler.team);
   tackler.position.x = clamp(tackler.position.x + rollLateral, -33, 33);
   tackler.position.z = clamp(tackler.position.z + defDir * 0.8, -58, 58);
-  tackler.ruckRecoverySeconds = 1.0; // rolling away and returning to feet
+  tackler.ruckRecoverySeconds = 1.0; // Recovery second represents rolling away and regaining feet.
 
-  // Tackled carrier stays on ground presenting the ball
+  // Tackled player remains unavailable while presenting ball immediately under Law 14.
   carrier.ruckRecoverySeconds = 999;
 
   const initialJoinedAttackers = [carrier.id];
-  const initialJoinedDefenders: string[] = []; // tackler rolled away; cleaners arrive through gate
+  const initialJoinedDefenders: string[] = []; // Tackler is not ruck participant after required release.
   const joinOrder = [carrier.id];
 
   const excludeSet = new Set([carrier.id, tackler.id]);
@@ -190,8 +187,6 @@ export const startRuck = (
   // Reverse phase direction only when contact reaches current touch-side limit.
   if (carrier.position.x <= -25) state.attackFlow[carrier.team] = 1;
   if (carrier.position.x >= 25) state.attackFlow[carrier.team] = -1;
-  // Roll dynamic tactical structures for next phase with team default preference
+  // New breakdown permits team structure to vary while retaining configured preference.
   rerollTeamTactics(state, random);
 };
-
-// Attempts nearest eligible defender's tackle against carrier, resolving tackle breaks and offloads

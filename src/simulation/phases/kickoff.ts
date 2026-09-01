@@ -33,9 +33,7 @@ export const updateKickoff = (
   random: Random,
 ) => {
   const phase = state.phase;
-  // Ignore update outside kickoff phase.
   if (phase.kind !== "kickoff") return;
-  // Wait until key players reach kickoff formation or forming timeout expires
   if (phase.stage === "forming") {
     phase.readyForSeconds += deltaSeconds;
     const kicker = state.players.find(
@@ -76,6 +74,7 @@ export const updateKickoff = (
       .filter((player) => player.team === phase.kickingTeam)
       .every((player) => (player.position.z - kickingTryLine) * kickDir <= 0.2);
 
+    // Goal-line dropout requires kicking side behind own goal line in this simplified Law 12 setup.
     const kickerHasBall = Boolean(kicker && state.ball.carrierId === kicker.id);
     const isGoalLine = phase.reason === "goalLineDropout";
     const isFormed = isGoalLine
@@ -86,17 +85,15 @@ export const updateKickoff = (
       : (kickerReady && kickerHasBall && inPlaceCount >= 22) ||
         (kickerHasBall && phase.readyForSeconds >= 12);
 
-    // Transition to ready once kicker has ball and team is largely formed
     if (isFormed || (kickerHasBall && phase.readyForSeconds >= 20)) {
       phase.stage = "ready";
       phase.readyForSeconds = 0;
     }
     return;
   }
-  // Launch kickoff after ready delay and required players exist.
   if (phase.stage === "ready") {
     phase.readyForSeconds += deltaSeconds;
-    // Preserve pre-kick pause.
+    // Preserve pre-kick pause so restart shape is visible.
     if (phase.readyForSeconds < 0.75) return;
     const kickingTryLine =
       phase.kickingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
@@ -115,13 +112,12 @@ export const updateKickoff = (
       (player) =>
         player.team === phase.kickingTeam && player.role === ROLES.FlyHalf,
     );
-    // Wait when required kicker unavailable.
     if (!kicker) return;
     const receivingTeam = otherTeam(phase.kickingTeam);
     const receivingDirection = attackDirection(receivingTeam);
     const receivingTryLine =
       receivingTeam === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
-    // Choose territory rather than person: normal kickoff lands in receiving 22.
+    // Territorial target approximates Law 12 restart reaching ten metres without scripting receiver.
     const targetPosition =
       phase.reason === "goalLineDropout"
         ? {
@@ -139,7 +135,6 @@ export const updateKickoff = (
     phase.stage = "inFlight";
     return;
   }
-  // Enter open play after kickoff is caught or lands.
   if (state.ball.carrierId || state.ball.flight === null) {
     for (const player of state.players) player.laneX = player.position.x;
     state.phase = { kind: "openPlay" };

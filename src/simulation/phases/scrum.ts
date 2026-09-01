@@ -34,7 +34,7 @@ export const startScrum = (
   position: Position,
   random: Random = Math.random,
 ) => {
-  // Clamp scrum mark safely inside touchlines and try lines
+  // Inset mark leaves room for complete packs where infringement occurred near boundary.
   const markX = clamp(position.x, -22, 22);
   const markZ = clamp(
     position.z,
@@ -71,7 +71,6 @@ export const startScrum = (
   };
 };
 
-// Simulates scrum engagement, contest, and ball channeling to the base
 export const updateScrum = (
   state: GameState,
   deltaSeconds: number,
@@ -81,7 +80,7 @@ export const updateScrum = (
   if (phase.kind !== "scrum") return;
   phase.elapsed += deltaSeconds;
 
-  // Check if 8-man forward packs are set at the mark
+  // Law 19 requires eight-player packs; positional tolerance avoids waiting for exact coordinates.
   const forwardsReady = state.players
     .filter((p) => isForward(p))
     .every((p) => {
@@ -105,7 +104,6 @@ export const updateScrum = (
     return;
   }
 
-  // Packs engage! Scrum push contest determines clean heel or turnover against head
   if (phase.stage === "set") {
     if (phase.elapsed < 1.2) return;
     const feedingPackStrength = state.players
@@ -137,7 +135,6 @@ export const updateScrum = (
     return;
   }
 
-  // Ball channels to #8 / #9 at the base, then cleanly releases into open play
   if (phase.stage === "channeling") {
     if (phase.elapsed < 1.0) return;
     const winningTeam = phase.winningTeam ?? phase.feedingTeam;
@@ -148,14 +145,14 @@ export const updateScrum = (
       (p) => p.team === winningTeam && p.role === ROLES.NumberEight,
     );
 
-    // Unbind pack forwards cleanly
+    // Recovery delay prevents bound forwards instantly appearing in next defensive line.
     for (const player of state.players) {
       if (isForward(player)) {
         player.ruckRecoverySeconds = 1.2 * (1.3 - overallSkill(player) * 0.55);
       }
     }
 
-    // 25% chance of #8 pick-and-go from the base, otherwise 9 passes out to first receiver (10)
+    // One-in-four number-eight pickup adds base threat; scrum-half distribution remains default.
     if (eight && random() < 0.25) {
       carryBall(state, eight);
     } else if (nine) {

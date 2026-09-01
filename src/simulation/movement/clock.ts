@@ -14,8 +14,10 @@ export const updateMatchClock = (state: GameState, deltaSeconds: number) => {
     state.phase.kind === "kickoff" &&
     state.phase.stage !== "inFlight" &&
     (state.phase.reason === "matchStart" || state.phase.reason === "halfTime");
+  // Match time starts with kickoff rather than during pre-match or halftime formation.
   if (isPreKickoff) return;
 
+  // Six simulated match seconds per rendered second keeps full matches practical to watch.
   state.matchClockSeconds += deltaSeconds * 6;
 
   const isDeadBall =
@@ -24,6 +26,7 @@ export const updateMatchClock = (state: GameState, deltaSeconds: number) => {
     state.phase.kind !== "maul" &&
     state.phase.kind !== "conversion";
 
+  // Laws 5 and 6 allow play beyond 40 or 80 minutes until ball next becomes dead.
   if (state.half === 1 && state.matchClockSeconds >= 2400 && isDeadBall) {
     state.half = 2;
     state.matchClockSeconds = 2400;

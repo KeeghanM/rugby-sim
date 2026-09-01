@@ -28,6 +28,7 @@ export const getKickoffTarget = (
   const slotIdx = getSlotIndex(player);
   const slot = ATTACK_FORMATION[slotIdx];
   const customPosition = custom?.[slotIdx];
+  // Goal-line dropout overrides custom kickoff shape to enforce restart-side placement behind goal line.
   if (customPosition && reason !== "goalLineDropout") {
     return {
       x: clampX(customPosition.x),
@@ -41,17 +42,20 @@ export const getKickoffTarget = (
     const isKicker =
       player.role === ROLES.FlyHalf && player.team === kickingTeam;
     if (player.team === kickingTeam) {
+      // Kicker sets on goal line while teammates stagger behind it under simplified Law 12 geometry.
       return {
         x: isKicker ? 0 : slot.x,
         z: tryLine - direction * (isKicker ? 0.5 : 1.8 + (slotIdx % 3) * 1.2),
       };
     }
     return {
+      // Receivers begin well beyond dropout mark to create legal space and a plausible catch line.
       x: slot.x,
       z: tryLine + direction * (18 + (slotIdx % 4) * 2),
     };
   }
   if (player.team === kickingTeam) {
+    // Formation coordinates are mirrored by attack direction so both teams share one template.
     const kickoffSlot = KICKOFF_ATTACK_FORMATIONS[attackFormation][slotIdx];
     return {
       x: kickoffSlot.x,

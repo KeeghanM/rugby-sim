@@ -55,8 +55,6 @@ export const createMatchSetup = (
   setTactics(teams, 0, { formationVariation: 0 });
   setTactics(teams, 1, { formationVariation: 0 });
 
-  // preview helpers extracted to ./preview.ts
-
   const setPlayerModifier = (key: string, delta: number) => {
     const current = teams[selectedTeam].playerOverrides[selectedPlayer] ?? {};
     if ((skillKeys as readonly string[]).includes(key)) {

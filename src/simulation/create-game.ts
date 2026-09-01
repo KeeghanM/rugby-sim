@@ -41,7 +41,6 @@ const createTeamStats = (): TeamMatchStats => ({
   lineoutsLost: 0,
 });
 
-// Creates initial teams, bench substitutes, ball, score, kickoff, and defensive lines.
 export const createGame = (
   teams: MatchConfig = createMatchConfig(),
   random: Random = Math.random,

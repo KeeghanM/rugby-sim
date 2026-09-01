@@ -205,7 +205,7 @@ export const getOpenPlayCommands = (
       const isPlayerOffside = (player.position.z - offsideZ) * defDir > 0.45;
 
       if (isPlayerOffside && !lineBroken && !isFullback) {
-        // Offside defender must retreat behind the defensive offside line
+        // Offside defender must retreat behind defensive offside line before affecting play.
         return command(
           player,
           {

@@ -36,7 +36,6 @@ export const attemptTackle = (state: GameState, random: Random) => {
   const carrier = state.players.find(
     (player) => player.id === state.ball.carrierId,
   );
-  // Abort when no current carrier exists.
   if (!carrier) return false;
   if (carrier.breakawaySeconds > 0) return false;
 
@@ -44,14 +43,14 @@ export const attemptTackle = (state: GameState, random: Random) => {
   const defDir = attackDirection(defTeam);
   const offsideLineZ = state.defensiveLineZ[defTeam];
 
-  // Law 10 & 15: Players ahead of the offside line / still in ruck recovery are offside
+  // Law 10 kick/open-play offside and Law 15 ruck offside both make defender ineligible.
   const isOffside = (p: Player) => {
     if (p.ruckRecoverySeconds > 0) return true;
     if (p.kickOffside) return true;
     return (p.position.z - offsideLineZ) * defDir > 0.45;
   };
 
-  // Check for illegal tackle by an offside defender -> immediate penalty!
+  // Offside defender affecting play through tackle concedes immediate penalty.
   const offsideTackler = state.players
     .filter(
       (player) =>
@@ -73,7 +72,6 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return true;
   }
 
-  // Legal onside tackler
   const tackler = state.players
     .filter(
       (player) =>
@@ -87,7 +85,6 @@ export const attemptTackle = (state: GameState, random: Random) => {
         distance(a.position, carrier.position) -
         distance(b.position, carrier.position),
     )[0];
-  // Abort when no legal onside defender is close and ready enough to tackle.
   if (!tackler) return false;
   tackler.tackleCooldown = 0.5;
   tackler.stamina = Math.max(0, tackler.stamina - 1.5);
@@ -97,7 +94,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
     effectiveSkill(carrier, "handling") * 0.7 +
     effectiveSkill(carrier, "decision") * 0.3;
 
-  // 1. Offload in contact: if support runner is right behind, high handling skill allows offload before grounded
+  // Onside close support enables pre-ground offload, weighted by carrier handling against tackler skill.
   const direction = attackDirection(carrier.team);
   const supportRunner = state.players.find(
     (p) =>
@@ -124,7 +121,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return false;
   }
 
-  // Resolve tackle as an opposed technique, physicality, and momentum contest.
+  // Base tackle chance is adjusted by technique, mass difference, and carrier momentum.
   const carrierSpeed = Math.hypot(carrier.velocity.x, carrier.velocity.z);
   const tackleChance = clamp(
     0.78 +
@@ -142,17 +139,16 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return false;
   }
 
-  // Poor technique also increases dangerous-tackle penalties.
+  // Squared technique deficit concentrates dangerous-tackle sanctions among weakest tacklers.
   if (random() < 0.002 + (1 - tacklerSkill) ** 2 * 0.045) {
     tackler.tackleCooldown = 1.0;
     startPenalty(state, carrier.team, carrier.position, tackler, random);
     return true;
   }
 
-  // Tackle made!
   tackler.stats.tacklesMade += 1;
 
-  // In-goal contact: never form a ruck in in-goal!
+  // Law 15 permits rucks only in field of play, so in-goal contact resolves try or dropout directly.
   const isAttackingInGoal =
     carrier.team === 0
       ? carrier.position.z >= PITCH.tryLines.north
@@ -170,9 +166,6 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return true;
   }
 
-  // 3. Completed tackle: carrier brought down into a ruck
   startRuck(state, carrier, tackler, random);
   return true;
 };
-
-// Releases won ruck ball through selected play.

@@ -10,6 +10,7 @@ export const advanceDefensiveLine = (
     const direction = attackDirection(state.phase.attackingTeam);
     state.defensiveLineZ[otherTeam(state.phase.attackingTeam)] =
       state.phase.position.z + direction * 0.5;
+    // Ruck offside line is approximated at hindmost foot, 0.5 m beyond mark.
     return;
   }
   if (state.phase.kind !== "openPlay") return;
@@ -33,6 +34,7 @@ export const advanceDefensiveLine = (
         effectiveSkill(player, "decision") * 0.4,
       0,
     ) / Math.max(1, defenders.length);
+  // Team line speed is tempered by average tackling and decision quality.
   const advanced =
     currentLine -
     direction *
@@ -40,5 +42,6 @@ export const advanceDefensiveLine = (
       (0.65 + defensiveSkill * 0.5) *
       deltaSeconds;
   state.defensiveLineZ[defendingTeam] =
+    // Line may advance toward carrier but never cross simulated offside limit.
     direction === 1 ? Math.max(limit, advanced) : Math.min(limit, advanced);
 };

@@ -12,6 +12,7 @@ export const FORWARDS = new Set<Role>([
 ]);
 
 export const clampX = (x: number) =>
+  // One-metre inset keeps player centres inside playable boundary.
   clamp(x, PITCH.touchLines.left + 1, PITCH.touchLines.right - 1);
 export const clampZ = (z: number) =>
   clamp(z, PITCH.deadBallLines.south + 1, PITCH.deadBallLines.north - 1);

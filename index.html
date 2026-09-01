@@ -31,7 +31,7 @@
         touch-action: none;
       }
 
-      /* TV Broadcast Bug - Top Left */
+      /* TV broadcast scoreboard. */
       #tv-scoreboard {
         position: fixed;
         z-index: 25;
@@ -441,7 +441,7 @@
         line-height: 1.3;
       }
 
-      /* Top Centre Compact Control Bar */
+      /* Top-center navigation and match controls. */
       #top-controls {
         position: fixed;
         z-index: 25;
@@ -549,7 +549,7 @@
         font-size: 0.68rem;
       }
 
-      /* Manager View Modal */
+      /* Team management modal. */
       #manager-modal {
         position: fixed;
         z-index: 50;
@@ -1881,25 +1881,29 @@
   <body>
     <div id="pregame"></div>
 
-    <!-- TV Broadcast Bug UI -->
+    <!-- TV broadcast scoreboard. -->
     <div id="tv-scoreboard" class="tv-bug" aria-live="polite">
       <div class="tv-top-row">
+        <!-- Team 0 score. -->
         <div class="tv-team tv-team-0" id="tv-team-0">
           <span class="tv-team-badge"></span>
           <span class="tv-team-name" id="tv-team0-name">BLU</span>
           <span class="tv-team-score" id="tv-team0-score">0</span>
         </div>
         <div class="tv-team-divider"></div>
+        <!-- Team 1 score. -->
         <div class="tv-team tv-team-1" id="tv-team-1">
           <span class="tv-team-score" id="tv-team1-score">0</span>
           <span class="tv-team-name" id="tv-team1-name">RED</span>
           <span class="tv-team-badge"></span>
         </div>
+        <!-- Match clock and half. -->
         <div class="tv-clock-box">
           <span id="tv-clock" class="tv-clock">00:00</span>
           <span id="tv-half" class="tv-half">1ST</span>
         </div>
       </div>
+      <!-- Phase, territory, shot clock, and match status. -->
       <div class="tv-bottom-bar">
         <span id="tv-phase-pill" class="tv-phase-pill">PHASE 1</span>
         <span id="tv-meters" class="tv-meters">+0m</span>
@@ -1908,9 +1912,9 @@
       </div>
     </div>
 
-    <!-- Top Centre Compact Navigation & Control Bar -->
+    <!-- Top-center navigation and match controls. -->
     <div id="top-controls" class="top-nav-bar">
-      <!-- Speed Controller -->
+      <!-- Simulation speed. -->
       <div class="top-nav-group">
         <span class="top-nav-label">Speed</span>
         <span id="speed-display" class="top-nav-val">1.0×</span>
@@ -1927,7 +1931,7 @@
 
       <div class="top-nav-divider"></div>
 
-      <!-- Camera Mode Selector -->
+      <!-- Camera mode. -->
       <div class="top-nav-group">
         <div class="cam-buttons">
           <button type="button" data-cam="dynamic" class="cam-btn active">
@@ -1939,13 +1943,13 @@
 
       <div class="top-nav-divider"></div>
 
-      <!-- Manager Mode Button -->
+      <!-- Team management. -->
       <button type="button" id="manager-view-btn" class="top-nav-btn">
         📋 Manager (M)
       </button>
     </div>
 
-    <!-- Manager View Modal -->
+    <!-- Team management modal. -->
     <div
       id="manager-modal"
       role="dialog"

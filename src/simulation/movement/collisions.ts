@@ -51,11 +51,13 @@ export const separatedVelocity = (
       (isPlayerScrumBound && isOtherScrumBound) ||
       (isPlayerMaulBound && isOtherMaulBound)
     ) {
+      // Bound groups may overlap because their collective contest is resolved by phase logic.
       continue;
     }
 
     const bodyRadius = (player.weight + other.weight) / 200;
     if (gap < bodyRadius) {
+      // Combined weight serves as body-radius proxy; penetration depth sets separation force.
       const push = (bodyRadius - gap) * 3.5;
       x += ((player.position.x - other.position.x) / gap) * push;
       z += ((player.position.z - other.position.z) / gap) * push;
@@ -64,6 +66,7 @@ export const separatedVelocity = (
 
     if (other.team === player.team && gap < 2.5) {
       const weight = isCarrier ? 0.6 : 1.8;
+      // Carrier receives weaker separation so close support can track without steering ball path.
       x +=
         ((player.position.x - other.position.x) / gap) * (2.5 - gap) * weight;
       if (!isCarrier) {
@@ -74,6 +77,7 @@ export const separatedVelocity = (
   }
 
   const refGap = distance(player.position, state.referee.position);
+  // Referee uses fixed smaller clearance radius rather than player mass.
   if (refGap > 0 && refGap < 1.4) {
     x +=
       ((player.position.x - state.referee.position.x) / refGap) *

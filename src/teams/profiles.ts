@@ -144,7 +144,7 @@ export const getRoleNaturalDeltas = (role: Role) => {
       },
     };
   }
-  // FullBack
+  // Remaining role is fullback, whose profile balances kick cover, handling, and pace.
   return {
     speed: 15,
     weight: -12,
@@ -190,11 +190,11 @@ export const getPlayerProfile = (
   const definition = teams[team] as TeamDefinition;
   const deltas = getPlayerDeltas(team, number, role, teams);
 
-  // Baseline ratings (0..100)
+  // Team multipliers from 0.8 to 1.2 map onto editable 0-to-100 profile scale.
   const baseSpeedRating = ((definition.speedMultiplier - 0.8) / 0.4) * 100;
   const baseWeightRating = ((definition.weightMultiplier - 0.8) / 0.4) * 100;
 
-  // Effective modified ratings (0..100)
+  // Role and player deltas modify team baseline before physical output is clamped.
   const finalSpeedRating = Math.max(
     0,
     Math.min(100, baseSpeedRating + deltas.speed),

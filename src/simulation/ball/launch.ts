@@ -12,7 +12,7 @@ import { clamp, distance, effectiveSkill, GRAVITY } from "../math.ts";
 import { startScrum } from "../phases.ts";
 import type { Random } from "../types.ts";
 
-// Launches ball toward target with skill-based error and ballistic velocity.
+// Launch error grows with skill deficit and with longer, less controlled kick types.
 
 export const launchBall = (
   state: GameState,
@@ -58,6 +58,7 @@ export const launchBall = (
         : flight === "dropGoal"
           ? 1.8
           : 2.2;
+  // Half-gravity initial vertical speed makes non-grubbers return to launch height at chosen duration.
   state.ball = {
     position: { ...carrier.position, y: isGrubber ? 0.35 : 1.25 },
     velocity: {
@@ -74,7 +75,7 @@ export const launchBall = (
     kickOrigin: isKicking ? { ...carrier.position } : null,
     bouncesRemaining: isGrubber ? 4 : isKicking ? 2 : 0,
   };
-  // Mark teammates ahead of kicker offside for all kick flights.
+  // Law 10 makes teammates ahead of kicker liable to sanction until put onside.
   if (isKicking) {
     const direction = attackDirection(carrier.team);
     for (const player of state.players) {
@@ -85,5 +86,3 @@ export const launchBall = (
     }
   }
 };
-
-// Converts a ball crossing dead-ball line into defending goal-line dropout.

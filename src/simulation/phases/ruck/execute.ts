@@ -32,7 +32,6 @@ import type { Random } from "../../types.ts";
 
 export const executeRuckPlay = (state: GameState, random: Random) => {
   const phase = state.phase;
-  // Ignore execution after phase changed away from ruck.
   if (phase.kind !== "ruck") return;
   const team = phase.winningTeam ?? phase.attackingTeam;
   const isAvailable = (p: Player) =>
@@ -41,7 +40,7 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     p.id !== phase.tackledPlayerId &&
     p.id !== phase.tacklerId;
 
-  // Find primary halfback (9), or fallback to nearest available back/player if 9 is in ruck
+  // Scrum-half distributes by default; nearest free teammate prevents stalled ruck when nine is committed.
   const preferredHalf = state.players.find(
     (p) => p.team === team && p.role === ROLES.ScrumHalf && isAvailable(p),
   );
@@ -54,10 +53,9 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
           distance(a.position, phase.position) -
           distance(b.position, phase.position),
       )[0];
-  // Wait when winning team has no available distributor.
   if (!distributor) return;
 
-  // Place distributor right at the base of the ruck to collect ball from ground
+  // Distributor is snapped to simulated hindmost foot after availability stage has completed approach.
   const teamDir = attackDirection(team);
   distributor.position.x = phase.position.x;
   distributor.position.z = clamp(
@@ -67,8 +65,7 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
   );
   distributor.velocity = { x: 0, z: 0 };
 
-  // Staggered stand-up in reverse order of joining the ruck:
-  // Last joiner peels off first, earlier cleaners follow, tackled player stands up last.
+  // Reverse release ordering lets last joiner peel first, then earlier cleaners, with tackled player last.
   const reversedJoiners = [...phase.joinOrder].reverse();
   reversedJoiners.forEach((playerId, index) => {
     const player = state.players.find((p) => p.id === playerId);
@@ -85,7 +82,7 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     tackledPlayer.ruckRecoverySeconds = 1.8 + reversedJoiners.length * 0.4;
   }
 
-  // Free any player who was targeting but never actually joined
+  // Non-joiners must lose sentinel recovery lock when ruck ends.
   for (const player of state.players) {
     if (
       !phase.joinOrder.includes(player.id) &&
@@ -97,7 +94,7 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     }
   }
 
-  // Update attack phase count and move gainline to this ruck mark
+  // Retained possession increments phase count; turnover resets possession and gain-line origin.
   if (team === state.possessionTeam) {
     state.phaseCount += 1;
     state.gainLineZ = phase.position.z;
@@ -109,7 +106,6 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     state.distanceGained = 0;
   }
 
-  // Give ball to nearest runner for pick-and-go.
   if (phase.play === "pickAndGo") {
     const runner = state.players
       .filter((player) => player.team === team && isAvailable(player))
@@ -124,8 +120,8 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
     } else {
       carryBall(state, distributor);
     }
-    // Launch contestable box kick downfield from distributor.
   } else if (phase.play === "boxKick") {
+    // Box kick aims 28 to 36 metres ahead with lateral uncertainty for contestability.
     distributor.stamina = clamp(distributor.stamina - 0.8, 0, 100);
     launchBall(
       state,
@@ -138,8 +134,8 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
       null,
       random,
     );
-    // Pass to fly-half or nearest first receiver.
   } else {
+    // Fly-half is preferred receiver; nearest available teammate prevents deadlock.
     const receiver = state.players
       .filter(
         (player) =>
@@ -174,5 +170,3 @@ export const executeRuckPlay = (state: GameState, random: Random) => {
   }
   state.phase = { kind: "openPlay" };
 };
-
-// Advances ruck through arrivals, security, availability, and release.

@@ -34,7 +34,6 @@ export const updateLineout = (
   random: Random,
 ) => {
   const phase = state.phase;
-  // Ignore update outside lineout phase.
   if (phase.kind !== "lineout") return;
   phase.elapsed += deltaSeconds;
 
@@ -51,7 +50,7 @@ export const updateLineout = (
       state.formations[otherTeam(phase.throwingTeam)].lineoutMembers
     ];
 
-  // Check if hooker and the forwards in the two rows are in position at the mark
+  // Readiness tolerance approximates two straight lines and thrower set at touch mark under Law 18.
   const hookerTarget = hooker
     ? getLineoutTarget(
         hooker,
@@ -83,9 +82,8 @@ export const updateLineout = (
       return distance(player.position, target) <= 2.5;
     });
 
-  // Wait for hooker and both lineout rows to form cleanly
   if (phase.stage === "forming") {
-    // AR delivers / spawns fresh match ball to the hooker at the touchline
+    // Replacement ball appears with thrower because previous ball remains visible beyond touch.
     if (
       hooker &&
       state.ball.carrierId !== hooker.id &&
@@ -110,9 +108,8 @@ export const updateLineout = (
     phase.elapsed = 0;
     return;
   }
-  // Throw lineout after brief pause once formed
   if (phase.stage === "ready") {
-    // Preserve pre-throw pause so formation is clearly visible
+    // Preserve pre-throw pause so formation is clearly visible.
     if (phase.elapsed < 1.0) return;
     const jumper =
       state.players.find(
@@ -138,8 +135,8 @@ export const updateLineout = (
           player.team !== phase.throwingTeam &&
           defendingMembers.includes((player.slotIndex ?? 0) + 1),
       );
-    // Wait when hooker or jumper is unavailable.
     if (!hooker || !jumper) return;
+    // Throw accuracy and jumper handling oppose defender handling and decision quality.
     const attackingScore =
       effectiveSkill(hooker, "passing") * 0.4 +
       effectiveSkill(jumper, "handling") * 0.6 +
@@ -159,7 +156,6 @@ export const updateLineout = (
     phase.stage = "inFlight";
     return;
   }
-  // Enter open play after throw is caught or lands.
   if (state.ball.carrierId || state.ball.flight === null) {
     const carrier = state.players.find(
       (player) => player.id === state.ball.carrierId,
@@ -173,6 +169,7 @@ export const updateLineout = (
       carrier?.team === phase.throwingTeam &&
       random() < state.teams[phase.throwingTeam].tendencies.maul
     ) {
+      // Throwing side may bind around clean catch according to configured maul tendency.
       startMaul(state, carrier);
       return;
     }

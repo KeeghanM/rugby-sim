@@ -14,6 +14,7 @@ export const updateStamina = (
 
   const matchSeconds = deltaSeconds * 6;
 
+  // Positional drain rates approximate heavier forwards' greater repeated-work cost.
   const baseDrainRate = isTightFive ? 0.024 : isLooseForward ? 0.017 : 0.013;
   const effortMod =
     next.effort === "sprint"
@@ -26,6 +27,7 @@ export const updateStamina = (
 
   const weightFactor = Math.max(0.4, 1 - (player.weight - 70) / 120);
   const skillFactor = 0.55 + overallSkill(player) * 0.9;
+  // Recovery favours lighter, fitter players but keeps at least 40% of weight contribution.
   const recoveryRate = 0.014 * weightFactor * skillFactor;
 
   const netRate =

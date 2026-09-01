@@ -22,6 +22,7 @@ export const getLineoutTarget = (
   const throwing = player.team === throwingTeam;
   const teamDir = attackDirection(throwingTeam);
   if (throwing && player.role === ROLES.Hooker) {
+    // Law 18 places thrower outside field at touch mark.
     return { x: touchSide * PITCH.touchLines.right, z: mark.z };
   }
   if (!throwing && player.role === ROLES.Hooker) {
@@ -36,12 +37,14 @@ export const getLineoutTarget = (
   if (members.includes(slotNumber)) {
     const rank = members.indexOf(slotNumber);
     return {
+      // Half-metre offsets on each side create one-metre tunnel between competing lines.
       x: touchSide * (30 - rank * 2.0),
       z: clampZ(mark.z + (throwing ? -teamDir * 0.5 : teamDir * 0.5)),
     };
   }
 
   if (player.role === ROLES.ScrumHalf) {
+    // Throwing receiver waits closer; defending receiver remains near Law 18 ten-metre offside line.
     return {
       x: touchSide * 18,
       z: clampZ(mark.z + (throwing ? -teamDir * 4.5 : teamDir * 10)),
@@ -58,6 +61,7 @@ export const getLineoutTarget = (
         : nonParticipants === "maulDefence"
           ? 10
           : 10;
+  // Non-participants stay at least ten metres from mark, with fullback deeper for kick cover.
   const width =
     nonParticipants === "split"
       ? 0.9

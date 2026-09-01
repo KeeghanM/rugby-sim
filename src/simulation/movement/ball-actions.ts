@@ -9,6 +9,7 @@ const actionDelay = (player: Player, kind: "pass" | "kick") => {
   const skill = effectiveSkill(player, kind === "pass" ? "passing" : "kicking");
   const baseSeconds = kind === "pass" ? 0.7 : 1.2;
   const fatigueMultiplier = 1 + (1 - player.stamina / 100) * 0.8;
+  // Skill shortens wind-up while fatigue can add up to 80% to action time.
   return baseSeconds * (1.4 - skill * 0.65) * fatigueMultiplier;
 };
 
@@ -54,6 +55,7 @@ export const resolvePreparedAction = (
     const passDepth =
       (receiver.position.z - carrier.position.z) *
       attackDirection(carrier.team);
+    // Law 11 judges forward direction from passer, with 1.4 m tolerance for discrete movement steps.
     if (passDepth > 1.4) {
       carrier.stats.forwardPasses += 1;
       startScrum(state, otherTeam(carrier.team), carrier.position, random);
@@ -79,6 +81,7 @@ export const resolvePreparedAction = (
       random() <
       (dist < 1.4 ? 0.42 : 0.2) *
         (1.25 - effectiveSkill(carrier, "kicking") * 0.75);
+    // Proximity raises charge-down risk while kicking skill reduces exposed contact time.
     if (isChargedDown) {
       carrier.stamina = clamp(carrier.stamina - 0.6, 0, 100);
       chargingDefender.stamina = clamp(chargingDefender.stamina - 0.4, 0, 100);

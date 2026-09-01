@@ -113,6 +113,7 @@ export const chooseCarrierCommand = (
   const isStranded = nearbyTeammates.length === 0 && defendersAhead.length > 0;
   const recognisesClearance =
     random() >= (1 - effectiveSkill(carrier, "decision")) * 0.18;
+  // Clearance becomes attractive under territorial pressure, but poor decision-makers may miss cue.
   const canKick =
     carrier.role === ROLES.ScrumHalf ||
     carrier.role === ROLES.FlyHalf ||
@@ -159,6 +160,7 @@ export const chooseCarrierCommand = (
     nearestDefDist >= 4.5;
 
   if (canAttemptDropGoal) {
+    // Range, angle, available space, and team kicking tendency jointly gate speculative drop goals.
     const proximityScore =
       (1 - distToGoalLine / 40) * (1 - angleFromPosts / 22);
     const spaceBonus = Math.min(1.5, nearestDefDist / 6);
@@ -204,6 +206,7 @@ export const chooseCarrierCommand = (
           : [0.36, 0.18, 0.38];
   const kickWeight =
     isTightFive || isBackRow ? 0 : isHalf ? 0.1 : isCentre ? 0.02 : 0.08;
+  // Role priors encode common responsibilities before team tendencies bias final choice.
   const tendencies = state.teams[carrier.team].tendencies;
   const weighted = [
     weights[0] * tendencies.carry,
@@ -216,6 +219,7 @@ export const chooseCarrierCommand = (
     weighted[index] /= totalWeight;
   const decisionSkill = effectiveSkill(carrier, "decision");
   const isErratic = random() < (1 - decisionSkill) * 0.22;
+  // Decision errors can ignore established lateral flow when selecting receiver.
   const roll = random();
   const passTarget = choosePassTarget(
     players,

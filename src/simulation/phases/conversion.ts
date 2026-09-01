@@ -47,13 +47,14 @@ export const scoreTry = (
   const teamDir = attackDirection(team);
   const tryX = clamp(carrier?.position.x ?? 0, -28, 28);
   const tryZ = team === 0 ? PITCH.tryLines.north : PITCH.tryLines.south;
+  // Law 8 requires kick on line through grounding point; fixed 22-metre depth approximates chosen tee distance.
   const teeSpot = { x: tryX, z: clamp(tryZ - teamDir * 22, -48, 48) };
 
   const kicker =
     state.players.find((p) => p.team === team && p.role === ROLES.FlyHalf) ??
     state.players.find((p) => p.team === team);
 
-  // Ball stays with try scorer to carry back to the tee spot
+  // Keeping ball with scorer makes transition to tee visible before dead-ball kick.
   const ballCarrier = carrier ?? kicker ?? null;
   state.ball = {
     position: ballCarrier
@@ -83,7 +84,6 @@ export const scoreTry = (
   };
 };
 
-// Simulates conversion kick after try with visible lineup, shot, and flight
 export const updateConversion = (
   state: GameState,
   deltaSeconds: number,
@@ -100,7 +100,6 @@ export const updateConversion = (
     ) ??
     state.players.find((p) => p.team === phase.kickingTeam);
 
-  // While ball is being carried to tee, place on ground when carrier reaches tee spot
   if (state.ball.carrierId) {
     const carrier = state.players.find((p) => p.id === state.ball.carrierId);
     if (carrier && distance(carrier.position, phase.position) <= 1.5) {
@@ -113,7 +112,7 @@ export const updateConversion = (
     }
   }
 
-  // 1. Forming: kicker moves to tee, defenders behind try line, attackers in own half
+  // Law 8 keeps opponents behind goal line while conversion is prepared.
   if (phase.stage === "forming") {
     const kickerInPlace =
       kicker && distance(kicker.position, phase.position) <= 2.2;
@@ -152,7 +151,6 @@ export const updateConversion = (
     return;
   }
 
-  // 2. Ready: kicker pauses over tee before swinging through
   if (phase.stage === "ready") {
     const shotClockSeconds = phase.elapsed * MATCH_CLOCK_RATE;
     const timedOut = shotClockSeconds >= GOAL_KICK_TIMEOUT_SECONDS;
@@ -181,7 +179,7 @@ export const updateConversion = (
     const targetX = isSuccess
       ? (random() - 0.5) * 2.6
       : (Math.sign(phase.position.x) || 1) * (5.5 + random() * 4);
-    // Ball flies deep through and beyond the goal posts into in-goal / dead-ball area
+    // Target beyond posts keeps scored and missed flights visually continuous.
     const targetZ = targetTryLine + teamDir * (18 + random() * 8);
     const distToTarget = Math.abs(targetZ - phase.position.z);
     const duration = Math.max(1.8, distToTarget / 20);
@@ -209,7 +207,6 @@ export const updateConversion = (
     return;
   }
 
-  // 3. In Flight: ball soars over crossbar, points award upon passing posts
   if (phase.stage === "inFlight") {
     const teamDir = attackDirection(phase.kickingTeam);
     const targetTryLine =
@@ -220,10 +217,10 @@ export const updateConversion = (
     if (phase.isSuccess && hasReachedPosts) {
       state.scores[phase.kickingTeam] += 2;
       if (kicker) kicker.stats.successfulKicks += 1;
-      phase.isSuccess = false; // Credit points once
+      phase.isSuccess = false; // Clearing success flag prevents duplicate points on later flight ticks.
     }
 
-    // After kick flight naturally lands/bounces, transition smoothly to kickoff restart
+    // Try sequence restarts with non-scoring team kicking from halfway after conversion flight.
     if (
       phase.elapsed >= 3.8 ||
       (phase.elapsed >= 2.0 && state.ball.position.y <= 0.2)
@@ -238,5 +235,3 @@ export const updateConversion = (
     }
   }
 };
-
-// Starts a penalty award for non-offending team

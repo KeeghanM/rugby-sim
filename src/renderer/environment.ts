@@ -14,7 +14,6 @@ import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "../domain.ts";
 
 export const createEnvironment = (scene: Scene) => {
-  // Extended green pitch runoff apron
   const grassApron = CreateGround(
     "grass-apron",
     { width: 84, height: 136 },
@@ -26,7 +25,6 @@ export const createEnvironment = (scene: Scene) => {
   grassApronMat.specularColor = Color3.Black();
   grassApron.material = grassApronMat;
 
-  // Concrete concourse ground around pitch
   const concreteApron = CreateGround(
     "concrete-apron",
     { width: 220, height: 260 },
@@ -38,7 +36,6 @@ export const createEnvironment = (scene: Scene) => {
   concreteMat.specularColor = Color3.FromHexString("#1e293b");
   concreteApron.material = concreteMat;
 
-  // Outer landscape ground
   const outerGround = CreateGround(
     "outer-ground",
     { width: 700, height: 700 },
@@ -50,7 +47,6 @@ export const createEnvironment = (scene: Scene) => {
   outerGroundMat.specularColor = Color3.Black();
   outerGround.material = outerGroundMat;
 
-  // Skybox
   const skybox = CreateBox("skyBox", { size: 1800 }, scene);
   const skyMat = new StandardMaterial("skyBox-mat", scene);
   skyMat.backFaceCulling = false;
@@ -64,7 +60,6 @@ export const createEnvironment = (scene: Scene) => {
   scene.clearColor = new Color4(0.38, 0.65, 0.98, 1);
   scene.ambientColor = new Color3(0.92, 0.94, 0.98);
 
-  // --- PROCEDURAL STADIUM SEAT TEXTURES ---
   const createSeatTexture = (
     name: string,
     primaryColor: string,
@@ -79,7 +74,6 @@ export const createEnvironment = (scene: Scene) => {
     );
     const ctx = tex.getContext();
 
-    // Base tier concrete
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(0, 0, 1024, 1024);
 
@@ -91,24 +85,19 @@ export const createEnvironment = (scene: Scene) => {
     for (let r = 0; r < rows; r++) {
       const y = r * rowH;
 
-      // Concrete row tread surface
       ctx.fillStyle = r % 2 === 0 ? "#334155" : "#243044";
       ctx.fillRect(0, y, 1024, rowH);
 
-      // Tread step shadow
       ctx.fillStyle = "#0f172a";
       ctx.fillRect(0, y + rowH - 3, 1024, 3);
 
-      // Riser highlight edge
       ctx.fillStyle = "#475569";
       ctx.fillRect(0, y, 1024, 2);
 
       for (let c = 0; c < cols; c++) {
-        // Vertical concrete aisle stairs every 10 columns
         if (c % 10 === 0) {
           ctx.fillStyle = "#64748b";
           ctx.fillRect(c * colW, y + 1, colW, rowH - 2);
-          // Yellow safety tread step edge
           ctx.fillStyle = "#facc15";
           ctx.fillRect(c * colW + 1, y + rowH - 3, colW - 2, 2);
           continue;
@@ -119,24 +108,19 @@ export const createEnvironment = (scene: Scene) => {
         const seatW = colW - 6;
         const seatH = rowH - 8;
 
-        // Seat color with section pattern
         let color = primaryColor;
         if (r % 7 === 0 || (r + c) % 19 === 0) color = accentColor;
         else if (r > 6 && r < 14 && c > 14 && c < 26) color = goldColor;
 
-        // Seat drop shadow
         ctx.fillStyle = "#090d16";
         ctx.fillRect(seatX - 1, seatY - 1, seatW + 2, seatH + 2);
 
-        // Seat back
         ctx.fillStyle = color;
         ctx.fillRect(seatX, seatY, seatW, seatH * 0.58);
 
-        // Seat folding bottom pan
         ctx.fillStyle = color === primaryColor ? "#172554" : "#1e40af";
         ctx.fillRect(seatX + 1, seatY + seatH * 0.52, seatW - 2, seatH * 0.44);
 
-        // Top seat rim highlight
         ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
         ctx.fillRect(seatX + 1, seatY + 1, seatW - 2, 2);
       }
@@ -169,7 +153,6 @@ export const createEnvironment = (scene: Scene) => {
   seatMatUpper.specularColor = new Color3(0.12, 0.12, 0.12);
   seatMatUpper.specularPower = 16;
 
-  // --- SHARED STADIUM MATERIALS ---
   const concreteStandMat = new StandardMaterial("concrete-stand-mat", scene);
   concreteStandMat.diffuseColor = Color3.FromHexString("#475569");
   concreteStandMat.specularColor = Color3.FromHexString("#1e293b");
@@ -202,7 +185,6 @@ export const createEnvironment = (scene: Scene) => {
   floodlightMat.emissiveColor = Color3.FromHexString("#fef9c3");
   floodlightMat.disableLighting = true;
 
-  // --- LED ADVERTISING HOARDINGS ---
   const createAdTexture = () => {
     const tex = new DynamicTexture(
       "ad-banner-tex",
@@ -214,7 +196,6 @@ export const createEnvironment = (scene: Scene) => {
     ctx.fillStyle = "#090d16";
     ctx.fillRect(0, 0, 1024, 128);
 
-    // Sponsor blocks
     const ads = [
       { text: "🏉 WORLD RUGBY CHAMPIONSHIP", bg: "#1e3a8a", fg: "#ffffff" },
       { text: "⚡ FAST • POWER • PRECISION", bg: "#b91c1c", fg: "#fef08a" },
@@ -261,20 +242,15 @@ export const createEnvironment = (scene: Scene) => {
     return board;
   };
 
-  // Touchline & dead-ball ad hoardings (placed behind touch judge running lane)
+  // Keep hoardings behind the touch judges' running lane.
   createAdBoard("ad-west", 0.35, 124, new Vector3(-38.5, 0.55, 0));
   createAdBoard("ad-east", 0.35, 124, new Vector3(38.5, 0.55, 0));
   createAdBoard("ad-south", 76.6, 0.35, new Vector3(0, 0.55, -64.2));
   createAdBoard("ad-north", 76.6, 0.35, new Vector3(0, 0.55, 64.2));
 
-  // --- GRANDSTAND BUILDER HELPER ---
-  // Sideline stands: length in Z = 118m
-  // End stands: width in X = 74m
-
   const createSidelineStand = (side: 1 | -1, name: string) => {
     const sideX = side * 1;
 
-    // Pitchside concrete barrier
     const barrier = CreateBox(
       `${name}-barrier`,
       { width: 0.6, height: 1.2, depth: 118 },
@@ -283,17 +259,16 @@ export const createEnvironment = (scene: Scene) => {
     barrier.position.set(side * 40.8, 0.6, 0);
     barrier.material = concreteStandMat;
 
-    // Lower Tier (Raked Seating Deck)
     const lowerTier = CreateBox(
       `${name}-tier-lower`,
       { width: 17, height: 0.9, depth: 118 },
       scene,
     );
     lowerTier.position.set(side * 48.0, 5.1, 0);
-    lowerTier.rotation.z = side * 0.48; // raked upwards away from pitch
+    // Side sign makes both tiers rise away from the pitch.
+    lowerTier.rotation.z = side * 0.48;
     lowerTier.material = seatMatLower;
 
-    // Lower Tier Concrete Under-Wedge / Side Walls
     const lowerUnder = CreateBox(
       `${name}-tier-lower-under`,
       { width: 15, height: 4.5, depth: 118 },
@@ -302,7 +277,6 @@ export const createEnvironment = (scene: Scene) => {
     lowerUnder.position.set(side * 48.0, 2.25, 0);
     lowerUnder.material = concreteStandMat;
 
-    // Mid-Tier VIP Hospitality Box Fascia & Balcony
     const vipBoxes = CreateBox(
       `${name}-vip-boxes`,
       { width: 1.8, height: 3.2, depth: 118 },
@@ -311,7 +285,6 @@ export const createEnvironment = (scene: Scene) => {
     vipBoxes.position.set(side * 55.8, 10.5, 0);
     vipBoxes.material = hospitalityGlassMat;
 
-    // Upper Tier (Steeper Raked Seating Deck)
     const upperTier = CreateBox(
       `${name}-tier-upper`,
       { width: 22.5, height: 1.0, depth: 118 },
@@ -321,7 +294,6 @@ export const createEnvironment = (scene: Scene) => {
     upperTier.rotation.z = side * 0.62;
     upperTier.material = seatMatUpper;
 
-    // Upper Tier Support Concrete Structure
     const upperUnder = CreateBox(
       `${name}-tier-upper-under`,
       { width: 18, height: 10, depth: 118 },
@@ -330,7 +302,6 @@ export const createEnvironment = (scene: Scene) => {
     upperUnder.position.set(side * 65.0, 11.5, 0);
     upperUnder.material = concreteStandMat;
 
-    // Rear Facade Architectural Wall
     const rearWall = CreateBox(
       `${name}-rear-wall`,
       { width: 1.6, height: 28, depth: 120 },
@@ -339,7 +310,6 @@ export const createEnvironment = (scene: Scene) => {
     rearWall.position.set(side * 74.8, 14.0, 0);
     rearWall.material = facadeMat;
 
-    // Rear Structural Columns
     for (let z = -50; z <= 50; z += 25) {
       const col = CreateBox(
         `${name}-col-${z}`,
@@ -350,7 +320,6 @@ export const createEnvironment = (scene: Scene) => {
       col.material = concreteStandMat;
     }
 
-    // Cantilevered Modern Roof Canopy
     const roof = CreateBox(
       `${name}-roof`,
       { width: 37, height: 0.8, depth: 122 },
@@ -360,7 +329,6 @@ export const createEnvironment = (scene: Scene) => {
     roof.rotation.z = -side * 0.06;
     roof.material = roofMat;
 
-    // Roof Truss Girders Underneath
     for (let z = -45; z <= 45; z += 30) {
       const truss = CreateBox(
         `${name}-truss-${z}`,
@@ -371,7 +339,6 @@ export const createEnvironment = (scene: Scene) => {
       truss.material = steelTrussMat;
     }
 
-    // Roof Lip Floodlight Array
     const floodlightStrip = CreateBox(
       `${name}-floodlight-strip`,
       { width: 1.2, height: 0.5, depth: 116 },
@@ -382,7 +349,6 @@ export const createEnvironment = (scene: Scene) => {
   };
 
   const createEndStand = (side: 1 | -1, name: string) => {
-    // Pitchside concrete barrier
     const barrier = CreateBox(
       `${name}-barrier`,
       { width: 74, height: 1.2, depth: 0.6 },
@@ -391,17 +357,16 @@ export const createEnvironment = (scene: Scene) => {
     barrier.position.set(0, 0.6, side * 65.8);
     barrier.material = concreteStandMat;
 
-    // Lower Tier (Raked Seating Deck)
     const lowerTier = CreateBox(
       `${name}-tier-lower`,
       { width: 74, height: 0.9, depth: 16.5 },
       scene,
     );
     lowerTier.position.set(0, 5.1, side * 73.5);
+    // Negated side sign makes both tiers rise away from the pitch.
     lowerTier.rotation.x = -side * 0.48;
     lowerTier.material = seatMatLower;
 
-    // Lower Under Structure
     const lowerUnder = CreateBox(
       `${name}-tier-lower-under`,
       { width: 74, height: 4.5, depth: 15 },
@@ -410,7 +375,6 @@ export const createEnvironment = (scene: Scene) => {
     lowerUnder.position.set(0, 2.25, side * 73.5);
     lowerUnder.material = concreteStandMat;
 
-    // VIP Hospitality Band
     const vipBoxes = CreateBox(
       `${name}-vip-boxes`,
       { width: 74, height: 3.2, depth: 1.8 },
@@ -419,7 +383,6 @@ export const createEnvironment = (scene: Scene) => {
     vipBoxes.position.set(0, 10.5, side * 81.2);
     vipBoxes.material = hospitalityGlassMat;
 
-    // Upper Tier (Steeper Raked Deck)
     const upperTier = CreateBox(
       `${name}-tier-upper`,
       { width: 74, height: 1.0, depth: 22.0 },
@@ -429,7 +392,6 @@ export const createEnvironment = (scene: Scene) => {
     upperTier.rotation.x = -side * 0.62;
     upperTier.material = seatMatUpper;
 
-    // Upper Under Structure
     const upperUnder = CreateBox(
       `${name}-tier-upper-under`,
       { width: 74, height: 10, depth: 18 },
@@ -438,7 +400,6 @@ export const createEnvironment = (scene: Scene) => {
     upperUnder.position.set(0, 11.5, side * 90.0);
     upperUnder.material = concreteStandMat;
 
-    // Rear Facade Wall
     const rearWall = CreateBox(
       `${name}-rear-wall`,
       { width: 76, height: 28, depth: 1.6 },
@@ -447,7 +408,6 @@ export const createEnvironment = (scene: Scene) => {
     rearWall.position.set(0, 14.0, side * 99.8);
     rearWall.material = facadeMat;
 
-    // Rear Structural Columns
     for (let x = -25; x <= 25; x += 25) {
       const col = CreateBox(
         `${name}-col-${x}`,
@@ -458,7 +418,6 @@ export const createEnvironment = (scene: Scene) => {
       col.material = concreteStandMat;
     }
 
-    // Cantilevered Roof Canopy
     const roof = CreateBox(
       `${name}-roof`,
       { width: 76, height: 0.8, depth: 36 },
@@ -468,7 +427,6 @@ export const createEnvironment = (scene: Scene) => {
     roof.rotation.x = side * 0.06;
     roof.material = roofMat;
 
-    // Roof Truss Girders
     for (let x = -25; x <= 25; x += 25) {
       const truss = CreateBox(
         `${name}-truss-${x}`,
@@ -479,7 +437,6 @@ export const createEnvironment = (scene: Scene) => {
       truss.material = steelTrussMat;
     }
 
-    // Roof Lip Floodlight Array
     const floodlightStrip = CreateBox(
       `${name}-floodlight-strip`,
       { width: 70, height: 0.5, depth: 1.2 },
@@ -489,17 +446,14 @@ export const createEnvironment = (scene: Scene) => {
     floodlightStrip.material = floodlightMat;
   };
 
-  // Build 4 Main Stands
-  createSidelineStand(-1, "stand-west"); // West Main Stand
-  createSidelineStand(1, "stand-east"); // East Stand
-  createEndStand(-1, "stand-south"); // South Stand
-  createEndStand(1, "stand-north"); // North Stand
+  createSidelineStand(-1, "stand-west");
+  createSidelineStand(1, "stand-east");
+  createEndStand(-1, "stand-south");
+  createEndStand(1, "stand-north");
 
-  // --- 4 CORNER BOWL STANDS ---
   const createCornerStand = (name: string, posX: number, posZ: number) => {
     const rotY = Math.atan2(-posX, -posZ);
 
-    // Corner Lower Tier
     const cornerLower = CreateBox(
       `${name}-tier-lower`,
       { width: 22, height: 0.9, depth: 18 },
@@ -509,7 +463,6 @@ export const createEnvironment = (scene: Scene) => {
     cornerLower.rotation.set(0.48, rotY, 0);
     cornerLower.material = seatMatLower;
 
-    // Corner Upper Tier
     const cornerUpper = CreateBox(
       `${name}-tier-upper`,
       { width: 28, height: 1.0, depth: 24 },
@@ -519,7 +472,6 @@ export const createEnvironment = (scene: Scene) => {
     cornerUpper.rotation.set(0.62, rotY, 0);
     cornerUpper.material = seatMatUpper;
 
-    // Corner Outer Wall
     const cornerWall = CreateBox(
       `${name}-wall`,
       { width: 30, height: 28, depth: 1.8 },
@@ -529,7 +481,6 @@ export const createEnvironment = (scene: Scene) => {
     cornerWall.rotation.set(0, rotY, 0);
     cornerWall.material = facadeMat;
 
-    // Corner Roof Canopy
     const cornerRoof = CreateBox(
       `${name}-roof`,
       { width: 34, height: 0.8, depth: 32 },
@@ -545,7 +496,6 @@ export const createEnvironment = (scene: Scene) => {
   createCornerStand("corner-nw", -52, 73);
   createCornerStand("corner-ne", 52, 73);
 
-  // --- SCOREBOARD / JUMBOTRON VIDEO SCREENS ---
   const scoreboardTextures: DynamicTexture[] = [];
   let lastScoreKey = "";
 
@@ -585,7 +535,6 @@ export const createEnvironment = (scene: Scene) => {
           ? "2ND HALF"
           : "1ST HALF";
 
-    // Team 0 (Left)
     ctx.fillStyle = game.teams[0].color;
     ctx.fillRect(40, 105, 420, 245);
     ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -596,14 +545,12 @@ export const createEnvironment = (scene: Scene) => {
     ctx.font = "900 135px 'Arial Black', Impact, sans-serif";
     ctx.fillText(String(game.scores[0]), 250, 255);
 
-    // Center divider
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(470, 105, 84, 245);
     ctx.fillStyle = "#94a3b8";
     ctx.font = "bold 24px 'Segoe UI', sans-serif";
     ctx.fillText("VS", 512, 227);
 
-    // Team 1 (Right)
     ctx.fillStyle = game.teams[1].color;
     ctx.fillRect(564, 105, 420, 245);
     ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -614,16 +561,13 @@ export const createEnvironment = (scene: Scene) => {
     ctx.font = "900 135px 'Arial Black', Impact, sans-serif";
     ctx.fillText(String(game.scores[1]), 774, 255);
 
-    // Bottom Match Info Bar
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(40, 365, 944, 115);
 
-    // Live clock
     ctx.fillStyle = "#facc15";
     ctx.font = "bold 44px 'Courier New', monospace";
     ctx.fillText(`${mins}:${secs}`, 240, 422);
 
-    // Match phase / state
     const p: any = game.phase;
     let statusText = p.kind.toUpperCase();
     if (p.kind === "openPlay") {
@@ -693,18 +637,16 @@ export const createEnvironment = (scene: Scene) => {
     screen.material = screenMat;
   };
 
-  // Mount Jumbotrons facing into the pitch (lowered for realistic sightlines)
+  // Keep screens low enough to preserve upper-tier sightlines.
   createJumbotron("jumbotron-south", new Vector3(0, 19.8, -67.5), Math.PI);
   createJumbotron("jumbotron-north", new Vector3(0, 19.8, 67.5), 0);
 
-  // --- TEAM DUGOUTS / BENCHES (West Sideline) ---
   const dugoutMat = new StandardMaterial("dugout-glass-mat", scene);
   dugoutMat.diffuseColor = Color3.FromHexString("#0284c7");
   dugoutMat.alpha = 0.65;
   dugoutMat.specularColor = Color3.White();
 
   const createDugout = (name: string, z: number) => {
-    // Canopy roof set back behind touchline & ad board
     const shelter = CreateBox(
       `${name}-shelter`,
       { width: 2.6, height: 2.2, depth: 8.5 },
@@ -713,7 +655,6 @@ export const createEnvironment = (scene: Scene) => {
     shelter.position.set(-41.5, 1.1, z);
     shelter.material = dugoutMat;
 
-    // Bench seating
     const bench = CreateBox(
       `${name}-bench`,
       { width: 1.2, height: 0.5, depth: 7.8 },
@@ -726,7 +667,6 @@ export const createEnvironment = (scene: Scene) => {
   createDugout("dugout-home", -12);
   createDugout("dugout-away", 12);
 
-  // --- PLAYERS' TUNNEL (West Stand Halfway Line) ---
   const tunnelArch = CreateBox(
     "players-tunnel",
     { width: 4.5, height: 2.6, depth: 6.0 },
@@ -738,7 +678,6 @@ export const createEnvironment = (scene: Scene) => {
   tunnelMat.emissiveColor = Color3.FromHexString("#0f172a");
   tunnelArch.material = tunnelMat;
 
-  // Red carpet walkway from tunnel to touchline
   const carpet = CreateGround(
     "tunnel-carpet",
     { width: 3.5, height: 4.5 },
@@ -750,7 +689,6 @@ export const createEnvironment = (scene: Scene) => {
   carpetMat.specularColor = Color3.Black();
   carpet.material = carpetMat;
 
-  // --- 4 CORNER FLOODLIGHT TOWERS ---
   const poleMat = new StandardMaterial("pole-mat", scene);
   poleMat.diffuseColor = Color3.FromHexString("#cbd5e1");
   poleMat.specularColor = Color3.FromHexString("#475569");
@@ -765,7 +703,6 @@ export const createEnvironment = (scene: Scene) => {
   for (let i = 0; i < cornerPylons.length; i++) {
     const base = cornerPylons[i];
 
-    // Main steel pylon column
     const pole = CreateCylinder(
       `pylon-${i}`,
       { height: 42, diameterTop: 1.4, diameterBottom: 2.4, tessellation: 8 },
@@ -774,7 +711,6 @@ export const createEnvironment = (scene: Scene) => {
     pole.position.set(base.x, 21, base.z);
     pole.material = poleMat;
 
-    // Floodlight lamp head bank
     const head = CreateBox(
       `pylon-head-${i}`,
       { width: 7.0, height: 3.2, depth: 3.0 },

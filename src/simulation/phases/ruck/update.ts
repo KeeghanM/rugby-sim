@@ -45,7 +45,6 @@ export const updateRuck = (
   const joinedCount =
     phase.joinedAttackers.length + phase.joinedDefenders.length;
 
-  // 1. Process players reaching the ruck mark to join
   for (const player of state.players) {
     if (player.id === phase.tackledPlayerId || player.id === phase.tacklerId)
       continue;
@@ -59,7 +58,7 @@ export const updateRuck = (
       ? phase.joinedAttackers.includes(player.id)
       : phase.joinedDefenders.includes(player.id);
 
-    // Anyone close (<= 1.6m) hits the ruck if ruck has few players (< 3) or if they were targeting it
+    // Players within 1.6 m may fill a sparse ruck even without prior targeting.
     const shouldJoin =
       !isAlreadyJoined && distToRuck <= 1.6 && (isTargeting || joinedCount < 3);
 
@@ -78,7 +77,6 @@ export const updateRuck = (
     }
   }
 
-  // 2. Stage arrivals: evaluate ruck contest & turnover
   if (phase.stage === "arrivals") {
     const attackersArrived = phase.joinedAttackers.filter(
       (id) => id !== phase.tackledPlayerId,
@@ -90,7 +88,7 @@ export const updateRuck = (
       phase.elapsed >= (phase.tempo === "quick" ? 1.0 : 2.2);
 
     if (arrivalsTimeout || (attackersArrived >= 1 && defendersArrived >= 1)) {
-      // Breakdown penalty check (holding on vs not releasing/hands in ruck)
+      // Decision deficits approximate Law 14 release and Law 15 hands/offside infringements.
       const attackError =
         0.01 + (1 - teamDecision(state, phase.attackingTeam)) * 0.045;
       const defenceError =
@@ -125,6 +123,7 @@ export const updateRuck = (
 
       const jackleMultiplier =
         defendersArrived > 0 && attackersArrived === 0 ? 1.85 : 1.0;
+      // First defender over isolated carrier receives jackal advantage before cleaners arrive.
       const originalAttackingTeam = phase.attackingTeam;
       const attackWeight = groupStrength(state, phase.joinedAttackers);
       const defenceWeight =
@@ -155,7 +154,6 @@ export const updateRuck = (
     return;
   }
 
-  // 3. Stage secure / available: attacking team digs ball out and executes play
   const winningTeam = phase.winningTeam ?? phase.attackingTeam;
   const isAvailable = (p: Player) =>
     !phase.joinedAttackers.includes(p.id) &&
@@ -192,11 +190,10 @@ export const updateRuck = (
   const distributorAtBase = distance(distributor.position, ruckBasePos) <= 1.4;
 
   if (phase.stage === "secure") {
-    // Distributor approaches base of ruck
     if (distributorAtBase || phase.elapsed >= 3.5) {
       phase.stage = "available";
       phase.elapsed = 0;
-      // Nine gets hands on ball at base of ruck
+      // Possession transfers only when distributor reaches base or anti-stall timeout expires.
       state.ball.carrierId = distributor.id;
       state.ball.flight = null;
       state.ball.position = {
@@ -208,13 +205,11 @@ export const updateRuck = (
     return;
   }
 
-  // Nine pauses at base of ruck surveying receivers before delivering pass
   if (phase.stage === "available") {
+    // Tempo controls simulated scan time before distributor commits to selected play.
     const pauseTime = phase.tempo === "quick" ? 0.45 : 0.95;
     if (phase.elapsed >= pauseTime) {
       executeRuckPlay(state, random);
     }
   }
 };
-
-// Advances kickoff formation, pause, flight, and open-play transition.

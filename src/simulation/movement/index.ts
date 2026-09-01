@@ -93,6 +93,7 @@ export const applyCommands = (
       changeLength > maxChange && changeLength > 0
         ? maxChange / changeLength
         : 1;
+    // Velocity delta cap approximates acceleration and turning inertia per tick.
     return {
       player,
       velocity: {

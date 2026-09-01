@@ -54,7 +54,7 @@ export const startPenalty = (
   const kickSkill = kicker ? effectiveSkill(kicker, "kicking") : 0.75;
   const decisionSkill = kicker ? effectiveSkill(kicker, "decision") : 0.75;
 
-  // 1. Kick accuracy / success rate estimation from this position
+  // Estimated goal value falls with lateral angle and distance beyond routine 22-metre range.
   const anglePenalty = (lateralDistance / 35) * 0.32;
   const distancePenalty = Math.max(0, distToTryLine - 22) * 0.01;
   const estimatedGoalChance = clamp(
@@ -63,12 +63,11 @@ export const startPenalty = (
     0.95,
   );
 
-  // 2. Scoreline context & match clock pressure
   const oppTeam = otherTeam(awardedTeam);
   const scoreDiff = state.scores[awardedTeam] - state.scores[oppTeam];
   const isLateInMatch = state.half === 2 && state.matchClockSeconds >= 3600;
 
-  // 3. Pack strength & maul tendency (heavy pack teams love kicking for touch)
+  // Heavy packs and maul-oriented teams gain more expected value from an attacking lineout.
   const forwardPack = state.players.filter(
     (p) => p.team === awardedTeam && isForward(p),
   );
@@ -77,37 +76,35 @@ export const startPenalty = (
   const packDominanceBonus =
     (packWeight > 880 ? 0.25 : 0) + (maulTendency > 0.5 ? 0.3 : 0);
 
-  // Calculate Touch Kick vs Goal Kick score
   let touchPreference = 0.5 + packDominanceBonus;
   let goalPreference = 0.5;
 
   if (distToTryLine > 48 || lateralDistance > 26) {
-    // Out of realistic goal kick range -> always kick for touch
+    // Extreme range or angle makes touch overwhelmingly preferable.
     goalPreference = 0.05;
     touchPreference = 0.95;
   } else if (distToTryLine <= 30 && lateralDistance <= 15) {
-    // In the pocket right in front of the posts
+    // Central kicks within 30 metres receive full estimated-success weighting.
     goalPreference += estimatedGoalChance * 0.7;
   } else {
     goalPreference += estimatedGoalChance * 0.4;
   }
 
-  // Score context adjustments:
   if (isLateInMatch) {
     if (scoreDiff >= -7 && scoreDiff <= -4) {
-      // Trailing by 4-7 points late in game: need a TRY to win/tie! Touch kick heavily favored
+      // Four to seven points behind requires try value, favouring territory over three points.
       touchPreference += 0.55;
       goalPreference -= 0.35;
     } else if (scoreDiff >= -3 && scoreDiff < 0) {
-      // Trailing by 1-3 points late in game: 3 points ties or wins! Goal kick favored if in range
+      // One to three points behind makes a successful goal capable of tying or taking lead.
       goalPreference += 0.5;
     } else if (scoreDiff === 0) {
-      // Tied late: 3 points takes the lead
+      // Level late score increases value of taking three points.
       goalPreference += 0.45;
     }
   }
 
-  // Decision skill variation: higher decision skill picks the optimal option
+  // Decision-skill deficit adds bounded noise so weaker kickers choose less consistently.
   const noise = (random() - 0.5) * (1 - decisionSkill) * 0.4;
   const choice =
     goalPreference + noise > touchPreference && estimatedGoalChance > 0.3
@@ -144,7 +141,6 @@ export const startPenalty = (
   };
 };
 
-// Executes penalty kick for touch or goal
 export const updatePenalty = (
   state: GameState,
   deltaSeconds: number,
@@ -200,7 +196,7 @@ export const updatePenalty = (
       const targetX = isSuccess
         ? (random() - 0.5) * 2.5
         : (Math.sign(phase.position.x) || 1) * (6 + random() * 4);
-      // Ball sails through the posts into the in-goal area
+      // Target beyond posts keeps successful and missed goal flights visually continuous.
       const targetZ = targetTryLine + teamDir * (18 + random() * 8);
       const distToTarget = Math.abs(targetZ - phase.position.z);
       const duration = Math.max(1.8, distToTarget / 20);
@@ -230,7 +226,7 @@ export const updatePenalty = (
       return;
     }
 
-    // Touch kick: find touch downfield for lineout restart
+    // Law 18 lets penalty kicker retain throw-in after finding touch directly.
     const touchX = Math.sign(phase.position.x || 1) * PITCH.touchLines.right;
     const touchZ = clamp(
       phase.position.z + teamDir * (28 + random() * 12),
@@ -263,7 +259,7 @@ export const updatePenalty = (
       phase.isSuccess = false;
     }
 
-    // After kick flight naturally lands/bounces, transition smoothly to kickoff restart
+    // Successful penalty goal restarts with non-scoring team kicking from halfway.
     if (
       phase.elapsed >= 3.8 ||
       (phase.elapsed >= 2.0 && state.ball.position.y <= 0.2)
@@ -278,5 +274,3 @@ export const updatePenalty = (
     }
   }
 };
-
-// Starts a scrum restart at mark awarded to non-offending team

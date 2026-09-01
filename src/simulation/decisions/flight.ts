@@ -18,6 +18,7 @@ const predictedLanding = (state: GameState): Position => {
       Math.sqrt(ball.velocity.y ** 2 + 2 * GRAVITY * ball.position.y)) /
       GRAVITY,
   );
+  // Positive quadratic root gives time until ballistic path next reaches ground level.
   return {
     x: ball.position.x + ball.velocity.x * time,
     z: ball.position.z + ball.velocity.z * time,
@@ -55,6 +56,7 @@ export const computeFlightCommands = (state: GameState, players: Player[]) => {
       .slice(0, isKickoff ? 13 : 4)
       .map((player) => player.id),
   );
+  // Kickoffs mobilise broad chase line; open-play kicks limit chase to nearest four onside players.
 
   const receivingCatchers = new Set(
     players
@@ -66,6 +68,7 @@ export const computeFlightCommands = (state: GameState, players: Player[]) => {
           player.role === ROLES.InsideCentre ||
           player.role === ROLES.OutsideCentre;
         const roleScore = isKickoff && !priorityRole ? 8 : 0;
+        // Eight-metre penalty steers restart catches toward forwards and centres without hard role exclusion.
         return { player, score: dist + roleScore };
       })
       .sort((a, b) => a.score - b.score)
@@ -108,6 +111,7 @@ export const computeFlightCommands = (state: GameState, players: Player[]) => {
           PITCH.tryLines.north,
         ),
       };
+      // Fullback stays goal-side of predicted landing to cover missed catch or bounce.
       return command(player, sweepTarget, "kick-sweep", false, "run");
     }
     if (player.team !== kickingTeam && player.role === ROLES.Wing) {

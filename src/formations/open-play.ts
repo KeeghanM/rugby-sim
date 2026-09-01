@@ -45,12 +45,14 @@ export const getOpenPlayTarget = (
   if (player.team === carrier.team) {
     const slot = OPEN_ATTACK_FORMATIONS[attackFormation][slotIdx];
     if (player.role === ROLES.FullBack) {
+      // Attacking fullback trails as turnover and kick cover rather than joining front line.
       return {
         x: clampX(carrier.position.x * 0.35),
         z: clampZ(carrier.position.z - ballDirection * 18),
       };
     }
     if (player.role === ROLES.ScrumHalf) {
+      // Scrum-half tracks close behind carrier to reach next breakdown first.
       return {
         x: clampX(carrier.position.x + (carrier.position.x >= 0 ? -3 : 3)),
         z: clampZ(carrier.position.z - ballDirection * 2.5),
@@ -74,6 +76,7 @@ export const getOpenPlayTarget = (
       player.team === 0 ? PITCH.tryLines.south : PITCH.tryLines.north;
     const maxDepth = Math.max(0, Math.abs(defTryLine - carrier.position.z) - 5);
     const depth = Math.min(variant.fullbackDepth, maxDepth);
+    // Fullback remains goal-side but compresses before own try line to stay in field of play.
     return {
       x: clampX(carrier.position.x * 0.45),
       z: clampZ(carrier.position.z + ballDirection * depth),
@@ -81,6 +84,7 @@ export const getOpenPlayTarget = (
   }
 
   const slotX = DEFENCE_X[slotIdx] ?? 0;
+  // Front line shares offside depth while formation variant controls lateral width.
   return {
     x: clampX(
       slotX * OPEN_DEFENCE_VARIANTS[defenceFormation].width +

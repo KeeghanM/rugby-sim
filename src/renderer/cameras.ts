@@ -44,7 +44,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
 
   scene.activeCamera = broadcastCam;
 
-  // --- DYNAMIC BROADCAST DIRECTOR STATE ---
   let currentShot: DynamicShotType = "broadcast";
   let shotDuration = 0;
   let lastPhaseKind = "";
@@ -126,7 +125,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
     updateZoomDisplay();
   };
 
-  // UI Event Wiring
   const camButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
   );
@@ -192,7 +190,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
         const phaseChanged = phase.kind !== lastPhaseKind;
         lastPhaseKind = phase.kind;
 
-        // --- 0. BALL SCREEN VISIBILITY TRACKER ---
         ballPosVec.set(ballX, ballY, ballZ);
         const engine = scene.getEngine();
         const renderW = engine.getRenderWidth();
@@ -207,6 +204,7 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
             viewport,
           );
 
+          // Exclude outer 4% because a ball near the viewport edge may already be clipped.
           const isBallInView =
             projected.z > 0 &&
             projected.z < 1 &&
@@ -222,11 +220,10 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           }
         }
 
-        // --- 1. DYNAMIC TV DIRECTOR (Main Gantry 90+% of the time, Ref Cam during setup) ---
         let chosenShot: DynamicShotType = "broadcast";
         let lerpRate = 0.06;
 
-        // If ball is out of shot for >1 second, force-cut to wide broadcast angle
+        // Fall back to the wide shot when the ball stays lost for one second.
         const isBallLost = ballOutOfViewTimer >= 1.0;
 
         const isGoalKickPhase =
@@ -239,19 +236,16 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
 
         if (isBallLost) {
           chosenShot = "broadcast";
-          lerpRate = 0.14; // quickly re-acquire ball
+          lerpRate = 0.14;
         } else if (isGoalKickPhase && phase.stage === "inFlight") {
-          // Goal line view during goal kick in flight
           chosenShot = "goalLine";
         } else if (isSetPieceSetup) {
-          // Ref bodycam occasionally during set-piece setup only
           if (phaseChanged) {
             currentShot = Math.random() < 0.35 ? "refCam" : "broadcast";
             shotDuration = 0;
           }
           chosenShot = currentShot;
         } else {
-          // 90+% Main Broadcast Gantry Cam
           chosenShot = "broadcast";
         }
 
@@ -260,15 +254,13 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           shotDuration = 0;
         }
 
-        // --- 2. SIGHTLINES & POSITIONING ---
         if (currentShot === "refCam") {
-          // Direct first-person POV through referee's eyes (height ~1.76m)
+          // Match camera height to the referee's eye line.
           const refPos = game.referee.position;
           desiredCamPos.set(refPos.x, 1.76, refPos.z);
           desiredTarget.set(ballX, Math.max(0.6, ballY), ballZ);
-          lerpRate = 0.16; // reactive first-person tracking
+          lerpRate = 0.16;
         } else if (currentShot === "goalLine") {
-          // Corner gantry camera on broadcast side
           const targetTryLine =
             attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
           const endPosZ = targetTryLine + attackDir * 15.0;
@@ -280,7 +272,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           desiredTarget.set(0, 2.0, targetTryLine - attackDir * 6.0);
           lerpRate = 0.06;
         } else {
-          // Default: Main TV Broadcast Gantry (wide elevated perspective under roof canopy)
           const gantryX = 58.0 / Math.sqrt(zoom);
           const gantryY = Math.min(23.5, 22.5 / Math.sqrt(zoom));
           desiredCamPos.set(gantryX, gantryY, ballZ * 0.78);
@@ -288,7 +279,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           lerpRate = 0.06;
         }
 
-        // Smooth camera gliding interpolation
         broadcastCam.position = Vector3.Lerp(
           broadcastCam.position,
           desiredCamPos,
@@ -305,6 +295,7 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           moveHoldTime = Math.max(0, moveHoldTime - 0.12);
         }
 
+        // Ramp base to maximum speed over 2.5 seconds; exponent keeps short taps precise.
         const ramp = Math.pow(moveHoldTime / 2.5, 1.4);
         const shiftBoost = heldKeys.has("shift") ? 1.8 : 1.0;
         const currentSpeed =

@@ -29,7 +29,6 @@ const updateAttackFlow = (state: GameState) => {
   if (carrier.position.x >= 25) state.attackFlow[carrier.team] = -1;
 };
 
-// Advances defensive shape, computes commands, and applies one simulation tick.
 export const updateGame = (
   state: GameState,
   deltaSeconds: number,
@@ -43,6 +42,7 @@ export const updateGame = (
 export const createSeededRandom = (seed: number): Random => {
   let value = seed >>> 0;
   return () => {
+    // Mulberry32 mixing maps each 32-bit state to a reproducible uniform fraction in [0, 1).
     value += 0x6d2b79f5;
     let result = value;
     result = Math.imul(result ^ (result >>> 15), result | 1);
@@ -98,6 +98,7 @@ export type MonteCarloSummary = {
 };
 
 const ratio = (won: number, lost: number) =>
+  // Empty samples report zero rather than producing NaN in Monte Carlo summaries.
   won + lost === 0 ? 0 : won / (won + lost);
 
 export const simulateMonteCarlo = (

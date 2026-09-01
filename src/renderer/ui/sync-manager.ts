@@ -114,7 +114,7 @@ export const syncManager = (
   const teamDef: any = game.teams[selectedManagerTeam];
   const teamColor = teamDef.color;
 
-  // Sync team tab labels and swatches
+  // Team selector labels and colors.
   if (tabTeam0) {
     const swatch = tabTeam0.querySelector(
       ".team-tab-swatch",
@@ -154,6 +154,7 @@ export const syncManager = (
   );
 
   if (selectedManagerView === "stats") {
+    // Squad condition table.
     if (managerRosterThead) {
       managerRosterThead.innerHTML = `
         <tr>
@@ -292,7 +293,6 @@ export const syncManager = (
       <tr class="section-divider-row"><td colspan="10">Finishing Reserves</td></tr>
       ${benchSubs.map((s: any) => renderStatRow(s, true)).join("")}`;
   } else {
-    // --- SQUAD & CONDITION VIEW ---
     if (managerRosterThead) {
       managerRosterThead.innerHTML = `
         <tr>

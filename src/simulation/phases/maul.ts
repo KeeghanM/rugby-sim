@@ -31,6 +31,7 @@ import {
 import type { Random } from "../types.ts";
 
 export const startMaul = (state: GameState, carrier: Player) => {
+  // Five nearest forwards per side approximate bound support around ball carrier under Law 16.
   const nearestForwards = (team: Team) =>
     state.players
       .filter(
@@ -81,6 +82,7 @@ export const updateMaul = (
       defenceScore > attackScore
         ? otherTeam(phase.attackingTeam)
         : phase.attackingTeam;
+    // Throwing side receives small formation advantage before random contest variation.
     phase.driveSpeed =
       phase.winningTeam === phase.attackingTeam
         ? clamp(
@@ -94,6 +96,7 @@ export const updateMaul = (
 
     const losingTeam = otherTeam(phase.winningTeam);
     const collapseChance = 0.015 + (1 - teamDecision(state, losingTeam)) * 0.04;
+    // Law 16 forbids intentional collapse; poorer collective decisions increase infringement risk.
     if (random() < collapseChance) {
       const offender = state.players.find(
         (player) =>
@@ -135,6 +138,7 @@ export const updateMaul = (
       }
     }
     if (phase.elapsed < 3.5) return;
+    // Fixed drive window approximates use-it release without modelling referee calls.
     phase.stage = "release";
     phase.elapsed = 0;
     return;
@@ -142,6 +146,7 @@ export const updateMaul = (
 
   if (phase.elapsed < 0.6) return;
   const winningTeam = phase.winningTeam ?? phase.attackingTeam;
+  // Winning side prefers scrum-half to release ball; nearest teammate prevents stalled maul.
   const receiver =
     state.players.find(
       (player) =>
@@ -168,5 +173,3 @@ export const updateMaul = (
   }
   state.phase = { kind: "openPlay" };
 };
-
-// Awards try and transitions to visible conversion kick attempt.

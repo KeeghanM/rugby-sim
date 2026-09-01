@@ -19,6 +19,7 @@ export const getScrumTarget = (
   const isFeeding = player.team === feedingTeam;
   const teamDir = attackDirection(player.team);
   const openSideDir = mark.x < 0 ? 1 : -1;
+  // Open side is wider distance from mark to touchline.
   const customPosition = custom?.[getSlotIndex(player)];
   if (customPosition) {
     return {
@@ -28,6 +29,7 @@ export const getScrumTarget = (
   }
 
   if (player.role === ROLES.LooseHead) {
+    // Front row, locks, flankers, and number eight use compact 3-4-1 binding geometry.
     return { x: mark.x - 1.0, z: clampZ(mark.z - teamDir * 0.6) };
   }
   if (player.role === ROLES.Hooker) {
@@ -65,6 +67,7 @@ export const getScrumTarget = (
   }
 
   const offsideDist = 8.0;
+  // Eight-metre backline depth exceeds Law 19 five-metre minimum to leave usable attacking space.
 
   if (isFeeding) {
     if (attackFormation === "blindSide") {
@@ -166,6 +169,7 @@ export const getScrumTarget = (
       : defenceFormation === "drift"
         ? 1.4
         : 1.0;
+  // Blitz starts flatter while drift concedes depth for lateral coverage.
   if (player.role === ROLES.FlyHalf)
     return {
       x: clampX(mark.x + openSideDir * 8),

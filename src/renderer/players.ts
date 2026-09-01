@@ -19,6 +19,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
 
 const getLuminance = (hex: string): number => {
   const [r, g, b] = hexToRgb(hex);
+  // Weight RGB by human brightness sensitivity before choosing light or dark details.
   return (r * 299 + g * 587 + b * 114) / 1000;
 };
 
@@ -29,6 +30,7 @@ const colorDistance = (c1: string, c2: string): number => {
   const deltaR = r1 - r2;
   const deltaG = g1 - g2;
   const deltaB = b1 - b2;
+  // Red-mean weighting approximates perceived RGB contrast without color-space conversion.
   return Math.sqrt(
     (2 + rMean / 256) * deltaR * deltaR +
       4 * deltaG * deltaG +
@@ -37,14 +39,14 @@ const colorDistance = (c1: string, c2: string): number => {
 };
 
 const REF_PALETTE = [
-  "#f43f5e", // vivid neon pink
-  "#ec4899", // hot pink
-  "#facc15", // volt yellow
-  "#06b6d4", // electric cyan
-  "#f97316", // bright orange
-  "#a855f7", // vivid purple
-  "#84cc16", // fluorescent lime
-  "#0284c7", // bright electric blue
+  "#f43f5e",
+  "#ec4899",
+  "#facc15",
+  "#06b6d4",
+  "#f97316",
+  "#a855f7",
+  "#84cc16",
+  "#0284c7",
 ];
 
 const getContrastingRefColor = (color0: string, color1: string): string => {
@@ -83,7 +85,6 @@ const HAIR_COLORS = [
   "#292524",
 ];
 
-// Dynamic texture for official rugby match ball (4 panels with grip seams)
 const createRugbyBallTexture = (scene: Scene) => {
   const dTex = new DynamicTexture(
     "rugby-ball-tex",
@@ -93,34 +94,28 @@ const createRugbyBallTexture = (scene: Scene) => {
   );
   const ctx = dTex.getContext() as unknown as CanvasRenderingContext2D;
 
-  // Leather base
   ctx.fillStyle = "#f8fafc";
   ctx.fillRect(0, 0, 512, 256);
 
-  // 4 Gilbert-style chevron panel trim stripes
   const panelW = 512 / 4;
   for (let i = 0; i < 4; i++) {
     const px = i * panelW;
 
-    // Panel border seam
     ctx.strokeStyle = "#64748b";
     ctx.lineWidth = 3;
     ctx.strokeRect(px, 0, panelW, 256);
 
-    // Aerodynamic chevron curve in cyan & navy
     ctx.fillStyle = i % 2 === 0 ? "#0284c7" : "#1e3a8a";
     ctx.beginPath();
     ctx.ellipse(px + panelW / 2, 128, panelW * 0.35, 45, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Central grip pimple texture lines
     ctx.fillStyle = "rgba(0,0,0,0.15)";
     for (let dy = 65; dy <= 185; dy += 24) {
       ctx.fillRect(px + panelW / 2 - 10, dy, 20, 3);
     }
   }
 
-  // Valve dot on panel 0
   ctx.fillStyle = "#0f172a";
   ctx.beginPath();
   ctx.arc(panelW / 2, 128, 6, 0, Math.PI * 2);
@@ -130,7 +125,7 @@ const createRugbyBallTexture = (scene: Scene) => {
   return dTex;
 };
 
-// Creates a 512x512 dynamic texture for player jersey with big bold number on back
+// Atlas maps back to x=0..180, front to 180..360, sides to 360..450, and top/bottom to 450..512.
 const createPlayerTexture = (
   scene: Scene,
   player: Player,
@@ -150,31 +145,24 @@ const createPlayerTexture = (
   const shortsColor = isLightJersey ? "#1e293b" : "#f8fafc";
   const collarColor = isLightJersey ? "#0f172a" : "#ffffff";
 
-  // Individual hair & skin tone
   const seed = (player.number * 7 + player.slotIndex * 13) % 100;
   const hairColor = HAIR_COLORS[seed % HAIR_COLORS.length];
   const skinTone = SKIN_TONES[(seed * 3) % SKIN_TONES.length];
 
-  // Base background
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, 512, 512);
 
-  // === 1. BACK (X: 0 to 180, Y: 0 to 512) ===
-  // Upper back neck / hair trim
   ctx.fillStyle = hairColor;
   ctx.fillRect(0, 0, 180, 20);
   ctx.fillStyle = skinTone;
   ctx.fillRect(35, 20, 110, 18);
 
-  // Jersey body
   ctx.fillStyle = teamColorHex;
   ctx.fillRect(0, 38, 180, 322);
 
-  // Collar band
   ctx.fillStyle = collarColor;
   ctx.fillRect(25, 38, 130, 20);
 
-  // Athletic seams
   ctx.strokeStyle = "rgba(0,0,0,0.18)";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -184,7 +172,6 @@ const createPlayerTexture = (
   ctx.lineTo(145, 360);
   ctx.stroke();
 
-  // Large Bold Player Number on Back
   const numStr = String(player.number);
   ctx.font = "900 150px 'Arial Black', Impact, 'Segoe UI Black', sans-serif";
   ctx.textAlign = "center";
@@ -195,26 +182,20 @@ const createPlayerTexture = (
   ctx.fillStyle = numColor;
   ctx.fillText(numStr, 90, 195);
 
-  // Rugby shorts (back)
   ctx.fillStyle = shortsColor;
   ctx.fillRect(0, 360, 180, 152);
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(0, 360, 180, 12); // waistband
+  ctx.fillRect(0, 360, 180, 12);
 
-  // === 2. FRONT (X: 180 to 360, Y: 0 to 512) ===
-  // Face / neck area
   ctx.fillStyle = skinTone;
   ctx.fillRect(180, 0, 180, 48);
 
-  // Hair trim at top of forehead
   ctx.fillStyle = hairColor;
   ctx.fillRect(180, 0, 180, 14);
 
-  // Jersey body
   ctx.fillStyle = teamColorHex;
   ctx.fillRect(180, 48, 180, 312);
 
-  // Collar V-neck
   ctx.fillStyle = collarColor;
   ctx.beginPath();
   ctx.moveTo(235, 48);
@@ -222,11 +203,9 @@ const createPlayerTexture = (
   ctx.lineTo(305, 48);
   ctx.fill();
 
-  // Front chest band / team stripe
   ctx.fillStyle = isLightJersey ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.24)";
   ctx.fillRect(180, 120, 180, 36);
 
-  // Small chest number / badge
   ctx.font = "bold 38px 'Arial Black', sans-serif";
   ctx.fillStyle = numColor;
   ctx.strokeStyle = numOutline;
@@ -234,58 +213,45 @@ const createPlayerTexture = (
   ctx.strokeText(numStr, 315, 138);
   ctx.fillText(numStr, 315, 138);
 
-  // Rugby shorts (front)
   ctx.fillStyle = shortsColor;
   ctx.fillRect(180, 360, 180, 152);
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(180, 360, 180, 12); // waistband
+  ctx.fillRect(180, 360, 180, 12);
 
-  // === 3. SIDES (X: 360 to 450, Y: 0 to 512) ===
-  // Hair side / ear
   ctx.fillStyle = hairColor;
   ctx.fillRect(360, 0, 90, 20);
   ctx.fillStyle = skinTone;
   ctx.fillRect(360, 20, 90, 24);
 
-  // Jersey sleeve
   ctx.fillStyle = teamColorHex;
   ctx.fillRect(360, 44, 90, 160);
-  // Sleeve cuff
   ctx.fillStyle = collarColor;
   ctx.fillRect(360, 192, 90, 12);
 
-  // Skin arms
   ctx.fillStyle = skinTone;
   ctx.fillRect(360, 204, 90, 156);
 
-  // Shorts side
   ctx.fillStyle = shortsColor;
   ctx.fillRect(360, 360, 90, 152);
-  // Shorts side stripe
   ctx.fillStyle = teamColorHex;
   ctx.fillRect(398, 360, 14, 152);
 
-  // === 4. TOP (Head/Hair) & BOTTOM (Boots) (X: 450 to 512, Y: 0 to 512) ===
-  // Top (Head of Hair)
   ctx.fillStyle = hairColor;
   ctx.fillRect(450, 0, 62, 256);
-  // Hair texture highlights
   ctx.fillStyle = "rgba(255,255,255,0.15)";
   ctx.fillRect(455, 30, 52, 10);
   ctx.fillRect(458, 80, 46, 12);
   ctx.fillRect(455, 140, 52, 10);
 
-  // Bottom (Boots & Socks)
   ctx.fillStyle = teamColorHex;
-  ctx.fillRect(450, 256, 62, 120); // socks
+  ctx.fillRect(450, 256, 62, 120);
   ctx.fillStyle = "#090d16";
-  ctx.fillRect(450, 376, 62, 136); // boots
+  ctx.fillRect(450, 376, 62, 136);
 
   dTex.update(true);
   return dTex;
 };
 
-// Dynamic texture for referee with custom label on back
 const createRefereeTexture = (
   scene: Scene,
   refColorHex: string,
@@ -306,16 +272,15 @@ const createRefereeTexture = (
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, 512, 512);
 
-  // === 1. BACK (X: 0..180) ===
-  ctx.fillStyle = "#18181b"; // hair
+  ctx.fillStyle = "#18181b";
   ctx.fillRect(0, 0, 180, 20);
-  ctx.fillStyle = "#fed7aa"; // neck
+  ctx.fillStyle = "#fed7aa";
   ctx.fillRect(35, 20, 110, 18);
 
   ctx.fillStyle = refColorHex;
   ctx.fillRect(0, 38, 180, 322);
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(25, 38, 130, 20); // collar
+  ctx.fillRect(25, 38, 130, 20);
 
   ctx.font = "900 110px 'Arial Black', Impact, sans-serif";
   ctx.textAlign = "center";
@@ -326,31 +291,26 @@ const createRefereeTexture = (
   ctx.fillStyle = textColor;
   ctx.fillText(label, 90, 195);
 
-  // Ref shorts (back)
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 360, 180, 152);
 
-  // === 2. FRONT (X: 180..360) ===
-  ctx.fillStyle = "#fed7aa"; // face/neck
+  ctx.fillStyle = "#fed7aa";
   ctx.fillRect(180, 0, 180, 48);
-  ctx.fillStyle = "#18181b"; // hair
+  ctx.fillStyle = "#18181b";
   ctx.fillRect(180, 0, 180, 14);
 
   ctx.fillStyle = refColorHex;
   ctx.fillRect(180, 48, 180, 312);
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(205, 48, 130, 20); // collar
+  ctx.fillRect(205, 48, 130, 20);
 
-  // Chest pockets
   ctx.fillStyle = "rgba(0,0,0,0.2)";
   ctx.fillRect(200, 110, 50, 50);
   ctx.fillRect(290, 110, 50, 50);
 
-  // Ref shorts (front)
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(180, 360, 180, 152);
 
-  // === 3. SIDES (X: 360..450) ===
   ctx.fillStyle = "#18181b";
   ctx.fillRect(360, 0, 90, 20);
   ctx.fillStyle = "#fed7aa";
@@ -364,10 +324,9 @@ const createRefereeTexture = (
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(360, 360, 90, 152);
 
-  // === 4. TOP & BOTTOM (X: 450..512) ===
-  ctx.fillStyle = "#18181b"; // full hair
+  ctx.fillStyle = "#18181b";
   ctx.fillRect(450, 0, 62, 256);
-  ctx.fillStyle = "#0f172a"; // boots
+  ctx.fillStyle = "#0f172a";
   ctx.fillRect(450, 256, 62, 256);
 
   dTex.update(true);
@@ -375,30 +334,17 @@ const createRefereeTexture = (
 };
 
 export const createPlayerViews = (scene: Scene, state: GameState) => {
-  // Texture strips:
-  // Strip 1: Back (0.0 to 0.35)
-  // Strip 2: Front (0.35 to 0.70)
-  // Strip 3: Sides (0.70 to 0.88)
-  // Strip 4: Top/Bottom (0.88 to 1.0)
-  //
-  // BabylonJS Box faceUV order:
-  // face 0: front (+Z) -> Strip 2 (Front) - v: 1.0 -> 0.0 (right-side up)
-  // face 1: back (-Z) -> Strip 1 (Back with number) - v: 0.0 -> 1.0 (right-side up)
-  // face 2: right (+X) -> Strip 3 (Sides) - v: 1.0 -> 0.0
-  // face 3: left (-X) -> Strip 3 (Sides) - v: 1.0 -> 0.0
-  // face 4: top (+Y) -> Strip 4 (Top/Head) - v: 0.5 -> 1.0 (shows hair)
-  // face 5: bottom (-Y) -> Strip 4 (Bottom/Boots) - v: 0.0 -> 0.5
+  // Reversed UV ranges keep atlas artwork upright on Babylon box faces.
   const playerFaceUV = [
-    new Vector4(0.7, 1.0, 0.35, 0.0), // face 0: front (+Z)
-    new Vector4(0.0, 0.0, 0.35, 1.0), // face 1: back (-Z)
-    new Vector4(0.7, 1.0, 0.88, 0.0), // face 2: right (+X)
-    new Vector4(0.88, 1.0, 0.7, 0.0), // face 3: left (-X)
-    new Vector4(0.88, 0.5, 1.0, 1.0), // face 4: top (+Y)
-    new Vector4(0.88, 0.0, 1.0, 0.5), // face 5: bottom (-Y)
+    new Vector4(0.7, 1.0, 0.35, 0.0),
+    new Vector4(0.0, 0.0, 0.35, 1.0),
+    new Vector4(0.7, 1.0, 0.88, 0.0),
+    new Vector4(0.88, 1.0, 0.7, 0.0),
+    new Vector4(0.88, 0.5, 1.0, 1.0),
+    new Vector4(0.88, 0.0, 1.0, 0.5),
   ];
   const views = new Map(
     state.players.map((player) => {
-      // Rugby player rectangular body
       const width = Math.min(
         1.1,
         Math.max(0.8, 0.78 + (player.weight - 80) * 0.005),
@@ -421,7 +367,6 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
       material.specularPower = 16;
       mesh.material = material;
 
-      // Initial rotation: Team 0 faces +Z (0), Team 1 faces -Z (Math.PI)
       mesh.rotation.y = player.team === 0 ? 0 : Math.PI;
 
       return [player.id, { mesh, material }] as const;
@@ -443,7 +388,6 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
   refMat.specularColor = new Color3(0.08, 0.08, 0.08);
   refMesh.material = refMat;
 
-  // 2x Assistant Referees (Touch Judges)
   const arMat = new StandardMaterial("ar-material", scene);
   arMat.diffuseTexture = createRefereeTexture(scene, refColorHex, "AR");
   arMat.specularColor = new Color3(0.08, 0.08, 0.08);
@@ -540,12 +484,11 @@ export const syncPlayers = (
 
     const lineoutPhase = game.phase.kind === "lineout" ? game.phase : null;
 
-    // Player yaw rotation based on phase context, role, velocity, or team attack direction
     const speed = Math.hypot(player.velocity.x, player.velocity.z);
     let targetYaw = player.team === 0 ? 0 : Math.PI;
 
     if (maulPhase && isMaulBound) {
-      // Maul participants must always face head-on into the contest
+      // Bound maul players face into opposing packs rather than movement direction.
       targetYaw =
         player.team === maulPhase.attackingTeam
           ? attackDirection(maulPhase.attackingTeam) === 1
@@ -555,7 +498,7 @@ export const syncPlayers = (
             ? Math.PI
             : 0;
     } else if (ruckPhase && isRuckCleaner) {
-      // Ruck cleaners always face toward the opposing side across the gate
+      // Ruck cleaners face across the gate rather than following residual velocity.
       targetYaw =
         player.team === ruckPhase.attackingTeam
           ? attackDirection(ruckPhase.attackingTeam) === 1
@@ -569,20 +512,19 @@ export const syncPlayers = (
       player.team === lineoutPhase.throwingTeam &&
       player.role === ROLES.Hooker
     ) {
-      // Throwing hooker faces into the pitch across the touchline
+      // Throwing hooker faces across the touchline into the pitch.
       targetYaw = player.position.x < 0 ? Math.PI / 2 : -Math.PI / 2;
     } else if (
       lineoutPhase &&
       player.team !== lineoutPhase.throwingTeam &&
       player.role === ROLES.Hooker
     ) {
-      // Defending hooker faces towards the throwing hooker
+      // Defending hooker faces the thrower across the touchline.
       targetYaw = player.position.x < 0 ? -Math.PI / 2 : Math.PI / 2;
     } else if (speed > 0.2) {
       targetYaw = Math.atan2(player.velocity.x, player.velocity.z);
     }
 
-    // Smooth yaw rotation
     let diff = targetYaw - view.mesh.rotation.y;
     while (diff < -Math.PI) diff += Math.PI * 2;
     while (diff > Math.PI) diff -= Math.PI * 2;
@@ -592,17 +534,14 @@ export const syncPlayers = (
       view.mesh.rotation.x = Math.PI / 2;
       view.mesh.position.set(player.position.x, 0.25, player.position.z);
     } else if (isRuckCleaner || isMaulBound) {
-      // Forward lean into ruck (positive pitch angle tilts forward in local space for both teams)
+      // Positive local pitch leans both teams into the contest despite opposite yaw.
       view.mesh.rotation.x = 0.38;
       view.mesh.position.set(player.position.x, 0.85, player.position.z);
     } else if (player.ruckRecoverySeconds > 0) {
-      // Disengaging / getting back up in reverse order after ruck
       if (player.ruckRecoverySeconds > 1.8) {
-        // Still prone on ground
         view.mesh.rotation.x = Math.PI / 2;
         view.mesh.position.set(player.position.x, 0.25, player.position.z);
       } else {
-        // Pushing up / rising
         const progress = player.ruckRecoverySeconds / 1.8;
         view.mesh.rotation.x = 0.38 * progress;
         view.mesh.position.set(
@@ -679,7 +618,7 @@ export const syncPlayers = (
     }
   }
 
-  // Referee position and facing (hidden during first-person Ref-Cam POV)
+  // Hide referee mesh so first-person camera does not intersect it.
   refMesh.setEnabled(!isRefCam);
   refMesh.position.set(game.referee.position.x, 0.95, game.referee.position.z);
   const refSpeed = Math.hypot(game.referee.velocity.x, game.referee.velocity.z);
@@ -688,11 +627,11 @@ export const syncPlayers = (
   if (refSpeed > 0.2) {
     refTargetYaw = Math.atan2(game.referee.velocity.x, game.referee.velocity.z);
   } else if (game.phase.kind === "lineout") {
-    // Referee at tail of lineout faces toward touchline looking down tunnel
+    // At lineouts, referee faces down the throwing tunnel.
     const touchSide = game.phase.position.x < 0 ? -1 : 1;
     refTargetYaw = touchSide < 0 ? -Math.PI / 2 : Math.PI / 2;
   } else if (game.phase.kind === "scrum") {
-    // Referee beside scrum faces toward the tunnel
+    // At scrums, referee faces across the tunnel from the nearest side.
     refTargetYaw =
       game.referee.position.x > game.phase.position.x
         ? -Math.PI / 2
@@ -704,7 +643,6 @@ export const syncPlayers = (
   while (rDiff > Math.PI) rDiff -= Math.PI * 2;
   refMesh.rotation.y += rDiff * 0.25;
 
-  // Assistant Referees position and facing
   if (game.referee.assistants && ar1Mesh && ar2Mesh) {
     const ar1 = game.referee.assistants[0];
     const ar2 = game.referee.assistants[1];
@@ -712,7 +650,7 @@ export const syncPlayers = (
     ar2Mesh.position.set(ar2.position.x, 0.95, ar2.position.z);
 
     const ar1Speed = Math.hypot(ar1.velocity.x, ar1.velocity.z);
-    let ar1TargetYaw = Math.PI / 2; // facing East into pitch
+    let ar1TargetYaw = Math.PI / 2;
     if (ar1Speed > 0.2)
       ar1TargetYaw = Math.atan2(ar1.velocity.x, ar1.velocity.z);
     let rDiff1 = ar1TargetYaw - ar1Mesh.rotation.y;
@@ -721,7 +659,7 @@ export const syncPlayers = (
     ar1Mesh.rotation.y += rDiff1 * 0.25;
 
     const ar2Speed = Math.hypot(ar2.velocity.x, ar2.velocity.z);
-    let ar2TargetYaw = -Math.PI / 2; // facing West into pitch
+    let ar2TargetYaw = -Math.PI / 2;
     if (ar2Speed > 0.2)
       ar2TargetYaw = Math.atan2(ar2.velocity.x, ar2.velocity.z);
     let rDiff2 = ar2TargetYaw - ar2Mesh.rotation.y;

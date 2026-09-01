@@ -107,7 +107,7 @@ export const createUI = (state: GameState) => {
     });
   }
 
-  // Keyboard shortcuts: Space for Pause, D for Debug overlay
+  // Match controls remain available when pointer focus is on the 3D view.
   window.addEventListener("keydown", (e) => {
     if (
       document.activeElement?.tagName === "INPUT" ||

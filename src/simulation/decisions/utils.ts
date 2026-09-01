@@ -44,6 +44,7 @@ export const hasBrokenLine = (
   const defendingTeam = otherTeam(carrier.team);
   const defLineZ = state.defensiveLineZ[defendingTeam];
   const pastLineDistance = (carrier.position.z - defLineZ) * direction;
+  // Half-metre tolerance avoids declaring a break from small line-positioning jitter.
   if (pastLineDistance > 0.5) return true;
   const frontlineAhead = players.filter(
     (p) =>
@@ -89,6 +90,7 @@ export const selectSupportRunners = (
           player.role === ROLES.NumberEight;
       return {
         player,
+        // Lower score favours fast support after breaks and nearby, onside role fits otherwise.
         priority:
           (lineBroken ? -player.speed * 4 : preferred ? 0 : 20) +
           Math.max(0, (player.position.z - carrier.position.z) * direction) *
@@ -137,6 +139,7 @@ export const choosePassTarget = (
       ),
     }))
     .sort(
+      // Safe shallow passes lead; width, defensive space, and range break ties.
       (a, b) =>
         a.depth - b.depth ||
         a.lateralGap - b.lateralGap ||
@@ -161,6 +164,7 @@ export const clearanceTarget = (player: Player, random: Random): Position => {
     ? Math.min(maxSafeDistance, 36 + kickSkill * 18 + (random() - 0.5) * 8)
     : Math.min(maxSafeDistance, 24 + kickSkill * 10 + (random() - 0.5) * 6);
   const isMiskickOvercooked = random() < (1 - kickSkill) * 0.04;
+  // Rare low-skill overkick creates dead-ball risk instead of making every clearance conservative.
   const finalDistance = isMiskickOvercooked
     ? desiredDistance + 24
     : desiredDistance;

@@ -18,6 +18,7 @@ import { command } from "./utils.ts";
 export const getKickoffCommands = (state: GameState, players: Player[]) => {
   const phase = state.phase;
   if (phase.kind !== "kickoff" || phase.stage === "inFlight") return null;
+  // Ready players hold formation so kicking side does not cross restart line before kick.
   return players.map((player) =>
     command(
       player,
@@ -41,6 +42,7 @@ export const getKickoffCommands = (state: GameState, players: Player[]) => {
 export const getLineoutCommands = (state: GameState, players: Player[]) => {
   const phase = state.phase;
   if (phase.kind !== "lineout" || phase.stage === "inFlight") return null;
+  // Formation targets preserve Law 18 tunnel and non-participant offside distances.
   return players.map((player) => {
     const formation = state.formations[player.team];
     const target = getLineoutTarget(
@@ -78,6 +80,7 @@ export const getScrumCommands = (state: GameState, players: Player[]) => {
     );
     const gap = distance(player.position, target);
     const effort =
+      // Set and channeling packs remain bound while contest resolves in phase logic.
       phase.stage === "set" || phase.stage === "channeling"
         ? "stand"
         : gap > 8
@@ -107,6 +110,7 @@ export const getMaulCommands = (state: GameState, players: Player[]) => {
       return command(
         player,
         {
+          // Opposed half-metre depth keeps both bound groups around carrier without swapping sides.
           x: clamp(
             phase.position.x + (rank - (group.length - 1) / 2) * 0.7,
             -33,
@@ -173,6 +177,7 @@ export const getConversionCommands = (state: GameState, players: Player[]) => {
       );
     }
     const target = {
+      // Opponents wait behind goal line until conversion kick begins under Law 8.
       x: slotOffset * 4,
       z: clamp(defendingTryLine + teamDir * 2.5, -58, 58),
     };
@@ -210,6 +215,7 @@ export const getPenaltyCommands = (state: GameState, players: Player[]) => {
         "run",
       );
     }
+    // Law 20 requires offending side to retreat ten metres from penalty mark.
     return command(
       player,
       {
@@ -229,7 +235,7 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
   const attackers = new Set(phase.attackers);
   const defenders = new Set(phase.defenders);
   return players.map((player) => {
-    // Tackled carrier presents ball on ground
+    // Law 14 requires tackled carrier to release or present ball immediately.
     if (player.id === phase.tackledPlayerId) {
       const frozen = command(
         player,
@@ -242,7 +248,7 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
       return frozen;
     }
 
-    // Law 14: Tackler rolls away from the ball and retreats behind defensive offside line
+    // Tackler rolls clear under Law 14, then retreats goal-side of resulting ruck offside line.
     if (player.id === phase.tacklerId) {
       const defDir = attackDirection(player.team);
       const offsideZ = phase.position.z + defDir * 1.5;

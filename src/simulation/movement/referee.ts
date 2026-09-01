@@ -3,7 +3,7 @@ import { clamp, distance } from "../math.ts";
 import { carryBall } from "../ball.ts";
 
 export const updateReferee = (state: GameState, deltaSeconds: number) => {
-  // Ensure assistants array exists
+  // Legacy or partial states may omit assistant referees, so movement initialises safe defaults.
   if (!state.referee.assistants) {
     state.referee.assistants = [
       { position: { x: -36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "west" },
@@ -13,24 +13,20 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
 
   const phase = state.phase;
 
-  // --- 1. KICKOFF BALL DELIVERY BY REFEREE ---
-  // If in kickoff phase and the fly-half (10) doesn't have the ball yet,
-  // the referee spawns a fresh ball (never running off into the stands),
-  // jogs to the 10, and hands it over at the kickoff mark.
+  // Referee carries replacement ball to fly-half so dead-ball transitions remain visible.
   if (phase.kind === "kickoff" && phase.stage === "forming") {
     const kicker = state.players.find(
       (p) => p.team === phase.kickingTeam && p.role === ROLES.FlyHalf,
     );
 
     if (kicker && state.ball.carrierId !== kicker.id) {
-      // Referee spawns / carries the new match ball
       state.ball.carrierId = "referee";
       state.ball.flight = null;
       state.ball.position.x = state.referee.position.x;
       state.ball.position.y = 1.1;
       state.ball.position.z = state.referee.position.z;
 
-      // Move towards the kicker within pitch bounds
+      // Bounded target prevents official following malformed formation beyond pitch.
       const targetX = clamp(kicker.position.x, -25, 25);
       const targetZ = clamp(kicker.position.z, -48, 48);
       const dx = targetX - state.referee.position.x;
@@ -38,7 +34,6 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
       const dist = Math.hypot(dx, dz);
 
       if (dist <= 1.5) {
-        // Hand ball to kicker!
         carryBall(state, kicker);
         state.referee.velocity = { x: 0, z: 0 };
       } else {
@@ -55,11 +50,9 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
     }
   }
 
-  // --- 2. SET PIECE MARKS: Referee is first to the mark ---
   if (phase.kind === "lineout") {
     const touchSide = phase.position.x < 0 ? -1 : 1;
-    // Referee stands at the TAIL / END of the lineout line (3m past the last jumper)
-    // looking straight down the tunnel towards the hooker on the touchline
+    // Tail position gives referee sightline through lineout tunnel toward thrower.
     const targetX = touchSide * 15.0;
     const targetZ = phase.position.z;
     const dx = targetX - state.referee.position.x;
@@ -81,7 +74,7 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
   }
 
   if (phase.kind === "scrum") {
-    // Referee sprints directly to the scrum tunnel to manage engagement
+    // Tunnel-side position gives referee view of feed and front-row engagement.
     const targetX = clamp(phase.position.x + 2.2, -26, 26);
     const targetZ = phase.position.z;
     const dx = targetX - state.referee.position.x;
@@ -103,7 +96,7 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
   }
 
   if (phase.kind === "penalty" && phase.stage === "decision") {
-    // Referee stands right at the penalty mark
+    // Penalty-mark position makes award location legible before choice is executed.
     const targetX = clamp(phase.position.x, -26, 26);
     const targetZ = phase.position.z;
     const dx = targetX - state.referee.position.x;
@@ -124,7 +117,7 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
     return;
   }
 
-  // --- 3. STANDARD MATCH REFEREE POSITIONING ---
+  // Open-play trail line stays behind ball and opposite nearest touch side for broad sightline.
   const ballPos = state.ball.carrierId
     ? (state.players.find((p) => p.id === state.ball.carrierId)?.position ??
       state.ball.position)
@@ -159,7 +152,6 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
     state.referee.velocity = { x: 0, z: 0 };
   }
 
-  // --- 3. ASSISTANT REFEREES (TOUCH JUDGES) ---
   updateAssistantReferees(state, deltaSeconds);
 };
 
@@ -181,6 +173,7 @@ const updateAssistantReferees = (state: GameState, deltaSeconds: number) => {
     );
 
     if (isGoalKick) {
+      // Assistants move behind posts to judge uprights and crossbar under Law 6.
       const kickingTeam =
         phase.kind === "conversion" ? phase.kickingTeam : phase.awardedTeam;
       const targetTryLine =

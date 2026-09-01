@@ -14,7 +14,7 @@ export const syncUI = (
   selectedManagerTeam: 0 | 1,
   selectedManagerView: "roster" | "stats",
 ) => {
-  // Scoreboard & TV sync (kept inline for brevity, ~60 lines)
+  // Main scoreboard and TV broadcast scoreboard.
   const {
     scoreboard,
     tvTeam0,
@@ -111,7 +111,7 @@ export const syncUI = (
   if (tvClock) tvClock.textContent = `${mins}:${secs}`;
   if (tvHalf) tvHalf.textContent = shortHalf;
 
-  // Phase and Gain metrics only show during open play / rucks / mauls
+  // Phase and gain metrics apply only to live contest phases.
   const isOpenPlayOrRuck =
     p.kind === "openPlay" || p.kind === "ruck" || p.kind === "maul";
 
