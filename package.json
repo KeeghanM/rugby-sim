@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "check:contracts": "node src/simulation/contracts.check.ts",
     "monte-carlo": "node src/monte-carlo.ts",
     "preview": "vite preview",
     "qa": "tsc --noEmit && prettier . --check"

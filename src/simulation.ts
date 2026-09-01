@@ -1,18 +1,29 @@
-import type { GameState, MatchConfig, Team } from "./domain.ts";
+import type { GameState, MatchInput, Team } from "./domain.ts";
 import { createMatchConfig, setStats, setTactics } from "./teams/index.ts";
 import { computeCommands } from "./simulation/decisions/index.ts";
-import { createGame } from "./simulation/create-game.ts";
+import { createGame, createMatchInput } from "./simulation/create-game.ts";
+import { createMatchResult } from "./simulation/match-result.ts";
 import {
   advanceDefensiveLine,
   applyCommands,
 } from "./simulation/movement/index.ts";
 import type { Random } from "./simulation/types.ts";
 
-export { createGame } from "./simulation/create-game.ts";
+export { createGame, createMatchInput } from "./simulation/create-game.ts";
+export {
+  createMatchResult,
+  SIMULATION_VERSION,
+} from "./simulation/match-result.ts";
 export { computeCommands } from "./simulation/decisions/index.ts";
 export { applyCommands } from "./simulation/movement/index.ts";
 export { createMatchConfig, setStats, setTactics } from "./teams/index.ts";
-export type { MatchConfig, TeamDefinition, TeamMatchStats } from "./domain.ts";
+export type {
+  MatchConfig,
+  MatchInput,
+  MatchResult,
+  TeamDefinition,
+  TeamMatchStats,
+} from "./domain.ts";
 export type { TeamStatsInput, TeamTacticsInput } from "./teams/index.ts";
 export type { PlayerCommand } from "./simulation/types.ts";
 
@@ -52,14 +63,14 @@ export const createSeededRandom = (seed: number): Random => {
 };
 
 export type SimulateMatchOptions = {
-  teams?: MatchConfig;
+  input?: MatchInput;
   seed?: number;
   stepSeconds?: number;
   maxTicks?: number;
 };
 
 export const simulateMatch = ({
-  teams = createMatchConfig(),
+  input = createMatchInput(),
   seed = Date.now(),
   stepSeconds = 0.05,
   maxTicks = 250_000,
@@ -71,7 +82,7 @@ export const simulateMatch = ({
     throw new RangeError("maxTicks must be a positive finite number");
   }
   const random = createSeededRandom(seed);
-  const state = createGame(teams, random);
+  const state = createGame(input, random);
   let ticks = 0;
   while (state.half !== "fullTime" && ticks < maxTicks) {
     updateGame(state, stepSeconds, random);
@@ -80,7 +91,7 @@ export const simulateMatch = ({
   if (state.half !== "fullTime") {
     throw new Error(`Match failed to finish after ${maxTicks} ticks`);
   }
-  return state;
+  return createMatchResult(state, seed);
 };
 
 export type MonteCarloSummary = {
@@ -139,20 +150,17 @@ export const simulateMonteCarlo = (
   let draws = 0;
 
   for (let index = 0; index < count; index += 1) {
-    const state = simulateMatch({
+    const result = simulateMatch({
       ...options,
       seed: (options.seed ?? 1) + index,
     });
-    scores[0] += state.scores[0];
-    scores[1] += state.scores[1];
-    if (state.scores[0] === state.scores[1]) draws += 1;
-    else wins[state.scores[0] > state.scores[1] ? 0 : 1] += 1;
+    scores[0] += result.score[0];
+    scores[1] += result.score[1];
+    if (result.score[0] === result.score[1]) draws += 1;
+    else wins[result.score[0] > result.score[1] ? 0 : 1] += 1;
 
     for (const team of [0, 1] as const) {
-      const players = [
-        ...state.players.filter((player) => player.team === team),
-        ...state.substitutes.filter((player) => player.team === team),
-      ];
+      const players = result.players.filter((player) => player.team === team);
       tries[team] += players.reduce(
         (total, player) => total + player.stats.triesScored,
         0,
@@ -169,7 +177,7 @@ export const simulateMonteCarlo = (
         (total, player) => total + player.stats.tacklesMissed,
         0,
       );
-      const teamStats = state.teamStats[team];
+      const teamStats = result.teamStats[team];
       for (const contest of Object.keys(
         contests,
       ) as (keyof typeof contests)[]) {

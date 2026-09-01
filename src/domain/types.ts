@@ -64,15 +64,22 @@ export type TeamDefinition = {
         speedMultiplier?: number;
         weightMultiplier?: number;
         skills?: Partial<PlayerSkills>;
-        speedDelta?: number;
-        weightDelta?: number;
-        skillsDelta?: Partial<Record<keyof PlayerSkills, number>>;
       }
     >
   >;
 };
 
 export type MatchConfig = Record<Team, TeamDefinition>;
+
+export type MatchTeamEntrants = {
+  starters: readonly string[];
+  substitutes: readonly string[];
+};
+
+export type MatchInput = {
+  teams: MatchConfig;
+  entrants: Record<Team, MatchTeamEntrants>;
+};
 
 export type TeamMatchStats = {
   rucksWon: number;
@@ -101,6 +108,8 @@ export type PendingBallAction =
 
 export type Player = {
   id: string;
+  playerId: string;
+  started: boolean;
   team: Team;
   number: number;
   slotIndex: number;
@@ -253,6 +262,8 @@ export type ActiveShapePositions = Partial<
 
 export type Substitute = {
   id: string;
+  playerId: string;
+  started: boolean;
   team: Team;
   number: number;
   role: Role;
@@ -287,6 +298,23 @@ export type GameState = {
   gainLineZ: number;
   possessionOriginZ: number;
   distanceGained: number;
+  teamStats: [TeamMatchStats, TeamMatchStats];
+};
+
+export type MatchPlayerResult = {
+  playerId: string;
+  team: Team;
+  number: number;
+  role: Role;
+  started: boolean;
+  stats: PlayerStats;
+};
+
+export type MatchResult = {
+  simulationVersion: number;
+  seed: number;
+  score: [number, number];
+  players: MatchPlayerResult[];
   teamStats: [TeamMatchStats, TeamMatchStats];
 };
 

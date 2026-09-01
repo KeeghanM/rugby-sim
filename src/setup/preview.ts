@@ -10,7 +10,7 @@ import {
   getOpenPlayTarget,
   getScrumTarget,
 } from "../formations/index.ts";
-import { createGame } from "../simulation/create-game.ts";
+import { createGame, createMatchInput } from "../simulation/create-game.ts";
 import { shapeContexts } from "./types.ts";
 import type { TacticalShape } from "../domain.ts";
 
@@ -69,7 +69,7 @@ export const previewPositions = (
   const custom = teams[selectedTeam].customFormations[shapeContext];
   if (custom) return custom.map((position) => ({ ...position }));
 
-  const game = createGame(teams, () => 0.5);
+  const game = createGame(createMatchInput(teams), () => 0.5);
   const ownPlayers = game.players.filter(
     (player) => player.team === selectedTeam,
   );

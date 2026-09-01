@@ -16,7 +16,6 @@ import {
 import { createGame } from "../simulation/create-game.ts";
 import {
   getPlayerProfile,
-  getRolePhysicals,
   loadPreset,
   setStats,
   setTactics,
@@ -57,65 +56,77 @@ export const createMatchSetup = (
 
   const setPlayerModifier = (key: string, delta: number) => {
     const current = teams[selectedTeam].playerOverrides[selectedPlayer] ?? {};
+    const team = teams[selectedTeam];
+    const slot = ATTACK_FORMATION[selectedPlayer - 1];
     if ((skillKeys as readonly string[]).includes(key)) {
-      const currentSkillsDelta = current.skillsDelta ?? {};
       setStats(teams, selectedTeam, {
         playerOverrides: {
           [selectedPlayer]: {
             ...current,
-            skillsDelta: {
-              ...currentSkillsDelta,
-              [key]: delta,
+            skills: {
+              ...current.skills,
+              [key]: Math.max(
+                0.05,
+                Math.min(
+                  0.99,
+                  team.defaultSkills[key as keyof PlayerSkills] + delta / 100,
+                ),
+              ),
             },
           },
         },
       });
       return;
     }
+    const naturalProfile = getPlayerProfile(
+      selectedTeam,
+      selectedPlayer,
+      slot.role,
+      {
+        ...teams,
+        [selectedTeam]: {
+          ...team,
+          playerOverrides: {
+            ...team.playerOverrides,
+            [selectedPlayer]: {
+              ...current,
+              [key === "speed" ? "speedMultiplier" : "weightMultiplier"]: 1,
+            },
+          },
+        },
+      },
+    );
+    const teamRating =
+      ((team[key === "speed" ? "speedMultiplier" : "weightMultiplier"] - 0.8) /
+        0.4) *
+      100;
+    const desired =
+      key === "speed"
+        ? fromSpeedRating(teamRating + delta)
+        : fromWeightRating(teamRating + delta);
+    const baseline =
+      key === "speed" ? naturalProfile.speed : naturalProfile.weight;
     setStats(teams, selectedTeam, {
       playerOverrides: {
         [selectedPlayer]: {
           ...current,
-          [key === "speed" ? "speedDelta" : "weightDelta"]: delta,
+          [key === "speed" ? "speedMultiplier" : "weightMultiplier"]:
+            desired / baseline,
         },
       },
     });
   };
 
   const setPlayerRating = (key: string, rating: number) => {
-    const slot = ATTACK_FORMATION[selectedPlayer - 1];
-    const profile = getPlayerProfile(
-      selectedTeam,
-      selectedPlayer,
-      slot.role,
-      teams,
-    );
-    const current = teams[selectedTeam].playerOverrides[selectedPlayer] ?? {};
-    if ((skillKeys as readonly string[]).includes(key)) {
-      setStats(teams, selectedTeam, {
-        playerOverrides: {
-          [selectedPlayer]: {
-            ...current,
-            skills: { ...profile.skills, [key]: rating / 100 },
-          },
-        },
-      });
-      return;
-    }
-    const base = getRolePhysicals(slot.role);
-    setStats(teams, selectedTeam, {
-      playerOverrides: {
-        [selectedPlayer]: {
-          ...current,
-          [key === "speed" ? "speedMultiplier" : "weightMultiplier"]:
-            key === "speed"
-              ? fromSpeedRating(rating) /
-                (base.speed * teams[selectedTeam].speedMultiplier)
-              : fromWeightRating(rating) /
-                (base.weight * teams[selectedTeam].weightMultiplier),
-        },
-      },
-    });
+    const team = teams[selectedTeam];
+    const baseline =
+      key === "speed" || key === "weight"
+        ? ((team[key === "speed" ? "speedMultiplier" : "weightMultiplier"] -
+            0.8) /
+            0.4) *
+          100
+        : team.defaultSkills[key as keyof PlayerSkills] * 100;
+    setPlayerModifier(key, rating - baseline);
   };
 
   const setTeamRating = (key: string, rating: number) => {

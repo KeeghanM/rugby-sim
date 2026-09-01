@@ -39,12 +39,36 @@ export const updateSubstitutions = (state: GameState) => {
       if (!matchingSub) continue;
 
       const oldNum = player.number;
+      const outgoing = {
+        playerId: player.playerId,
+        started: player.started,
+        number: player.number,
+        role: player.role,
+        pod: player.pod,
+        speed: player.speed,
+        weight: player.weight,
+        stamina: player.stamina,
+        skills: player.skills,
+        stats: player.stats,
+      };
+      player.playerId = matchingSub.playerId;
+      player.started = matchingSub.started;
       player.number = matchingSub.number;
       player.speed = matchingSub.speed;
       player.weight = matchingSub.weight;
       player.skills = { ...matchingSub.skills };
       player.stats = matchingSub.stats;
       player.stamina = 100;
+      matchingSub.playerId = outgoing.playerId;
+      matchingSub.started = outgoing.started;
+      matchingSub.number = outgoing.number;
+      matchingSub.role = outgoing.role;
+      matchingSub.pod = outgoing.pod;
+      matchingSub.speed = outgoing.speed;
+      matchingSub.weight = outgoing.weight;
+      matchingSub.stamina = outgoing.stamina;
+      matchingSub.skills = outgoing.skills;
+      matchingSub.stats = outgoing.stats;
       matchingSub.isUsed = true;
 
       const teamName = state.teams[team].name;

@@ -1,5 +1,6 @@
 import {
   createMatchConfig,
+  createMatchInput,
   setStats,
   simulateMonteCarlo,
 } from "./simulation.ts";
@@ -30,5 +31,9 @@ for (const [team, skill] of [
 }
 
 console.log(
-  JSON.stringify(simulateMonteCarlo(matches, { teams, seed: 1 }), null, 2),
+  JSON.stringify(
+    simulateMonteCarlo(matches, { input: createMatchInput(teams), seed: 1 }),
+    null,
+    2,
+  ),
 );

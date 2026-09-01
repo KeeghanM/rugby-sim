@@ -65,9 +65,6 @@ export const cloneTeam = (team: TeamDefinition): TeamDefinition => ({
               {
                 ...override,
                 skills: override.skills ? { ...override.skills } : undefined,
-                skillsDelta: override.skillsDelta
-                  ? { ...override.skillsDelta }
-                  : undefined,
               },
             ],
           ]
@@ -158,7 +155,6 @@ export const setStats = (
         ...current,
         ...override,
         skills: { ...current.skills, ...override.skills },
-        skillsDelta: { ...current.skillsDelta, ...override.skillsDelta },
       };
     }
   }

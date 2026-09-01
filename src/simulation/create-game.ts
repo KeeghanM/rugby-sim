@@ -2,6 +2,8 @@ import {
   attackDirection,
   type GameState,
   type MatchConfig,
+  type MatchInput,
+  type MatchTeamEntrants,
   type PlayerStats,
   type TeamMatchStats,
 } from "../domain.ts";
@@ -41,11 +43,45 @@ const createTeamStats = (): TeamMatchStats => ({
   lineoutsLost: 0,
 });
 
-export const createGame = (
+const defaultEntrants = (team: 0 | 1): MatchTeamEntrants => ({
+  starters: ATTACK_FORMATION.map(
+    (_, index) => `team-${team}-player-${index + 1}`,
+  ),
+  substitutes: BENCH_SLOTS.map((bench) => `team-${team}-sub-${bench.number}`),
+});
+
+export const createMatchInput = (
   teams: MatchConfig = createMatchConfig(),
+  entrants: MatchInput["entrants"] = {
+    0: defaultEntrants(0),
+    1: defaultEntrants(1),
+  },
+): MatchInput => ({ teams, entrants });
+
+const validateEntrants = (input: MatchInput) => {
+  const ids = ([0, 1] as const).flatMap((team) => {
+    const entrants = input.entrants[team];
+    if (entrants.starters.length !== ATTACK_FORMATION.length) {
+      throw new RangeError(`Team ${team} must provide 15 starters`);
+    }
+    if (entrants.substitutes.length !== BENCH_SLOTS.length) {
+      throw new RangeError(`Team ${team} must provide 8 substitutes`);
+    }
+    return [...entrants.starters, ...entrants.substitutes];
+  });
+  if (ids.some((id) => !id.trim()))
+    throw new RangeError("Player IDs are required");
+  if (new Set(ids).size !== ids.length) {
+    throw new RangeError("Player IDs must be unique within a match");
+  }
+};
+
+export const createGame = (
+  input: MatchInput = createMatchInput(),
   random: Random = Math.random,
 ): GameState => {
-  const gameTeams = createMatchConfig(teams);
+  validateEntrants(input);
+  const gameTeams = createMatchConfig(input.teams);
   const team0Tactics = rollTeamTactics(0, random, gameTeams);
   const team1Tactics = rollTeamTactics(1, random, gameTeams);
   return {
@@ -56,6 +92,8 @@ export const createGame = (
         const profile = getPlayerProfile(team, index + 1, slot.role, gameTeams);
         return {
           id: `team-${team}-player-${index + 1}`,
+          playerId: input.entrants[team].starters[index],
+          started: true,
           team,
           number: index + 1,
           slotIndex: index,
@@ -85,7 +123,7 @@ export const createGame = (
       }),
     ),
     substitutes: ([0, 1] as const).flatMap((team) =>
-      BENCH_SLOTS.map((bench) => {
+      BENCH_SLOTS.map((bench, index) => {
         const profile = getPlayerProfile(
           team,
           bench.number,
@@ -94,6 +132,8 @@ export const createGame = (
         );
         return {
           id: `team-${team}-sub-${bench.number}`,
+          playerId: input.entrants[team].substitutes[index],
+          started: false,
           team,
           number: bench.number,
           role: bench.role,
