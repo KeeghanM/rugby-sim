@@ -15,10 +15,7 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../../formations/index.ts";
-import {
-  getActiveShapePositions,
-  rollTeamFormations,
-} from "../../teams/index.ts";
+import { rerollTeamTactics } from "../../teams/index.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "../ball.ts";
 import {
   clamp,
@@ -57,13 +54,13 @@ export const startScrum = (
     bouncesRemaining: 0,
   };
   state.pendingClearanceKickerId = null;
+  state.pendingLineoutTeam = null;
   state.possessionTeam = feedingTeam;
   state.phaseCount = 1;
   state.possessionOriginZ = markZ;
   state.gainLineZ = markZ;
   state.distanceGained = 0;
-  state.formations[0] = rollTeamFormations(0, random, state.teams);
-  state.formations[1] = rollTeamFormations(1, random, state.teams);
+  rerollTeamTactics(state, random);
   state.phase = {
     kind: "scrum",
     stage: "forming",
@@ -94,10 +91,9 @@ export const updateScrum = (
         phase.feedingTeam,
         state.formations[p.team].scrumAttack,
         state.formations[p.team].scrumDefence,
-        getActiveShapePositions(
-          state.teams[p.team],
-          p.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence",
-        ),
+        state.activeShapePositions[p.team][
+          p.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence"
+        ],
       );
       return distance(p.position, target) <= 2.0;
     });

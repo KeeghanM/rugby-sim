@@ -13,17 +13,8 @@ import type { GameState, Player } from "../domain.ts";
 import { attackDirection, PITCH, ROLES } from "../domain.ts";
 
 const hexToRgb = (hex: string): [number, number, number] => {
-  const clean = hex.replace("#", "");
-  const num = parseInt(
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean,
-    16,
-  );
-  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  const color = Color3.FromHexString(hex);
+  return [color.r * 255, color.g * 255, color.b * 255];
 };
 
 const getLuminance = (hex: string): number => {
@@ -515,13 +506,13 @@ export const createPlayerViews = (scene: Scene, state: GameState) => {
 
 export const syncPlayers = (
   game: GameState,
-  views: Map<string, { mesh: any; material: any }>,
-  refMesh: any,
-  ar1Mesh: any,
-  ar2Mesh: any,
-  carrierMarker: any,
-  gainLinePlane: any,
-  ball: any,
+  views: ReturnType<typeof createPlayerViews>["views"],
+  refMesh: ReturnType<typeof createPlayerViews>["refMesh"],
+  ar1Mesh: ReturnType<typeof createPlayerViews>["ar1Mesh"],
+  ar2Mesh: ReturnType<typeof createPlayerViews>["ar2Mesh"],
+  carrierMarker: ReturnType<typeof createPlayerViews>["carrierMarker"],
+  gainLinePlane: ReturnType<typeof createPlayerViews>["gainLinePlane"],
+  ball: ReturnType<typeof createPlayerViews>["ball"],
   isRefCam = false,
 ) => {
   const ruckPhase = game.phase.kind === "ruck" ? game.phase : null;

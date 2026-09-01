@@ -15,10 +15,7 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../../formations/index.ts";
-import {
-  getActiveShapePositions,
-  rollTeamFormations,
-} from "../../teams/index.ts";
+import { rerollTeamTactics } from "../../teams/index.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "../ball.ts";
 import {
   clamp,
@@ -73,8 +70,7 @@ export const scoreTry = (
     bouncesRemaining: 0,
   };
   state.pendingClearanceKickerId = null;
-  state.formations[0] = rollTeamFormations(0, random, state.teams);
-  state.formations[1] = rollTeamFormations(1, random, state.teams);
+  rerollTeamTactics(state, random);
   state.phase = {
     kind: "conversion",
     stage: "forming",

@@ -1,16 +1,19 @@
 import type { GameState, MatchConfig, Team } from "./domain.ts";
-import { createMatchConfig, setStats, setTactics } from "./teams.ts";
-import { computeCommands } from "./simulation/decisions.ts";
+import { createMatchConfig, setStats, setTactics } from "./teams/index.ts";
+import { computeCommands } from "./simulation/decisions/index.ts";
 import { createGame } from "./simulation/create-game.ts";
-import { advanceDefensiveLine, applyCommands } from "./simulation/movement.ts";
+import {
+  advanceDefensiveLine,
+  applyCommands,
+} from "./simulation/movement/index.ts";
 import type { Random } from "./simulation/types.ts";
 
 export { createGame } from "./simulation/create-game.ts";
-export { computeCommands } from "./simulation/decisions.ts";
-export { applyCommands } from "./simulation/movement.ts";
-export { createMatchConfig, setStats, setTactics } from "./teams.ts";
+export { computeCommands } from "./simulation/decisions/index.ts";
+export { applyCommands } from "./simulation/movement/index.ts";
+export { createMatchConfig, setStats, setTactics } from "./teams/index.ts";
 export type { MatchConfig, TeamDefinition, TeamMatchStats } from "./domain.ts";
-export type { TeamStatsInput, TeamTacticsInput } from "./teams.ts";
+export type { TeamStatsInput, TeamTacticsInput } from "./teams/index.ts";
 export type { PlayerCommand } from "./simulation/types.ts";
 
 // Reverse lateral attack flow when current carrier reaches either touch-side channel.
@@ -68,7 +71,7 @@ export const simulateMatch = ({
     throw new RangeError("maxTicks must be a positive finite number");
   }
   const random = createSeededRandom(seed);
-  const state = createGame(createMatchConfig(teams), random);
+  const state = createGame(teams, random);
   let ticks = 0;
   while (state.half !== "fullTime" && ticks < maxTicks) {
     updateGame(state, stepSeconds, random);

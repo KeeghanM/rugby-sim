@@ -6,10 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "node --test test/*.test.mjs",
     "monte-carlo": "node src/monte-carlo.ts",
     "preview": "vite preview",
-    "qa": "npx prettier . --write"
+    "qa": "tsc --noEmit && prettier . --check"
   },
   "dependencies": {
     "@babylonjs/core": "^9.0.0",

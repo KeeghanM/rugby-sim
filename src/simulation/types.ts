@@ -17,6 +17,7 @@ export type PlayerCommand = {
   immediate?: boolean;
   ballAction?: BallAction;
   startHardLine?: boolean;
+  lineBreakActive?: boolean;
   decisionForSeconds?: number;
   effort: Effort;
   freeze?: boolean;

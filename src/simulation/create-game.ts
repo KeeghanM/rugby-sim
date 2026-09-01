@@ -10,8 +10,8 @@ import {
   BENCH_SLOTS,
   createMatchConfig,
   getPlayerProfile,
-  rollTeamFormations,
-} from "../teams.ts";
+  rollTeamTactics,
+} from "../teams/index.ts";
 import type { Random } from "./types.ts";
 
 const createInitialStats = (): PlayerStats => ({
@@ -45,103 +45,121 @@ const createTeamStats = (): TeamMatchStats => ({
 export const createGame = (
   teams: MatchConfig = createMatchConfig(),
   random: Random = Math.random,
-): GameState => ({
-  teams,
-  players: ([0, 1] as const).flatMap((team) =>
-    ATTACK_FORMATION.map((slot, index) => {
-      const position = { x: slot.x, z: slot.z * attackDirection(team) };
-      const profile = getPlayerProfile(team, index + 1, slot.role, teams);
-      return {
-        id: `team-${team}-player-${index + 1}`,
-        team,
-        number: index + 1,
-        slotIndex: index,
-        role: slot.role,
-        pod: slot.pod,
-        position,
-        laneX: position.x,
-        velocity: { x: 0, z: 0 },
-        intentTarget: { ...position },
-        intentKind: "kickoff-forming",
-        intentForSeconds: 0,
-        decisionForSeconds: 0,
-        speed: profile.speed,
-        weight: profile.weight,
-        stamina: 100,
-        injuryPenalty: 0,
-        tackleCooldown: 0,
-        breakawaySeconds: 0,
-        hardLineForSeconds: 0,
-        kickOffside: false,
-        ruckRecoverySeconds: 0,
-        lineBreakActive: false,
-        pendingBallAction: null,
-        skills: profile.skills,
-        stats: createInitialStats(),
-      };
-    }),
-  ),
-  substitutes: ([0, 1] as const).flatMap((team) =>
-    BENCH_SLOTS.map((bench) => {
-      const profile = getPlayerProfile(team, bench.number, bench.role, teams);
-      return {
-        id: `team-${team}-sub-${bench.number}`,
-        team,
-        number: bench.number,
-        role: bench.role,
-        pod: bench.pod,
-        speed: profile.speed,
-        weight: profile.weight,
-        stamina: 100,
-        skills: profile.skills,
-        stats: createInitialStats(),
-        isUsed: false,
-      };
-    }),
-  ),
-  recentSubstitution: null,
-  ball: {
-    position: { x: 0, y: 0.15, z: 0 },
-    velocity: { x: 0, y: 0, z: 0 },
-    carrierId: null,
-    flight: null,
-    intendedReceiverId: null,
-    lastTouchedTeam: null,
-    passerId: null,
-    kickerId: null,
-    kickOrigin: null,
-    bouncesRemaining: 0,
-  },
-  scores: [0, 0],
-  phase: {
-    kind: "kickoff",
-    stage: "forming",
-    kickingTeam: 1,
-    readyForSeconds: 0,
-    reason: "matchStart",
-  },
-  pendingClearanceKickerId: null,
-  pendingLineoutTeam: null,
-  defensiveLineZ: [-3, 3],
-  attackFlow: [1, -1],
-  formations: {
-    0: rollTeamFormations(0, random, teams),
-    1: rollTeamFormations(1, random, teams),
-  },
-  matchClockSeconds: 0,
-  half: 1,
-  referee: {
-    position: { x: 6, z: 2 },
-    velocity: { x: 0, z: 0 },
-    assistants: [
-      { position: { x: -36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "west" },
-      { position: { x: 36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "east" },
-    ],
-  },
-  phaseCount: 1,
-  possessionTeam: 0,
-  gainLineZ: 0,
-  possessionOriginZ: 0,
-  distanceGained: 0,
-  teamStats: [createTeamStats(), createTeamStats()],
-});
+): GameState => {
+  const gameTeams = createMatchConfig(teams);
+  const team0Tactics = rollTeamTactics(0, random, gameTeams);
+  const team1Tactics = rollTeamTactics(1, random, gameTeams);
+  return {
+    teams: gameTeams,
+    players: ([0, 1] as const).flatMap((team) =>
+      ATTACK_FORMATION.map((slot, index) => {
+        const position = { x: slot.x, z: slot.z * attackDirection(team) };
+        const profile = getPlayerProfile(team, index + 1, slot.role, gameTeams);
+        return {
+          id: `team-${team}-player-${index + 1}`,
+          team,
+          number: index + 1,
+          slotIndex: index,
+          role: slot.role,
+          pod: slot.pod,
+          position,
+          laneX: position.x,
+          velocity: { x: 0, z: 0 },
+          intentTarget: { ...position },
+          intentKind: "kickoff-forming",
+          intentForSeconds: 0,
+          decisionForSeconds: 0,
+          speed: profile.speed,
+          weight: profile.weight,
+          stamina: 100,
+          injuryPenalty: 0,
+          tackleCooldown: 0,
+          breakawaySeconds: 0,
+          hardLineForSeconds: 0,
+          kickOffside: false,
+          ruckRecoverySeconds: 0,
+          lineBreakActive: false,
+          pendingBallAction: null,
+          skills: profile.skills,
+          stats: createInitialStats(),
+        };
+      }),
+    ),
+    substitutes: ([0, 1] as const).flatMap((team) =>
+      BENCH_SLOTS.map((bench) => {
+        const profile = getPlayerProfile(
+          team,
+          bench.number,
+          bench.role,
+          gameTeams,
+        );
+        return {
+          id: `team-${team}-sub-${bench.number}`,
+          team,
+          number: bench.number,
+          role: bench.role,
+          pod: bench.pod,
+          speed: profile.speed,
+          weight: profile.weight,
+          stamina: 100,
+          skills: profile.skills,
+          stats: createInitialStats(),
+          isUsed: false,
+        };
+      }),
+    ),
+    recentSubstitution: null,
+    ball: {
+      position: { x: 0, y: 0.15, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 },
+      carrierId: null,
+      flight: null,
+      intendedReceiverId: null,
+      lastTouchedTeam: null,
+      passerId: null,
+      kickerId: null,
+      kickOrigin: null,
+      bouncesRemaining: 0,
+    },
+    scores: [0, 0],
+    phase: {
+      kind: "kickoff",
+      stage: "forming",
+      kickingTeam: 1,
+      readyForSeconds: 0,
+      reason: "matchStart",
+    },
+    pendingClearanceKickerId: null,
+    pendingLineoutTeam: null,
+    defensiveLineZ: [-3, 3],
+    attackFlow: [1, -1],
+    formations: {
+      0: team0Tactics.formations,
+      1: team1Tactics.formations,
+    },
+    activeShapePositions: {
+      0: team0Tactics.shapePositions,
+      1: team1Tactics.shapePositions,
+    },
+    matchClockSeconds: 0,
+    half: 1,
+    referee: {
+      position: { x: 6, z: 2 },
+      velocity: { x: 0, z: 0 },
+      assistants: [
+        {
+          position: { x: -36.2, z: 0 },
+          velocity: { x: 0, z: 0 },
+          side: "west",
+        },
+        { position: { x: 36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "east" },
+      ],
+    },
+    phaseCount: 1,
+    possessionTeam: 0,
+    gainLineZ: 0,
+    possessionOriginZ: 0,
+    distanceGained: 0,
+    teamStats: [createTeamStats(), createTeamStats()],
+  };
+};

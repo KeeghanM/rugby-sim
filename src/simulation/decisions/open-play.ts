@@ -7,7 +7,6 @@ import {
 } from "../../domain.ts";
 import { getOpenPlayTarget } from "../../formations/index.ts";
 import { clamp, distance, effectiveSkill } from "../math.ts";
-import { getActiveShapePositions } from "../../teams/index.ts";
 import type { Random } from "../types.ts";
 import { chooseCarrierCommand } from "./carrier.ts";
 import { command, hasBrokenLine, selectSupportRunners } from "./utils.ts";
@@ -80,10 +79,9 @@ export const getOpenPlayCommands = (
       attacking ? undefined : state.defensiveLineZ[player.team],
       state.formations[player.team].openAttack,
       state.formations[player.team].openDefence,
-      getActiveShapePositions(
-        state.teams[player.team],
-        attacking ? "openAttack" : "openDefence",
-      ),
+      state.activeShapePositions[player.team][
+        attacking ? "openAttack" : "openDefence"
+      ],
     );
     const direction = attackDirection(player.team);
     if (player.ruckRecoverySeconds > 0) {

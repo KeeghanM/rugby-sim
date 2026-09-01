@@ -8,6 +8,7 @@ import type {
   Team,
   TeamDefinition,
 } from "../domain.ts";
+import { clamp } from "../math.ts";
 import { TEAMS, INTERNATIONAL_PRESETS } from "./presets/index.ts";
 
 export { TEAMS, INTERNATIONAL_PRESETS } from "./presets/index.ts";
@@ -28,10 +29,12 @@ export {
   getPlayerDeltas,
   getRoleNaturalDeltas,
 } from "./profiles.ts";
-export { getActiveShapePositions, rollTeamFormations } from "./formations.ts";
+export { rerollTeamTactics, rollTeamTactics } from "./formations.ts";
 
-const bounded = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
+const requireFinite = (value: number) => {
+  if (!Number.isFinite(value)) throw new RangeError("Expected a finite number");
+  return value;
+};
 
 export const cloneTeam = (team: TeamDefinition): TeamDefinition => ({
   ...team,
@@ -62,6 +65,9 @@ export const cloneTeam = (team: TeamDefinition): TeamDefinition => ({
               {
                 ...override,
                 skills: override.skills ? { ...override.skills } : undefined,
+                skillsDelta: override.skillsDelta
+                  ? { ...override.skillsDelta }
+                  : undefined,
               },
             ],
           ]
@@ -120,18 +126,26 @@ export const setStats = (
     target.color = stats.color;
   }
   if (stats.lineSpeed !== undefined)
-    target.lineSpeed = bounded(stats.lineSpeed, 1, 8);
+    target.lineSpeed = clamp(requireFinite(stats.lineSpeed), 1, 8);
   if (stats.speedMultiplier !== undefined) {
-    target.speedMultiplier = bounded(stats.speedMultiplier, 0.7, 1.3);
+    target.speedMultiplier = clamp(
+      requireFinite(stats.speedMultiplier),
+      0.7,
+      1.3,
+    );
   }
   if (stats.weightMultiplier !== undefined) {
-    target.weightMultiplier = bounded(stats.weightMultiplier, 0.7, 1.3);
+    target.weightMultiplier = clamp(
+      requireFinite(stats.weightMultiplier),
+      0.7,
+      1.3,
+    );
   }
   if (stats.skills) {
     for (const skill of Object.keys(stats.skills) as (keyof PlayerSkills)[]) {
       const value = stats.skills[skill];
       if (value !== undefined)
-        target.defaultSkills[skill] = bounded(value, 0, 1);
+        target.defaultSkills[skill] = clamp(requireFinite(value), 0, 1);
     }
   }
   if (stats.playerOverrides === null) {
@@ -144,6 +158,7 @@ export const setStats = (
         ...current,
         ...override,
         skills: { ...current.skills, ...override.skills },
+        skillsDelta: { ...current.skillsDelta, ...override.skillsDelta },
       };
     }
   }
@@ -156,6 +171,21 @@ export const setTactics = (
   tactics: TeamTacticsInput,
 ) => {
   const target = teams[team];
+  const carry =
+    tactics.carry === undefined
+      ? target.tendencies.carry
+      : Math.max(0, requireFinite(tactics.carry));
+  const pass =
+    tactics.pass === undefined
+      ? target.tendencies.pass
+      : Math.max(0, requireFinite(tactics.pass));
+  const kick =
+    tactics.kick === undefined
+      ? target.tendencies.kick
+      : Math.max(0, requireFinite(tactics.kick));
+  const total = carry + pass + kick;
+  if (total === 0)
+    throw new RangeError("Carry, pass, and kick cannot all be zero");
   if (tactics.formations) {
     Object.assign(target.formations, tactics.formations);
   }
@@ -185,22 +215,16 @@ export const setTactics = (
     }
   }
   if (tactics.formationVariation !== undefined) {
-    target.formationVariation = bounded(tactics.formationVariation, 0, 1);
+    target.formationVariation = clamp(
+      requireFinite(tactics.formationVariation),
+      0,
+      1,
+    );
   }
   if (tactics.maul !== undefined)
-    target.tendencies.maul = bounded(tactics.maul, 0, 1);
-  if (tactics.carry !== undefined)
-    target.tendencies.carry = Math.max(0, tactics.carry);
-  if (tactics.pass !== undefined)
-    target.tendencies.pass = Math.max(0, tactics.pass);
-  if (tactics.kick !== undefined)
-    target.tendencies.kick = Math.max(0, tactics.kick);
-  const total =
-    target.tendencies.carry + target.tendencies.pass + target.tendencies.kick;
-  if (total > 0) {
-    target.tendencies.carry /= total;
-    target.tendencies.pass /= total;
-    target.tendencies.kick /= total;
-  }
+    target.tendencies.maul = clamp(requireFinite(tactics.maul), 0, 1);
+  target.tendencies.carry = carry / total;
+  target.tendencies.pass = pass / total;
+  target.tendencies.kick = kick / total;
   return teams;
 };

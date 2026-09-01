@@ -13,7 +13,6 @@ import {
   isForward,
 } from "../../formations/index.ts";
 import { clamp, distance } from "../math.ts";
-import { getActiveShapePositions } from "../../teams/index.ts";
 import { command } from "./utils.ts";
 
 export const getKickoffCommands = (state: GameState, players: Player[]) => {
@@ -28,12 +27,9 @@ export const getKickoffCommands = (state: GameState, players: Player[]) => {
         phase.reason,
         state.formations[phase.kickingTeam].kickoffAttack,
         state.formations[player.team].kickoffDefence,
-        getActiveShapePositions(
-          state.teams[player.team],
-          player.team === phase.kickingTeam
-            ? "kickoffAttack"
-            : "kickoffDefence",
-        ),
+        state.activeShapePositions[player.team][
+          player.team === phase.kickingTeam ? "kickoffAttack" : "kickoffDefence"
+        ],
       ),
       `kickoff-${phase.stage}`,
       false,
@@ -76,18 +72,14 @@ export const getScrumCommands = (state: GameState, players: Player[]) => {
       phase.feedingTeam,
       formation.scrumAttack,
       formation.scrumDefence,
-      getActiveShapePositions(
-        state.teams[player.team],
-        player.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence",
-      ),
+      state.activeShapePositions[player.team][
+        player.team === phase.feedingTeam ? "scrumAttack" : "scrumDefence"
+      ],
     );
     const gap = distance(player.position, target);
-    const isPackForward = isForward(player);
     const effort =
       phase.stage === "set" || phase.stage === "channeling"
-        ? isPackForward
-          ? "stand"
-          : "stand"
+        ? "stand"
         : gap > 8
           ? "sprint"
           : gap > 1.5

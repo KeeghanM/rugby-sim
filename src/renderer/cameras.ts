@@ -13,11 +13,7 @@ type DynamicShotType =
   | "sidelineTight"
   | "breakawayChase";
 
-export const createCameras = (
-  scene: Scene,
-  canvas: HTMLCanvasElement,
-  state: GameState,
-) => {
+export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
   const broadcastCam = new FreeCamera(
     "broadcastCam",
     new Vector3(52, 21, 0),
@@ -178,16 +174,7 @@ export const createCameras = (
   applyZoomImmediate();
 
   return {
-    broadcastCam,
-    freeCam,
-    getCameraMode: () => cameraMode,
     getCurrentShot: () => (cameraMode === "dynamic" ? currentShot : "free"),
-    setCameraMode,
-    getZoom: () => zoom,
-    setZoom: (v: number) => {
-      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
-      applyZoomImmediate();
-    },
     sync: (game: GameState) => {
       if (cameraMode === "dynamic") {
         shotDuration += 0.016;

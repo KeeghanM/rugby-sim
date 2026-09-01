@@ -46,12 +46,7 @@ export const chooseCarrierCommand = (
       : carrier.position.x >= 25
         ? -1
         : state.attackFlow[carrier.team];
-  const realCarrier = state.players.find((p) => p.id === carrier.id);
   if (lineBroken) {
-    if (realCarrier && !realCarrier.lineBreakActive) {
-      realCarrier.lineBreakActive = true;
-      realCarrier.stats.lineBreaks += 1;
-    }
     const sprint = command(
       carrier,
       {
@@ -63,13 +58,19 @@ export const chooseCarrierCommand = (
       "sprint",
     );
     sprint.decisionForSeconds = 1;
+    sprint.lineBreakActive = true;
     return sprint;
   }
-  if (realCarrier) {
-    realCarrier.lineBreakActive = false;
-  }
   if (carrier.decisionForSeconds > 0) {
-    return command(carrier, carrier.intentTarget, "carrier", false, "run");
+    const continuing = command(
+      carrier,
+      carrier.intentTarget,
+      "carrier",
+      false,
+      "run",
+    );
+    continuing.lineBreakActive = false;
+    return continuing;
   }
 
   const defendersAhead = players
@@ -92,6 +93,7 @@ export const chooseCarrierCommand = (
     false,
     "run",
   );
+  result.lineBreakActive = false;
   result.decisionForSeconds =
     0.25 + (1 - effectiveSkill(carrier, "decision")) * 0.65;
 

@@ -33,8 +33,21 @@ export const applyCommands = (
     state.ball.flight = null;
     return;
   }
+  const commandedPlayers = new Set<string>();
   const nextMotion = commands.map((next) => {
-    const player = state.players.find(({ id }) => id === next.playerId)!;
+    if (commandedPlayers.has(next.playerId)) {
+      throw new Error(`Duplicate command for player ${next.playerId}`);
+    }
+    commandedPlayers.add(next.playerId);
+    const player = state.players.find(({ id }) => id === next.playerId);
+    if (!player)
+      throw new Error(`Command references unknown player ${next.playerId}`);
+    if (next.lineBreakActive !== undefined) {
+      if (next.lineBreakActive && !player.lineBreakActive) {
+        player.stats.lineBreaks += 1;
+      }
+      player.lineBreakActive = next.lineBreakActive;
+    }
     player.tackleCooldown = Math.max(0, player.tackleCooldown - deltaSeconds);
     player.breakawaySeconds = Math.max(
       0,

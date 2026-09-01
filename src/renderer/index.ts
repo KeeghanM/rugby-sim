@@ -8,8 +8,6 @@ import { createPlayerViews, syncPlayers } from "./players.ts";
 import { createCameras } from "./cameras.ts";
 import { createUI, syncUI } from "./ui.ts";
 
-export type CameraMode = "halfway" | "goalLine" | "free";
-
 export const createRenderer = (
   engine: Engine,
   canvas: HTMLCanvasElement,
@@ -32,37 +30,32 @@ export const createRenderer = (
     gainLinePlane,
     ball,
   } = createPlayerViews(scene, state);
-  const cameras = createCameras(scene, canvas, state);
+  const cameras = createCameras(scene, canvas);
   const ui = createUI(state);
 
   return {
     scene,
     getSimulationSpeed: ui.getSimulationSpeed,
-    isDebugMode: ui.isDebugMode,
-    getCameraMode: cameras.getCameraMode,
-    setCameraMode: cameras.setCameraMode,
-    getZoom: cameras.getZoom,
-    setZoom: cameras.setZoom,
     sync(game: GameState) {
       cameras.sync(game);
       const isRefCam = cameras.getCurrentShot() === "refCam";
       syncPlayers(
         game,
-        views as any,
-        refMesh as any,
-        ar1Mesh as any,
-        ar2Mesh as any,
-        carrierMarker as any,
-        gainLinePlane as any,
-        ball as any,
+        views,
+        refMesh,
+        ar1Mesh,
+        ar2Mesh,
+        carrierMarker,
+        gainLinePlane,
+        ball,
         isRefCam,
       );
       env.updateScoreboards(game);
       syncUI(
         game,
-        ui as any,
-        scene as any,
-        engine as any,
+        ui,
+        scene,
+        engine,
         ui.isDebugMode(),
         ui.getManagerOpen(),
         ui.getSelectedManagerTeam(),

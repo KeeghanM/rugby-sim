@@ -247,6 +247,10 @@ export type ActiveTeamFormations = {
   scrumDefence: "drift" | "manOnMan" | "blitz";
 };
 
+export type ActiveShapePositions = Partial<
+  Record<FormationContext, readonly Position[]>
+>;
+
 export type Substitute = {
   id: string;
   team: Team;
@@ -274,6 +278,7 @@ export type GameState = {
   defensiveLineZ: [number, number];
   attackFlow: [-1 | 1, -1 | 1];
   formations: Record<Team, ActiveTeamFormations>;
+  activeShapePositions: Record<Team, ActiveShapePositions>;
   matchClockSeconds: number;
   half: 1 | 2 | "fullTime";
   referee: Referee;

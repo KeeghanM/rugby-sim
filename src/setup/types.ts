@@ -1,4 +1,7 @@
 import type { FormationContext, MatchConfig, Team } from "../domain.ts";
+import { clamp } from "../math.ts";
+export { escapeHtml } from "../html.ts";
+export { clamp } from "../math.ts";
 
 export type SetupView = "squad" | "tactics" | "shape";
 
@@ -58,16 +61,6 @@ export const text = (value: string) =>
   value
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (letter) => letter.toUpperCase());
-
-export const escapeHtml = (value: string) =>
-  value.replace(
-    /[&<>"]/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]!,
-  );
-
-export const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
 
 export const toSpeedRating = (speed: number) =>
   Math.round(clamp(((speed - 3.8) / 2.8) * 100, 0, 100));

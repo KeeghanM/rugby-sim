@@ -9,9 +9,7 @@ export const createWiring = (
   teams: MatchConfig,
   getSelectedTeam: () => Team,
   setSelectedTeam: (v: Team) => void,
-  getView: () => string,
   setView: (v: any) => void,
-  getSelectedPlayer: () => number,
   setSelectedPlayer: (v: number) => void,
   getShapeContext: () => FormationContext,
   setShapeContext: (v: FormationContext) => void,
@@ -329,5 +327,5 @@ export const createWiring = (
       });
     wirePitch();
   };
-  return { wire, wirePitch };
+  return wire;
 };

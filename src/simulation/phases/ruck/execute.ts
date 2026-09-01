@@ -15,10 +15,6 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../../../formations/index.ts";
-import {
-  getActiveShapePositions,
-  rollTeamFormations,
-} from "../../../teams/index.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "../../ball.ts";
 import { scoreTry } from "../conversion.ts";
 import { startPenalty } from "../penalty.ts";

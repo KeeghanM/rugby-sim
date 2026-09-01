@@ -1,5 +1,6 @@
 import type { GameState } from "../../domain.ts";
 import { isForward } from "../../formations.ts";
+import { escapeHtml } from "../../html.ts";
 
 const getPlayerName = (number: number, role: string): string => {
   switch (number) {
@@ -183,24 +184,24 @@ export const syncManager = (
     const totalTackles = totalTacklesMade + totalTacklesMissed;
     const tacklePct =
       totalTackles > 0
-        ? Math.round((totalTacklesMade / totalTackles) * 100)
-        : 100;
+        ? `${Math.round((totalTacklesMade / totalTackles) * 100)}%`
+        : "-";
 
     const totalRucks = setPieces.rucksWon + setPieces.rucksLost;
     const ruckPct =
       totalRucks > 0
-        ? Math.round((setPieces.rucksWon / totalRucks) * 100)
-        : 100;
+        ? `${Math.round((setPieces.rucksWon / totalRucks) * 100)}%`
+        : "-";
     const totalScrums = setPieces.scrumsWon + setPieces.scrumsLost;
     const scrumPct =
       totalScrums > 0
-        ? Math.round((setPieces.scrumsWon / totalScrums) * 100)
-        : 100;
+        ? `${Math.round((setPieces.scrumsWon / totalScrums) * 100)}%`
+        : "-";
     const totalLineouts = setPieces.lineoutsWon + setPieces.lineoutsLost;
     const lineoutPct =
       totalLineouts > 0
-        ? Math.round((setPieces.lineoutsWon / totalLineouts) * 100)
-        : 100;
+        ? `${Math.round((setPieces.lineoutsWon / totalLineouts) * 100)}%`
+        : "-";
 
     managerTeamSummary.innerHTML = `
       <div class="summary-item">
@@ -213,7 +214,7 @@ export const syncManager = (
       <div class="summary-item">
         <span class="summary-label">TACKLE COMPLETION</span>
         <span class="summary-val">
-          ${tacklePct}%
+          ${tacklePct}
           <span class="summary-sub">(${totalTacklesMade}/${totalTackles})</span>
         </span>
       </div>
@@ -234,9 +235,9 @@ export const syncManager = (
       <div class="summary-item" style="grid-column: 1 / -1; background: rgba(0,0,0,0.2); padding: 0.5rem 0.8rem; border-radius: 0.4rem; border: 1px solid rgba(255,255,255,0.06);">
         <span class="summary-label" style="font-size: 0.68rem; margin-bottom: 0.15rem;">SET PIECE & BREAKDOWN RETENTION</span>
         <span class="summary-val" style="font-size: 0.82rem; color: #cbd5e1; gap: 1.4rem;">
-          <span>Ruck: <strong style="color:#f8fafc;">${setPieces.rucksWon}/${totalRucks} (${ruckPct}%)</strong></span>
-          <span>Scrum: <strong style="color:#f8fafc;">${setPieces.scrumsWon}/${totalScrums} (${scrumPct}%)</strong></span>
-          <span>Lineout: <strong style="color:#f8fafc;">${setPieces.lineoutsWon}/${totalLineouts} (${lineoutPct}%)</strong></span>
+          <span>Ruck: <strong style="color:#f8fafc;">${setPieces.rucksWon}/${totalRucks} (${ruckPct})</strong></span>
+          <span>Scrum: <strong style="color:#f8fafc;">${setPieces.scrumsWon}/${totalScrums} (${scrumPct})</strong></span>
+          <span>Lineout: <strong style="color:#f8fafc;">${setPieces.lineoutsWon}/${totalLineouts} (${lineoutPct})</strong></span>
           <span>Maul: <strong style="color:#f8fafc;">${setPieces.maulsWon}/${setPieces.maulsWon + setPieces.maulsLost}</strong></span>
         </span>
       </div>`;
@@ -320,7 +321,7 @@ export const syncManager = (
       <div class="summary-item">
         <span class="summary-label">TACTICAL SYSTEM</span>
         <span class="summary-val">
-          ${teamDef.name}
+          ${escapeHtml(teamDef.name)}
           <span class="summary-sub">(${game.formations[selectedManagerTeam].openAttack})</span>
         </span>
       </div>

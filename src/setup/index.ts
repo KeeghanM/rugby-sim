@@ -219,14 +219,12 @@ export const createMatchSetup = (
     setTactics(teams, selectedTeam, next);
   };
 
-  const { wire } = createWiring(
+  const wire = createWiring(
     root,
     teams,
     () => selectedTeam,
     (v) => (selectedTeam = v),
-    () => view,
     (v) => (view = v),
-    () => selectedPlayer,
     (v) => (selectedPlayer = v),
     () => shapeContext,
     (v) => (shapeContext = v),

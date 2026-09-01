@@ -9,7 +9,7 @@ import {
 } from "../../domain.ts";
 import { isForward } from "../../formations.ts";
 import { clamp, distance, effectiveSkill, GRAVITY } from "../math.ts";
-import { startScrum } from "../phases.ts";
+import { startScrum } from "../phases/scrum.ts";
 import type { Random } from "../types.ts";
 
 // Launches ball toward target with skill-based error and ballistic velocity.
@@ -17,6 +17,22 @@ import { carryBall } from "./carry.ts";
 import { launchBall } from "./launch.ts";
 import { startGoalLineDropout } from "./dropout.ts";
 import { startLineout } from "./lineout.ts";
+
+const attemptPossession = (
+  state: GameState,
+  player: Player,
+  failureChance: number,
+  random: Random,
+  staminaCost = 0,
+) => {
+  if (random() < failureChance) {
+    player.stats.knockOns += 1;
+    startScrum(state, otherTeam(player.team), player.position, random);
+    return;
+  }
+  player.stamina = clamp(player.stamina - staminaCost, 0, 100);
+  carryBall(state, player);
+};
 
 export const updateBall = (
   state: GameState,
@@ -33,6 +49,13 @@ export const updateBall = (
   }
   // Let nearest player collect a loose grounded ball.
   if (!state.ball.flight) {
+    if (
+      state.phase.kind === "openPlay" &&
+      Math.abs(state.ball.position.z) >= Math.abs(PITCH.deadBallLines.north)
+    ) {
+      startGoalLineDropout(state, state.ball.position.z);
+      return;
+    }
     const picker = state.players
       .filter((player) => distance(player.position, state.ball.position) <= 0.8)
       .sort(
@@ -42,12 +65,12 @@ export const updateBall = (
       )[0];
     // Establish possession when an eligible picker reaches ball.
     if (picker) {
-      if (random() < (1 - effectiveSkill(picker, "handling")) ** 2 * 0.12) {
-        picker.stats.knockOns += 1;
-        startScrum(state, otherTeam(picker.team), picker.position, random);
-      } else {
-        carryBall(state, picker);
-      }
+      attemptPossession(
+        state,
+        picker,
+        (1 - effectiveSkill(picker, "handling")) ** 2 * 0.12,
+        random,
+      );
     }
     return;
   }
@@ -94,20 +117,12 @@ export const updateBall = (
       )[0];
     // Give moving ball to first player reaching its rolling path.
     if (rollingPicker) {
-      if (
-        random() <
-        (1 - effectiveSkill(rollingPicker, "handling")) ** 2 * 0.16
-      ) {
-        rollingPicker.stats.knockOns += 1;
-        startScrum(
-          state,
-          otherTeam(rollingPicker.team),
-          rollingPicker.position,
-          random,
-        );
-      } else {
-        carryBall(state, rollingPicker);
-      }
+      attemptPossession(
+        state,
+        rollingPicker,
+        (1 - effectiveSkill(rollingPicker, "handling")) ** 2 * 0.16,
+        random,
+      );
       return;
     }
     // Stop ball once rolling momentum is negligible.
@@ -268,17 +283,13 @@ export const updateBall = (
       )[0];
     // Resolve handling outcome when eligible catcher reaches ball.
     if (catcher) {
-      // Knock-on: fumble forward on failed handling check awards scrum to opposition
-      if (
-        random() <
-        0.01 + (1 - effectiveSkill(catcher, "handling")) ** 2 * 0.4
-      ) {
-        catcher.stats.knockOns += 1;
-        startScrum(state, otherTeam(catcher.team), catcher.position, random);
-        return;
-      }
-      catcher.stamina = clamp(catcher.stamina - 0.15, 0, 100);
-      carryBall(state, catcher);
+      attemptPossession(
+        state,
+        catcher,
+        0.01 + (1 - effectiveSkill(catcher, "handling")) ** 2 * 0.4,
+        random,
+        0.15,
+      );
       return;
     }
   }

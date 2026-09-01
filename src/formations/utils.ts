@@ -1,4 +1,5 @@
 import { PITCH, ROLES, type Player, type Role } from "../domain.ts";
+import { clamp } from "../math.ts";
 
 export const FORWARDS = new Set<Role>([
   ROLES.LooseHead,
@@ -11,17 +12,14 @@ export const FORWARDS = new Set<Role>([
 ]);
 
 export const clampX = (x: number) =>
-  Math.max(PITCH.touchLines.left + 1, Math.min(PITCH.touchLines.right - 1, x));
+  clamp(x, PITCH.touchLines.left + 1, PITCH.touchLines.right - 1);
 export const clampZ = (z: number) =>
-  Math.max(
-    PITCH.deadBallLines.south + 1,
-    Math.min(PITCH.deadBallLines.north - 1, z),
-  );
+  clamp(z, PITCH.deadBallLines.south + 1, PITCH.deadBallLines.north - 1);
 
 export const getSlotIndex = (player: Player): number =>
   typeof player.slotIndex === "number"
-    ? Math.max(0, Math.min(14, player.slotIndex))
-    : Math.max(0, Math.min(14, (player.number - 1) % 15));
+    ? clamp(player.slotIndex, 0, 14)
+    : clamp((player.number - 1) % 15, 0, 14);
 
 export const isForward = (player: Pick<Player, "role">) =>
   FORWARDS.has(player.role);

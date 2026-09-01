@@ -15,10 +15,7 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../../../formations/index.ts";
-import {
-  getActiveShapePositions,
-  rollTeamFormations,
-} from "../../../teams/index.ts";
+import { rerollTeamTactics } from "../../../teams/index.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "../../ball.ts";
 import { scoreTry } from "../conversion.ts";
 import { startPenalty } from "../penalty.ts";
@@ -194,8 +191,7 @@ export const startRuck = (
   if (carrier.position.x <= -25) state.attackFlow[carrier.team] = 1;
   if (carrier.position.x >= 25) state.attackFlow[carrier.team] = -1;
   // Roll dynamic tactical structures for next phase with team default preference
-  state.formations[0] = rollTeamFormations(0, random, state.teams);
-  state.formations[1] = rollTeamFormations(1, random, state.teams);
+  rerollTeamTactics(state, random);
 };
 
 // Attempts nearest eligible defender's tackle against carrier, resolving tackle breaks and offloads

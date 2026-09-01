@@ -6,16 +6,15 @@ import {
   type Team,
 } from "../domain.ts";
 import type { Effort } from "./types.ts";
+import { clamp } from "../math.ts";
+
+export { clamp } from "../math.ts";
 
 export const GRAVITY = 9.81;
 
 // Measures horizontal pitch distance between two positions.
 export const distance = (a: Position, b: Position) =>
   Math.hypot(a.x - b.x, a.z - b.z);
-
-// Restricts a numeric value to inclusive bounds.
-export const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
 
 export const overallSkill = (player: Pick<Player, "skills" | "stamina">) =>
   (Object.values(player.skills).reduce((total, skill) => total + skill, 0) /

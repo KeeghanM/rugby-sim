@@ -1,15 +1,13 @@
 import type {
   ActiveTeamFormations,
+  ActiveShapePositions,
   FormationContext,
+  GameState,
   MatchConfig,
-  Position,
+  TacticalShape,
   Team,
   TeamDefinition,
 } from "../domain.ts";
-import type {
-  OpenAttackFormation,
-  OpenDefenceFormation,
-} from "../formations/index.ts";
 import {
   KICKOFF_ATTACK_VARIANTS,
   KICKOFF_DEFENCE_VARIANTS,
@@ -34,142 +32,133 @@ const pickVariant = <T>(
   return all[Math.floor(random() * all.length)];
 };
 
-export const getActiveShapePositions = (
-  teamDef: TeamDefinition,
-  context: FormationContext,
-  random: Random = Math.random,
-): readonly Position[] | undefined => {
-  const shapes = teamDef.tacticalShapes?.[context];
-  if (shapes && shapes.length > 0) {
-    const totalWeight = shapes.reduce(
-      (sum, s) => sum + Math.max(0, s.weight),
-      0,
-    );
-    if (totalWeight > 0) {
-      let r = random() * totalWeight;
-      for (const s of shapes) {
-        const w = Math.max(0, s.weight);
-        if (r <= w) {
-          return s.positions ?? undefined;
-        }
-        r -= w;
-      }
-    }
-    const last = shapes[shapes.length - 1];
-    return last?.positions ?? undefined;
+const pickWeightedShape = (
+  shapes: readonly TacticalShape[] | undefined,
+  random: Random,
+) => {
+  const weighted = shapes?.filter((shape) => shape.weight > 0) ?? [];
+  const totalWeight = weighted.reduce((sum, shape) => sum + shape.weight, 0);
+  if (totalWeight === 0) return undefined;
+
+  let roll = random() * totalWeight;
+  for (const shape of weighted) {
+    if (roll < shape.weight) return shape;
+    roll -= shape.weight;
   }
-  return teamDef.customFormations[context];
+  return weighted[weighted.length - 1];
 };
 
-export const rollTeamFormations = (
+const rollContext = <Context extends FormationContext>(
+  context: Context,
+  definition: TeamDefinition,
+  variants: readonly ActiveTeamFormations[Context][],
+  random: Random,
+) => {
+  const shape = pickWeightedShape(definition.tacticalShapes?.[context], random);
+  const configured = definition.formations[context];
+  const formation =
+    shape?.preset &&
+    variants.includes(shape.preset as ActiveTeamFormations[Context])
+      ? (shape.preset as ActiveTeamFormations[Context])
+      : pickVariant(
+          configured,
+          variants,
+          definition.formationVariation,
+          random,
+        );
+  return {
+    formation,
+    positions: shape?.positions ?? definition.customFormations[context],
+  };
+};
+
+export const rollTeamTactics = (
   team: Team,
   random: Random = Math.random,
   teams: MatchConfig = TEAMS,
-): ActiveTeamFormations => {
+): {
+  formations: ActiveTeamFormations;
+  shapePositions: ActiveShapePositions;
+} => {
   const definition = teams[team];
   const def = definition.formations;
   const variation = definition.formationVariation;
-
-  let rolledOpenAttack = pickVariant(
-    def.openAttack,
+  const kickoffAttack = rollContext(
+    "kickoffAttack",
+    definition,
+    KICKOFF_ATTACK_VARIANTS,
+    random,
+  );
+  const kickoffDefence = rollContext(
+    "kickoffDefence",
+    definition,
+    KICKOFF_DEFENCE_VARIANTS,
+    random,
+  );
+  const openAttack = rollContext(
+    "openAttack",
+    definition,
     OPEN_ATTACK_VARIANTS,
-    variation,
     random,
   );
-  const openAttackShapes = definition.tacticalShapes?.openAttack;
-  if (openAttackShapes && openAttackShapes.length > 0) {
-    const totalWeight = openAttackShapes.reduce(
-      (sum, s) => sum + Math.max(0, s.weight),
-      0,
-    );
-    if (totalWeight > 0) {
-      let r = random() * totalWeight;
-      for (const s of openAttackShapes) {
-        const w = Math.max(0, s.weight);
-        if (r <= w) {
-          if (
-            s.preset &&
-            OPEN_ATTACK_VARIANTS.includes(s.preset as OpenAttackFormation)
-          ) {
-            rolledOpenAttack = s.preset as OpenAttackFormation;
-          }
-          break;
-        }
-        r -= w;
-      }
-    }
-  }
-
-  let rolledOpenDefence = pickVariant(
-    def.openDefence,
+  const openDefence = rollContext(
+    "openDefence",
+    definition,
     OPEN_DEFENCE_VARIANTS_LIST,
-    variation,
     random,
   );
-  const openDefenceShapes = definition.tacticalShapes?.openDefence;
-  if (openDefenceShapes && openDefenceShapes.length > 0) {
-    const totalWeight = openDefenceShapes.reduce(
-      (sum, s) => sum + Math.max(0, s.weight),
-      0,
-    );
-    if (totalWeight > 0) {
-      let r = random() * totalWeight;
-      for (const s of openDefenceShapes) {
-        const w = Math.max(0, s.weight);
-        if (r <= w) {
-          if (
-            s.preset &&
-            OPEN_DEFENCE_VARIANTS_LIST.includes(
-              s.preset as OpenDefenceFormation,
-            )
-          ) {
-            rolledOpenDefence = s.preset as OpenDefenceFormation;
-          }
-          break;
-        }
-        r -= w;
-      }
-    }
-  }
+  const scrumAttack = rollContext(
+    "scrumAttack",
+    definition,
+    SCRUM_ATTACK_VARIANTS,
+    random,
+  );
+  const scrumDefence = rollContext(
+    "scrumDefence",
+    definition,
+    SCRUM_DEFENCE_VARIANTS,
+    random,
+  );
 
   return {
-    kickoffAttack: pickVariant(
-      def.kickoffAttack,
-      KICKOFF_ATTACK_VARIANTS,
-      variation,
-      random,
-    ),
-    kickoffDefence: pickVariant(
-      def.kickoffDefence,
-      KICKOFF_DEFENCE_VARIANTS,
-      variation,
-      random,
-    ),
-    openAttack: rolledOpenAttack,
-    openDefence: rolledOpenDefence,
-    lineoutMembers: pickVariant(
-      def.lineoutMembers,
-      LINEOUT_MEMBERS_LIST,
-      variation,
-      random,
-    ),
-    lineoutNonParticipants: pickVariant(
-      def.lineoutNonParticipants,
-      LINEOUT_NON_PARTICIPANTS_LIST,
-      variation,
-      random,
-    ),
-    scrumAttack: pickVariant(
-      def.scrumAttack,
-      SCRUM_ATTACK_VARIANTS,
-      variation,
-      random,
-    ),
-    scrumDefence: pickVariant(
-      def.scrumDefence,
-      SCRUM_DEFENCE_VARIANTS,
-      variation,
-      random,
-    ),
+    formations: {
+      kickoffAttack: kickoffAttack.formation,
+      kickoffDefence: kickoffDefence.formation,
+      openAttack: openAttack.formation,
+      openDefence: openDefence.formation,
+      lineoutMembers: pickVariant(
+        def.lineoutMembers,
+        LINEOUT_MEMBERS_LIST,
+        variation,
+        random,
+      ),
+      lineoutNonParticipants: pickVariant(
+        def.lineoutNonParticipants,
+        LINEOUT_NON_PARTICIPANTS_LIST,
+        variation,
+        random,
+      ),
+      scrumAttack: scrumAttack.formation,
+      scrumDefence: scrumDefence.formation,
+    },
+    shapePositions: {
+      kickoffAttack: kickoffAttack.positions,
+      kickoffDefence: kickoffDefence.positions,
+      openAttack: openAttack.positions,
+      openDefence: openDefence.positions,
+      scrumAttack: scrumAttack.positions,
+      scrumDefence: scrumDefence.positions,
+    },
   };
+};
+
+export const rerollTeamTactics = (
+  state: Pick<GameState, "teams" | "formations" | "activeShapePositions">,
+  random: Random,
+) => {
+  for (const team of [0, 1] as const) {
+    const rolled = rollTeamTactics(team, random, state.teams);
+    state.formations[team] = rolled.formations;
+    state.activeShapePositions[team] = rolled.shapePositions;
+  }
 };

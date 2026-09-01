@@ -15,10 +15,6 @@ import {
   isForward,
   LINEOUT_MEMBER_VARIANTS,
 } from "../../formations/index.ts";
-import {
-  getActiveShapePositions,
-  rollTeamFormations,
-} from "../../teams/index.ts";
 import { carryBall, launchBall, startGoalLineDropout } from "../ball.ts";
 import {
   clamp,
@@ -53,7 +49,7 @@ export const updateKickoff = (
           phase.reason,
           state.formations[phase.kickingTeam].kickoffAttack,
           state.formations[kicker.team].kickoffDefence,
-          getActiveShapePositions(state.teams[kicker.team], "kickoffAttack"),
+          state.activeShapePositions[kicker.team].kickoffAttack,
         )
       : null;
     const kickerReady =
@@ -66,12 +62,9 @@ export const updateKickoff = (
         phase.reason,
         state.formations[phase.kickingTeam].kickoffAttack,
         state.formations[player.team].kickoffDefence,
-        getActiveShapePositions(
-          state.teams[player.team],
-          player.team === phase.kickingTeam
-            ? "kickoffAttack"
-            : "kickoffDefence",
-        ),
+        state.activeShapePositions[player.team][
+          player.team === phase.kickingTeam ? "kickoffAttack" : "kickoffDefence"
+        ],
       );
       return distance(player.position, target) <= 2.5;
     }).length;

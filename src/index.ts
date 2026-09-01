@@ -1,8 +1,8 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import type { GameState } from "./domain.ts";
-import { createRenderer } from "./renderer.ts";
+import { createRenderer } from "./renderer/index.ts";
 import { createGame, createMatchConfig, updateGame } from "./simulation.ts";
-import { createMatchSetup } from "./setup.ts";
+import { createMatchSetup } from "./setup/index.ts";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const pregame = document.getElementById("pregame")!;
