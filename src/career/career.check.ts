@@ -6,7 +6,9 @@ import {
   createMatchInputForFixture,
   deleteCareer,
   deriveStandings,
+  dismissAcademyProspect,
   enrollCoachingCourse,
+  executeSeasonRollover,
   getManagerLevel,
   getPlayerOverall,
   getUpcomingManagedFixture,
@@ -14,6 +16,7 @@ import {
   loadCareer,
   optimizeSquadSelection,
   parseCareerSave,
+  promoteAcademyProspect,
   releaseSquadPlayer,
   saveCareer,
   scoutTargetPlayer,
@@ -232,6 +235,32 @@ assert(
   "Seller club should receive transfer fee",
 );
 
+// Test Youth Academy
+assert(
+  career.season.clubs[0].academySquad.length === 6,
+  "Youth academy squad size should be 6",
+);
+const firstProspect = career.season.clubs[0].academySquad[0];
+// Release a player to make room in senior squad
+const playerToRelease3 = career.season.clubs[0].squad[39];
+career = releaseSquadPlayer(career, playerToRelease3.id);
+career = promoteAcademyProspect(career, firstProspect.id);
+assert(
+  career.season.clubs[0].squad.some((p) => p.id === firstProspect.id),
+  "Youth prospect promotion failed",
+);
+assert(
+  !career.season.clubs[0].academySquad.some((p) => p.id === firstProspect.id),
+  "Promoted prospect was not removed from academy",
+);
+
+const secondProspect = career.season.clubs[0].academySquad[0];
+career = dismissAcademyProspect(career, secondProspect.id);
+assert(
+  !career.season.clubs[0].academySquad.some((p) => p.id === secondProspect.id),
+  "Dismissed prospect was not removed from academy",
+);
+
 // Test match input creation for fixture
 const firstFixture = career.season.fixtures[0];
 const matchInput = createMatchInputForFixture(career, firstFixture);
@@ -315,6 +344,27 @@ assert(
 assert(
   getUpcomingManagedFixture(career) === null,
   "Completed season has upcoming fixture",
+);
+
+// Test Season Rollover to Year 2
+const balanceBeforeRollover = career.season.clubs[0].balance;
+career = executeSeasonRollover(career);
+assert(career.seasonYear === 2027, "Season year should advance to 2027");
+assert(career.currentRound === 1, "Round should reset to 1");
+assert(career.checkpoint === "monday", "Checkpoint should reset to monday");
+assert(career.history.length === 1, "Season history should contain 1 archive");
+assert(career.history[0].year === 2026, "Archived season year should be 2026");
+assert(
+  career.season.clubs[0].balance > balanceBeforeRollover,
+  "Prize money was not awarded to club",
+);
+assert(
+  career.season.fixtures.length === 30,
+  "New season should have 30 fixtures",
+);
+assert(
+  career.season.fixtures.every((f) => f.status === "scheduled"),
+  "New fixtures should be scheduled",
 );
 
 const values = new Map<string, string>();

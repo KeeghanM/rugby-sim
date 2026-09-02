@@ -208,6 +208,7 @@ export function parseFacilities(value: unknown, path: string): Facilities {
       5,
     ),
     medicalRoom: boundedInteger(input.medicalRoom, `${path}.medicalRoom`, 1, 5),
+    academy: boundedInteger(input.academy ?? 1, `${path}.academy`, 1, 5),
   };
 }
 

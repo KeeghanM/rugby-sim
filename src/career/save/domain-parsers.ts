@@ -106,6 +106,11 @@ export function parseClub(value: unknown, path: string): Club {
     staffLevel: integer(input.staffLevel, `${path}.staffLevel`),
     facilityLevel: integer(input.facilityLevel, `${path}.facilityLevel`),
     facilities: parseFacilities(input.facilities, `${path}.facilities`),
+    academySquad: Array.isArray(input.academySquad)
+      ? array(input.academySquad, `${path}.academySquad`).map((item, index) =>
+          parsePlayer(item, `${path}.academySquad[${index}]`),
+        )
+      : [],
     reputation: integer(input.reputation, `${path}.reputation`),
     balance: number(input.balance, `${path}.balance`),
     ledger: Array.isArray(input.ledger)
@@ -282,6 +287,7 @@ export function parseCareer(value: unknown): Career {
     id: string(input.id, "career.id"),
     manager: parseManagerProfile(input.manager, "career.manager"),
     managedClubId: string(input.managedClubId, "career.managedClubId"),
+    seasonYear: integer(input.seasonYear ?? 2026, "career.seasonYear", 2020),
     season: {
       id: string(season.id, "career.season.id"),
       name: string(season.name, "career.season.name"),
@@ -292,6 +298,7 @@ export function parseCareer(value: unknown): Career {
         (item, index) => parseFixture(item, `career.season.fixtures[${index}]`),
       ),
     },
+    history: Array.isArray(input.history) ? (input.history as any) : [],
     freeAgents: Array.isArray(input.freeAgents)
       ? array(input.freeAgents, "career.freeAgents").map((item, index) =>
           parsePlayer(item, `career.freeAgents[${index}]`),

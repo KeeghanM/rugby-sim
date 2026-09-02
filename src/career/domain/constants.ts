@@ -91,6 +91,7 @@ export const STAFF_ROLES = [
   "scCoach",
   "physio",
   "chiefScout",
+  "academyDirector",
 ] as const;
 
 export type StaffRole = (typeof STAFF_ROLES)[number];
@@ -102,6 +103,7 @@ export const STAFF_NAMES: Record<StaffRole, string> = {
   scCoach: "Head of Strength & Conditioning",
   physio: "Head Physiotherapist",
   chiefScout: "Head of Recruitment & Scouting",
+  academyDirector: "Head of Youth Development",
 };
 
 export const STAFF_EFFECTS: Record<StaffRole, string> = {
@@ -115,12 +117,15 @@ export const STAFF_EFFECTS: Record<StaffRole, string> = {
     "Speeds up injury rehabilitation and reduces match/training injury risk.",
   chiefScout:
     "Improves scouting accuracy and reveals hidden player potentials.",
+  academyDirector:
+    "Scouts higher-potential youth candidates and mentors teenage prospects.",
 };
 
 export const FACILITY_NAMES = {
   gym: "High Performance Gym",
   trainingGround: "Tactical Training Grounds",
   medicalRoom: "Medical & Rehab Suite",
+  academy: "Youth Development Academy",
 } as const;
 
 export type FacilityType = keyof typeof FACILITY_NAMES;
@@ -129,7 +134,18 @@ export const FACILITY_EFFECTS = {
   gym: "Increases strength & power training gains across the squad.",
   trainingGround: "Improves skill development rate in all tactical sessions.",
   medicalRoom: "Decreases injury severity & accelerates weekly rehab recovery.",
+  academy:
+    "Improves annual youth intake quality and accelerates youth progression.",
 } as const;
+
+export const SEASON_PRIZE_MONEY: Record<number, number> = {
+  1: 250_000,
+  2: 150_000,
+  3: 100_000,
+  4: 75_000,
+  5: 50_000,
+  6: 30_000,
+};
 
 export const FACILITY_UPGRADE_COSTS: Record<number, number> = {
   2: 80_000,

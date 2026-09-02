@@ -98,7 +98,8 @@ const TRANSFERS_STYLES = `
 
 registerStyles("career-transfers", TRANSFERS_STYLES);
 
-export type TransfersSubTab = "freeAgents" | "squadContracts" | "leagueMarket";
+export type TransfersSubTab =
+  "freeAgents" | "squadContracts" | "leagueMarket" | "academy";
 
 export const renderTransfersView = (
   career: Career,
@@ -146,7 +147,7 @@ export const renderTransfersView = (
       <div class="transfers-kpi-card">
         <small>Market Pool</small>
         <strong style="color: #facc15;">${career.freeAgents.length} Free Agents</strong>
-        <span style="font-size: 0.72rem; color: #94a3b8;">Reports Filed: ${Object.keys(career.scoutingReports).length}</span>
+        <span style="font-size: 0.72rem; color: #94a3b8;">Academy: ${club.academySquad.length} Prospects</span>
       </div>
     </div>
 
@@ -157,6 +158,9 @@ export const renderTransfersView = (
       </button>
       <button type="button" class="${activeSubTab === "squadContracts" ? "active" : ""}" data-transfers-tab="squadContracts">
         My Squad Contracts (${club.squad.length}/40)
+      </button>
+      <button type="button" class="${activeSubTab === "academy" ? "active" : ""}" data-transfers-tab="academy">
+        Youth Academy (${club.academySquad.length})
       </button>
       <button type="button" class="${activeSubTab === "leagueMarket" ? "active" : ""}" data-transfers-tab="leagueMarket">
         Rival Club Targets
@@ -169,7 +173,9 @@ export const renderTransfersView = (
         ? renderFreeAgentsTab(career, club, scoutLevel, roleFilter)
         : activeSubTab === "squadContracts"
           ? renderSquadContractsTab(career, club)
-          : renderLeagueMarketTab(career, club, scoutLevel)
+          : activeSubTab === "academy"
+            ? renderAcademyTab(career, club)
+            : renderLeagueMarketTab(career, club, scoutLevel)
     }
   </section>`;
 };
@@ -349,6 +355,94 @@ function renderSquadContractsTab(career: Career, club: Club): string {
               </tr>`;
             })
             .join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderAcademyTab(career: Career, club: Club): string {
+  const isSquadFull = club.squad.length >= 40;
+  const academyLvl = club.facilities.academy ?? 1;
+  const dir = club.staff.find((s) => s.role === "academyDirector");
+
+  return `<div>
+    <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgb(255 255 255 / 8%); border-radius: 0.55rem; padding: 1rem; margin-bottom: 1.25rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+          <span class="career-kicker" style="color: #38bdf8;">Youth Development Setup</span>
+          <h3 style="margin: 0.2rem 0; font-size: 1.1rem; color: #f8fafc;">Academy Infrastructure</h3>
+          <p style="margin: 0; font-size: 0.78rem; color: #94a3b8;">
+            Academy Level ${academyLvl}/5 · Head of Youth: <strong>${escapeHtml(dir?.name ?? "Academy Staff")}</strong> (Lvl ${dir?.level ?? 1})
+          </p>
+        </div>
+        <span style="font-size: 0.75rem; color: #cbd5e1; background: rgba(0,0,0,0.3); padding: 0.4rem 0.75rem; border-radius: 0.35rem;">
+          Annual Intake arrives at start of every new season.
+        </span>
+      </div>
+    </div>
+
+    <div class="career-table-wrap">
+      <table class="career-table">
+        <thead>
+          <tr>
+            <th>Prospect Name</th>
+            <th>Role</th>
+            <th style="text-align: center;">Age</th>
+            <th style="text-align: center;">OVR</th>
+            <th style="text-align: center;">Potential</th>
+            <th style="text-align: center;">Speed</th>
+            <th style="text-align: center;">Power</th>
+            <th style="text-align: right; width: 170px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            club.academySquad.length === 0
+              ? `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 2.5rem;">No youth prospects currently in the academy. New intake arrives at season rollover.</td></tr>`
+              : club.academySquad
+                  .map((p) => {
+                    const ovr = getPlayerOverall(p);
+                    const pot = p.potential ?? 80;
+
+                    return `<tr>
+                      <td>
+                        <button type="button" class="career-link-btn" data-view-player="${p.id}">
+                          <strong>${escapeHtml(p.name)}</strong>
+                        </button>
+                      </td>
+                      <td style="font-size: 0.75rem; color: #94a3b8;">${escapeHtml(p.role)}</td>
+                      <td style="text-align: center; font-weight: 700; color: #38bdf8;">${p.age}</td>
+                      <td style="text-align: center;">
+                        <span class="player-ovr-badge ${getOvrClass(ovr)}">${ovr}</span>
+                      </td>
+                      <td style="text-align: center;">
+                        <span class="scout-badge-pill" style="background: #22c55e22; color: #4ade80; border-color: #22c55e55;">
+                          ★ ${pot} POT
+                        </span>
+                      </td>
+                      <td style="text-align: center; font-family: ui-monospace, monospace;">${p.speed}</td>
+                      <td style="text-align: center; font-family: ui-monospace, monospace;">${p.strength}</td>
+                      <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                          ${
+                            isSquadFull
+                              ? `<button type="button" class="career-secondary-btn" disabled style="font-size: 0.7rem; padding: 0.25rem 0.5rem;" title="Senior squad is full (40 max)">
+                                  Squad Full
+                                </button>`
+                              : `<button type="button" class="career-primary-btn" data-promote-youth="${p.id}" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+                                  🌟 Promote
+                                </button>`
+                          }
+                          <button type="button" class="career-swap-btn" data-dismiss-youth="${p.id}" style="font-size: 0.72rem; padding: 0.25rem 0.45rem; color: #94a3b8;" title="Dismiss prospect from academy">
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>`;
+                  })
+                  .join("")
+          }
         </tbody>
       </table>
     </div>

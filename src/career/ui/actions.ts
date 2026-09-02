@@ -3,9 +3,12 @@ import {
   advanceCareer,
   clearReadInboxMessages,
   deleteInboxMessage,
+  dismissAcademyProspect,
   enrollCoachingCourse,
+  executeSeasonRollover,
   markInboxRead,
   optimizeSquadSelection,
+  promoteAcademyProspect,
   releaseSquadPlayer,
   scoutTargetPlayer,
   setClubTrainingPlan,
@@ -212,6 +215,25 @@ export const handleTransferActions = (
     return true;
   }
 
+  const promoteBtn = target?.closest<HTMLButtonElement>("[data-promote-youth]");
+  if (promoteBtn?.dataset.promoteYouth) {
+    const pId = promoteBtn.dataset.promoteYouth;
+    callbacks.setCareer(promoteAcademyProspect(career, pId));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const dismissBtn = target?.closest<HTMLButtonElement>("[data-dismiss-youth]");
+  if (dismissBtn?.dataset.dismissYouth) {
+    const pId = dismissBtn.dataset.dismissYouth;
+    if (!confirm("Dismiss this youth prospect from the academy?")) return true;
+    callbacks.setCareer(dismissAcademyProspect(career, pId));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
   return false;
 };
 
@@ -314,9 +336,25 @@ export const handleAdvancementActions = (
     callbacks.render();
     return true;
   }
+  if (target?.closest("[data-advance-season]")) {
+    callbacks.setCareer(executeSeasonRollover(career));
+    callbacks.setSelectedSwapIndex(null);
+    callbacks.setSelectedMessageId(null);
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
   if (target?.closest("[data-advance]")) {
     if (career.checkpoint === "matchDay") {
       callbacks.runRoundSimulation();
+      return true;
+    }
+    if (career.checkpoint === "seasonEnd") {
+      callbacks.setCareer(executeSeasonRollover(career));
+      callbacks.setSelectedSwapIndex(null);
+      callbacks.setSelectedMessageId(null);
+      callbacks.persist();
+      callbacks.render();
       return true;
     }
     callbacks.setCareer(advanceCareer(career));

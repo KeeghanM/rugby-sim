@@ -2,6 +2,7 @@ import { escapeHtml } from "../../../html.ts";
 import { createTile, registerStyles } from "../../../ui/index.ts";
 import type { Career, Club } from "../../domain/index.ts";
 import {
+  deriveStandings,
   getManagerLevel,
   getManagerReputationTier,
   getUpcomingManagedFixture,
@@ -128,6 +129,30 @@ export const renderHome = (career: Career, club: Club): string => {
         <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
           <button type="button" class="career-primary" data-watch-match style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">🎬 Watch 3D</button>
           <button type="button" class="career-secondary-btn" data-advance style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">⚡ Quick Sim</button>
+        </div>
+      </section>`;
+  }
+
+  let seasonEndBannerHtml = "";
+  if (career.checkpoint === "seasonEnd") {
+    const standings = deriveStandings(career);
+    const userStandingIndex = standings.findIndex((s) => s.clubId === club.id);
+    const userFinishPos = userStandingIndex !== -1 ? userStandingIndex + 1 : 6;
+    const champion = standings[0];
+
+    seasonEndBannerHtml = `
+      <section class="career-lead-panel" style="grid-column: 1 / -1; border-left: 4px solid #facc15; background: linear-gradient(90deg, rgba(250, 204, 21, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%); min-height: auto; padding: 1.25rem 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <span class="career-kicker" style="color: #facc15;">Season ${career.seasonYear} Complete</span>
+            <h3 style="margin: 0.2rem 0; font-size: 1.25rem; color: #f8fafc;">🏆 ${escapeHtml(champion?.clubName ?? "Champions")} Crowned League Champions</h3>
+            <p style="margin: 0; color: #cbd5e1; font-size: 0.85rem;">
+              ${escapeHtml(club.name)} finished <strong>#${userFinishPos}</strong> in the final standings. Proceed to process player aging, contract expirations, fresh youth intake, and launch Season ${career.seasonYear + 1}!
+            </p>
+          </div>
+          <button type="button" class="career-primary" data-advance-season style="background: #facc15; color: #0f172a; font-weight: 800; padding: 0.65rem 1.25rem; font-size: 0.88rem;">
+            🚀 Begin ${career.seasonYear + 1} Season →
+          </button>
         </div>
       </section>`;
   }
@@ -288,6 +313,7 @@ export const renderHome = (career: Career, club: Club): string => {
   });
 
   return `<div class="career-home-grid">
+    ${seasonEndBannerHtml}
     ${pendingEventHtml}
     ${matchDayActionTile}
     ${latestMatchTile}

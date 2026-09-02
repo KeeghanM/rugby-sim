@@ -29,6 +29,7 @@ export type Facilities = {
   gym: number;
   trainingGround: number;
   medicalRoom: number;
+  academy: number;
 };
 
 export type StaffMember = {
@@ -111,6 +112,7 @@ export type Club = {
   color: string;
   reputation: number;
   squad: Player[];
+  academySquad: Player[];
   staff: StaffMember[];
   staffLevel: number;
   facilityLevel: number;
@@ -234,16 +236,35 @@ export type InboxMessage = BlockingEvent & {
   transferOfferId?: string;
 };
 
+export type SeasonArchive = {
+  year: number;
+  seasonName: string;
+  championClubId: string;
+  championClubName: string;
+  userFinishPosition: number;
+  userRecord: {
+    won: number;
+    drawn: number;
+    lost: number;
+    pointsFor: number;
+    pointsAgainst: number;
+  };
+  prizeMoney: number;
+  standings: Standing[];
+};
+
 export type Career = {
   id: string;
   manager: ManagerProfile;
   managedClubId: string;
+  seasonYear: number;
   season: {
     id: string;
     name: string;
     clubs: Club[];
     fixtures: Fixture[];
   };
+  history: SeasonArchive[];
   freeAgents: Player[];
   scoutingReports: Record<string, ScoutingReport>;
   transferOffers: TransferOffer[];

@@ -10,3 +10,5 @@ export * from "./progression.ts";
 export * from "./finances.ts";
 export * from "./manager.ts";
 export * from "./transfers.ts";
+export * from "./academy.ts";
+export * from "./season-rollover.ts";

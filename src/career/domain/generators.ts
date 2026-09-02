@@ -8,6 +8,7 @@ import {
   STAFF_ROLES,
   type PlayerRole,
 } from "./constants.ts";
+import { generateYouthIntake } from "./academy.ts";
 import { createDefaultManagerProfile } from "./manager.ts";
 import { calculatePlayerMarketValue } from "./transfers.ts";
 import type {
@@ -54,7 +55,7 @@ export function addDays(date: string, days: number): string {
   return next.toISOString().slice(0, 10);
 }
 
-function generatePlayerStats(
+export function generatePlayerStats(
   role: PlayerRole,
   playerIndex: number,
   clubIndex: number,
@@ -161,7 +162,7 @@ function generatePlayerStats(
 }
 
 export function createClubs(): Club[] {
-  return CLUBS.map((club, clubIndex) => {
+  const baseClubs: Club[] = CLUBS.map((club, clubIndex) => {
     const staffMembers: StaffMember[] = STAFF_ROLES.map((role, sIndex) => {
       const level = 1 + ((clubIndex + sIndex) % 3);
       return {
@@ -219,7 +220,9 @@ export function createClubs(): Club[] {
         gym: 1 + (clubIndex % 3),
         trainingGround: 1 + ((clubIndex + 1) % 3),
         medicalRoom: 1 + ((clubIndex + 2) % 3),
+        academy: 1 + (clubIndex % 3),
       },
+      academySquad: [],
       reputation: 58 + clubIndex * 4,
       balance: 1_000_000 + clubIndex * 75_000,
       ledger: [],
@@ -229,6 +232,11 @@ export function createClubs(): Club[] {
       },
     };
   });
+
+  return baseClubs.map((club) => ({
+    ...club,
+    academySquad: generateYouthIntake(club, 2026, 6),
+  }));
 }
 
 export function createFixtures(): Fixture[] {
@@ -336,12 +344,14 @@ export function createCareer(managerName: string, clubId: string): Career {
     id: `career-${clubId}-2026`,
     manager: createDefaultManagerProfile(name),
     managedClubId: clubId,
+    seasonYear: 2026,
     season: {
       id: "league-2026",
       name: "National Club League",
       clubs: createClubs(),
       fixtures: createFixtures(),
     },
+    history: [],
     freeAgents: createFreeAgents(),
     scoutingReports: {},
     transferOffers: [],
