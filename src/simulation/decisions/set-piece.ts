@@ -197,8 +197,7 @@ export const getPenaltyCommands = (state: GameState, players: Player[]) => {
   if (phase.kind !== "penalty") return null;
   const teamDir = attackDirection(phase.awardedTeam);
   return players.map((player) => {
-    const isKicker =
-      player.team === phase.awardedTeam && player.role === ROLES.FlyHalf;
+    const isKicker = player.id === phase.kickerId;
     if (isKicker) {
       return command(player, phase.position, "penalty-kicker", false, "run");
     }

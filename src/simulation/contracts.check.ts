@@ -1,8 +1,16 @@
-import { ATTACK_FORMATION } from "../formations.ts";
+import { ATTACK_FORMATION, getKickoffTarget } from "../formations.ts";
 import { createMatchConfig, getPlayerProfile } from "../teams/index.ts";
+import { carryBall, startLineout } from "./ball.ts";
 import { createGame, createMatchInput } from "./create-game.ts";
+import { getPenaltyCommands } from "./decisions/set-piece.ts";
 import { createMatchResult } from "./match-result.ts";
 import { updateSubstitutions } from "./movement/substitutions.ts";
+import {
+  attemptTackle,
+  startPenalty,
+  updateKickoff,
+  updatePenalty,
+} from "./phases.ts";
 
 const check = (condition: boolean, message: string) => {
   if (!condition) throw new Error(message);
@@ -66,5 +74,100 @@ const overridden = getPlayerProfile(0, 1, role, teams);
 delete teams[0].playerOverrides[1];
 const baseline = getPlayerProfile(0, 1, role, teams);
 check(overridden.weight !== baseline.weight, "Preset override had no effect");
+
+const kickoffState = createGame(input, () => 0.5);
+const kickoff = kickoffState.phase;
+if (kickoff.kind !== "kickoff")
+  throw new Error("Match did not start at kickoff");
+for (const player of kickoffState.players) {
+  player.position = getKickoffTarget(
+    player,
+    kickoff.kickingTeam,
+    kickoff.reason,
+    kickoffState.formations[kickoff.kickingTeam].kickoffAttack,
+    kickoffState.formations[player.team].kickoffDefence,
+    kickoffState.activeShapePositions[player.team][
+      player.team === kickoff.kickingTeam ? "kickoffAttack" : "kickoffDefence"
+    ],
+  );
+}
+kickoffState.players[0].position.z += 10;
+updateKickoff(kickoffState, 30, () => 0.5);
+check(
+  kickoff.stage === "forming",
+  "Kickoff started before every player formed",
+);
+kickoffState.players[0].position = getKickoffTarget(
+  kickoffState.players[0],
+  kickoff.kickingTeam,
+  kickoff.reason,
+  kickoffState.formations[kickoff.kickingTeam].kickoffAttack,
+  kickoffState.formations[kickoffState.players[0].team].kickoffDefence,
+  kickoffState.activeShapePositions[kickoffState.players[0].team][
+    kickoffState.players[0].team === kickoff.kickingTeam
+      ? "kickoffAttack"
+      : "kickoffDefence"
+  ],
+);
+updateKickoff(kickoffState, 0.1, () => 0.5);
+updateKickoff(kickoffState, 1, () => 0.5);
+check(
+  kickoffState.ball.flight === "kickoff" &&
+    kickoffState.ball.kickOrigin?.x === 0 &&
+    kickoffState.ball.kickOrigin.z === 0,
+  "Kickoff did not launch from restart mark",
+);
+
+const penaltyState = createGame(input, () => 0.5);
+startPenalty(penaltyState, 0, { x: 12, z: 18 }, undefined, () => 0.5);
+if (penaltyState.phase.kind !== "penalty")
+  throw new Error("Penalty did not start");
+penaltyState.phase.choice = "touch";
+updatePenalty(penaltyState, 30, () => 0.5);
+check(
+  penaltyState.phase.kind === "penalty" &&
+    penaltyState.phase.stage === "decision",
+  "Penalty started before players formed",
+);
+for (const command of getPenaltyCommands(penaltyState, penaltyState.players)!) {
+  const player = penaltyState.players.find(
+    ({ id }) => id === command.playerId,
+  )!;
+  player.position = { ...command.target };
+  player.intentTarget = { ...command.target };
+  player.intentKind = command.intentKind;
+}
+updatePenalty(penaltyState, 0.1, () => 0.5);
+updatePenalty(penaltyState, 0.1, () => 0.5);
+check(
+  penaltyState.ball.kickOrigin?.x === 12 &&
+    penaltyState.ball.kickOrigin.z === 18,
+  "Penalty did not launch from mark",
+);
+
+penaltyState.players[0].ruckRecoverySeconds = 999;
+startLineout(penaltyState, 0, 20, 35);
+check(
+  penaltyState.players.every(
+    ({ ruckRecoverySeconds }) => ruckRecoverySeconds === 0,
+  ),
+  "Contact pose survived lineout transition",
+);
+
+const tackleState = createGame(input, () => 0.5);
+for (const player of tackleState.players) player.position = { x: 30, z: -50 };
+const carrier = tackleState.players.find((player) => player.team === 0)!;
+const tackler = tackleState.players.find((player) => player.team === 1)!;
+carrier.position = { x: 0, z: 10.6 };
+tackler.position = { x: 0, z: 9.4 };
+tackleState.phase = { kind: "openPlay" };
+carryBall(tackleState, carrier);
+tackleState.defensiveLineZ[1] = 10;
+const tackleRolls = [0, 0.5];
+attemptTackle(tackleState, () => tackleRolls.shift() ?? 0.5);
+check(
+  tackler.stats.tacklesMade === 1,
+  "Trailing defender tackle was not recorded",
+);
 
 console.log("Match contract checks passed");

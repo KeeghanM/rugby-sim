@@ -27,6 +27,7 @@ import {
   overallSkill,
 } from "../math.ts";
 import type { Random } from "../types.ts";
+import { resetContactPlayers } from "../contact.ts";
 
 export const startScrum = (
   state: GameState,
@@ -34,6 +35,7 @@ export const startScrum = (
   position: Position,
   random: Random = Math.random,
 ) => {
+  resetContactPlayers(state);
   // Inset mark leaves room for complete packs where infringement occurred near boundary.
   const markX = clamp(position.x, -22, 22);
   const markZ = clamp(

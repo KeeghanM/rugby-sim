@@ -7,6 +7,15 @@ export const separatedVelocity = (
   player: Player,
   velocity: Position,
 ): Position => {
+  const phase = state.phase;
+  if (
+    (phase.kind === "kickoff" && phase.stage === "forming") ||
+    (phase.kind === "penalty" && phase.stage === "decision") ||
+    (phase.kind === "conversion" && phase.stage === "forming")
+  ) {
+    return velocity;
+  }
+
   let x = velocity.x;
   let z = velocity.z;
   const isCarrier = player.id === state.ball.carrierId;

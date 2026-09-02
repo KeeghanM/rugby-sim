@@ -11,6 +11,7 @@ import { isForward } from "../../formations.ts";
 import { clamp, distance, effectiveSkill, GRAVITY } from "../math.ts";
 import { startScrum } from "../phases.ts";
 import type { Random } from "../types.ts";
+import { resetContactPlayers } from "../contact.ts";
 
 export const startLineout = (
   state: GameState,
@@ -18,6 +19,7 @@ export const startLineout = (
   z: number,
   x: number,
 ) => {
+  resetContactPlayers(state);
   if (state.ball.kickerId) {
     const kicker =
       state.players.find((p) => p.id === state.ball.kickerId) ??

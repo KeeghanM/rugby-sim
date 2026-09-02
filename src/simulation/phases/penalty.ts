@@ -26,6 +26,7 @@ import {
   overallSkill,
 } from "../math.ts";
 import type { Random } from "../types.ts";
+import { resetContactPlayers } from "../contact.ts";
 import {
   GOAL_KICK_TIMEOUT_SECONDS,
   MATCH_CLOCK_RATE,
@@ -39,6 +40,7 @@ export const startPenalty = (
   offender?: Player,
   random: Random = Math.random,
 ) => {
+  resetContactPlayers(state);
   if (offender) {
     offender.stats.penaltiesConceded += 1;
   }
@@ -162,8 +164,14 @@ export const updatePenalty = (
     state.players.find((p) => p.team === phase.awardedTeam);
 
   if (phase.stage === "decision") {
-    if (phase.elapsed < 1.5) return;
+    const allPlayersReady = state.players.every(
+      (player) =>
+        player.intentKind.startsWith("penalty-") &&
+        distance(player.position, player.intentTarget) <= 2.5,
+    );
+    if (phase.elapsed < 1.5 || !allPlayersReady) return;
     phase.stage = "executing";
+    phase.elapsed = 0;
     return;
   }
 
@@ -244,6 +252,7 @@ export const updatePenalty = (
       "kick",
       null,
       random,
+      phase.position,
     );
     state.pendingLineoutTeam = phase.awardedTeam;
     state.phase = { kind: "openPlay" };

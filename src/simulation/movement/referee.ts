@@ -1,6 +1,5 @@
-import { attackDirection, PITCH, type GameState, ROLES } from "../../domain.ts";
+import { attackDirection, PITCH, type GameState } from "../../domain.ts";
 import { clamp, distance } from "../math.ts";
-import { carryBall } from "../ball.ts";
 
 export const updateReferee = (state: GameState, deltaSeconds: number) => {
   // Legacy or partial states may omit assistant referees, so movement initialises safe defaults.
@@ -12,43 +11,6 @@ export const updateReferee = (state: GameState, deltaSeconds: number) => {
   }
 
   const phase = state.phase;
-
-  // Referee carries replacement ball to fly-half so dead-ball transitions remain visible.
-  if (phase.kind === "kickoff" && phase.stage === "forming") {
-    const kicker = state.players.find(
-      (p) => p.team === phase.kickingTeam && p.role === ROLES.FlyHalf,
-    );
-
-    if (kicker && state.ball.carrierId !== kicker.id) {
-      state.ball.carrierId = "referee";
-      state.ball.flight = null;
-      state.ball.position.x = state.referee.position.x;
-      state.ball.position.y = 1.1;
-      state.ball.position.z = state.referee.position.z;
-
-      // Bounded target prevents official following malformed formation beyond pitch.
-      const targetX = clamp(kicker.position.x, -25, 25);
-      const targetZ = clamp(kicker.position.z, -48, 48);
-      const dx = targetX - state.referee.position.x;
-      const dz = targetZ - state.referee.position.z;
-      const dist = Math.hypot(dx, dz);
-
-      if (dist <= 1.5) {
-        carryBall(state, kicker);
-        state.referee.velocity = { x: 0, z: 0 };
-      } else {
-        const speed = dist > 15 ? 7.5 : dist > 5 ? 5.5 : 3.5;
-        state.referee.velocity = {
-          x: (dx / dist) * speed,
-          z: (dz / dist) * speed,
-        };
-        state.referee.position.x += state.referee.velocity.x * deltaSeconds;
-        state.referee.position.z += state.referee.velocity.z * deltaSeconds;
-      }
-      updateAssistantReferees(state, deltaSeconds);
-      return;
-    }
-  }
 
   if (phase.kind === "lineout") {
     const touchSide = phase.position.x < 0 ? -1 : 1;

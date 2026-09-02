@@ -21,6 +21,7 @@ export const launchBall = (
   flight: "pass" | "kick" | "kickoff" | "lineout" | "grubber" | "dropGoal",
   intendedReceiverId: string | null,
   random: Random = Math.random,
+  origin: Position = carrier.position,
 ) => {
   const isKicking =
     flight === "kick" ||
@@ -48,7 +49,7 @@ export const launchBall = (
     x: target.x + (random() - 0.5) * error,
     z: target.z + (random() - 0.5) * error,
   };
-  const horizontalDistance = distance(carrier.position, actualTarget);
+  const horizontalDistance = distance(origin, actualTarget);
   const isGrubber = flight === "grubber";
   const duration =
     flight === "pass" || flight === "lineout"
@@ -60,11 +61,11 @@ export const launchBall = (
           : 2.2;
   // Half-gravity initial vertical speed makes non-grubbers return to launch height at chosen duration.
   state.ball = {
-    position: { ...carrier.position, y: isGrubber ? 0.35 : 1.25 },
+    position: { ...origin, y: isGrubber ? 0.35 : 1.25 },
     velocity: {
-      x: (actualTarget.x - carrier.position.x) / duration,
+      x: (actualTarget.x - origin.x) / duration,
       y: isGrubber ? 1.4 : (GRAVITY * duration) / 2,
-      z: (actualTarget.z - carrier.position.z) / duration,
+      z: (actualTarget.z - origin.z) / duration,
     },
     carrierId: null,
     flight,
@@ -72,7 +73,7 @@ export const launchBall = (
     lastTouchedTeam: carrier.team,
     passerId: flight === "pass" || flight === "lineout" ? carrier.id : null,
     kickerId: isKicking ? carrier.id : null,
-    kickOrigin: isKicking ? { ...carrier.position } : null,
+    kickOrigin: isKicking ? { ...origin } : null,
     bouncesRemaining: isGrubber ? 4 : isKicking ? 2 : 0,
   };
   // Law 10 makes teammates ahead of kicker liable to sanction until put onside.
@@ -82,7 +83,7 @@ export const launchBall = (
       player.kickOffside =
         player.team === carrier.team &&
         player.id !== carrier.id &&
-        (player.position.z - carrier.position.z) * direction > 0;
+        (player.position.z - origin.z) * direction > 0;
     }
   }
 };

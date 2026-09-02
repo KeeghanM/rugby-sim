@@ -42,12 +42,15 @@ export const attemptTackle = (state: GameState, random: Random) => {
   const defTeam = otherTeam(carrier.team);
   const defDir = attackDirection(defTeam);
   const offsideLineZ = state.defensiveLineZ[defTeam];
+  const hasBrokenDefensiveLine =
+    (carrier.position.z - offsideLineZ) * attackDirection(carrier.team) > 0.5;
 
-  // Law 10 kick/open-play offside and Law 15 ruck offside both make defender ineligible.
+  // Once carrier passes the line, trailing defenders may tackle from any side in open play.
   const isOffside = (p: Player) => {
-    if (p.ruckRecoverySeconds > 0) return true;
     if (p.kickOffside) return true;
-    return (p.position.z - offsideLineZ) * defDir > 0.45;
+    return (
+      !hasBrokenDefensiveLine && (p.position.z - offsideLineZ) * defDir > 0.45
+    );
   };
 
   // Offside defender affecting play through tackle concedes immediate penalty.
@@ -56,6 +59,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
       (player) =>
         player.team !== carrier.team &&
         player.tackleCooldown === 0 &&
+        player.ruckRecoverySeconds === 0 &&
         isOffside(player) &&
         distance(player.position, carrier.position) <= 1.25,
     )
@@ -67,7 +71,6 @@ export const attemptTackle = (state: GameState, random: Random) => {
 
   if (offsideTackler) {
     offsideTackler.tackleCooldown = 1.5;
-    offsideTackler.stats.penaltiesConceded += 1;
     startPenalty(state, carrier.team, carrier.position, offsideTackler, random);
     return true;
   }
@@ -77,6 +80,7 @@ export const attemptTackle = (state: GameState, random: Random) => {
       (player) =>
         player.team !== carrier.team &&
         player.tackleCooldown === 0 &&
+        player.ruckRecoverySeconds === 0 &&
         !isOffside(player) &&
         distance(player.position, carrier.position) <= 1.4,
     )

@@ -27,6 +27,7 @@ import {
   overallSkill,
 } from "../math.ts";
 import type { Random } from "../types.ts";
+import { resetContactPlayers } from "../contact.ts";
 import {
   GOAL_KICK_TIMEOUT_SECONDS,
   MATCH_CLOCK_RATE,
@@ -38,6 +39,7 @@ export const scoreTry = (
   team: Team,
   random: Random = Math.random,
 ) => {
+  resetContactPlayers(state);
   state.scores[team] += 5;
   const carrier = state.players.find((p) => p.id === state.ball.carrierId);
   if (carrier) {
@@ -122,30 +124,17 @@ export const updateConversion = (
     const defendersBehindGoalLine = state.players
       .filter((p) => p.team !== phase.kickingTeam)
       .every((p) => (p.position.z - defendingTryLine) * teamDir >= -0.2);
-    const attackersInPlace = state.players
-      .filter((p) => p.team === phase.kickingTeam && p.id !== kicker?.id)
-      .every(
-        (p) =>
-          p.position.z * teamDir <= 6.0 ||
-          distance(p.position, p.intentTarget) <= 4.0,
-      );
+    const allPlayersReady = state.players.every(
+      (player) =>
+        player.intentKind.startsWith("conversion-") &&
+        distance(player.position, player.intentTarget) <= 2.5,
+    );
 
     const ballAtTee = state.ball.carrierId === null;
     const isFormed =
-      ballAtTee &&
-      kickerInPlace &&
-      defendersBehindGoalLine &&
-      (attackersInPlace || phase.elapsed >= 6.0);
+      ballAtTee && kickerInPlace && defendersBehindGoalLine && allPlayersReady;
 
-    if (!isFormed && phase.elapsed < 20.0) return;
-    if (state.ball.carrierId) {
-      state.ball.carrierId = null;
-      state.ball.position = {
-        x: phase.position.x,
-        y: 0.15,
-        z: phase.position.z,
-      };
-    }
+    if (!isFormed) return;
     phase.stage = "ready";
     phase.elapsed = 0;
     return;
