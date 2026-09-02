@@ -1,4 +1,9 @@
-import type { GameState, Player, Position } from "../../domain.ts";
+import {
+  ROLES,
+  type GameState,
+  type Player,
+  type Position,
+} from "../../domain.ts";
 import { isForward } from "../../formations/index.ts";
 import { distance } from "../math.ts";
 
@@ -8,10 +13,17 @@ export const separatedVelocity = (
   velocity: Position,
 ): Position => {
   const phase = state.phase;
+  const isRuckRunner =
+    phase.kind === "ruck" &&
+    (player.id === phase.tacklerId ||
+      (player.role === ROLES.ScrumHalf &&
+        player.team === (phase.winningTeam ?? phase.attackingTeam)));
   if (
     (phase.kind === "kickoff" && phase.stage === "forming") ||
-    (phase.kind === "penalty" && phase.stage === "decision") ||
-    (phase.kind === "conversion" && phase.stage === "forming")
+    (phase.kind === "penalty" && phase.stage !== "inFlight") ||
+    (phase.kind === "conversion" && phase.stage === "forming") ||
+    (phase.kind === "lineout" && phase.stage === "forming") ||
+    isRuckRunner
   ) {
     return velocity;
   }

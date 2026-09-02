@@ -196,18 +196,28 @@ export const getPenaltyCommands = (state: GameState, players: Player[]) => {
   const phase = state.phase;
   if (phase.kind !== "penalty") return null;
   const teamDir = attackDirection(phase.awardedTeam);
+  const touchSide = Math.sign(phase.position.x) || 1;
+  const defendingLineZ = clamp(phase.position.z + teamDir * 10, -55, 55);
   return players.map((player) => {
     const isKicker = player.id === phase.kickerId;
     if (isKicker) {
       return command(player, phase.position, "penalty-kicker", false, "run");
     }
-    const slotOffset = (player.slotIndex ?? 7) - 7;
+    const slotIndex = player.slotIndex ?? 7;
     if (player.team === phase.awardedTeam) {
+      const targetX =
+        phase.choice === "touch"
+          ? touchSide * (18 + (slotIndex % 4) * 3)
+          : phase.position.x + ((slotIndex % 5) - 2) * 2.2;
       return command(
         player,
         {
-          x: slotOffset * 4,
-          z: clamp(phase.position.z - teamDir * 5, -55, 55),
+          x: clamp(targetX, -30, 30),
+          z: clamp(
+            phase.position.z - teamDir * (2 + (slotIndex % 3) * 1.5),
+            -55,
+            55,
+          ),
         },
         "penalty-attack",
         false,
@@ -218,8 +228,8 @@ export const getPenaltyCommands = (state: GameState, players: Player[]) => {
     return command(
       player,
       {
-        x: slotOffset * 4.5,
-        z: clamp(phase.position.z + teamDir * 10, -55, 55),
+        x: clamp(phase.position.x + ((slotIndex % 5) - 2) * 5, -30, 30),
+        z: clamp(defendingLineZ + teamDir * (slotIndex % 3) * 2, -55, 55),
       },
       "penalty-retreat",
       true,
@@ -249,12 +259,11 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
 
     // Tackler rolls clear under Law 14, then retreats goal-side of resulting ruck offside line.
     if (player.id === phase.tacklerId) {
-      const defDir = attackDirection(player.team);
-      const offsideZ = phase.position.z + defDir * 1.5;
+      const defendingSide = attackDirection(phase.attackingTeam);
       const rollLateral = player.position.x >= phase.position.x ? 2.5 : -2.5;
       const rollTarget = {
-        x: clamp(player.position.x + rollLateral, -32, 32),
-        z: clamp(offsideZ + defDir * 1.0, -56, 56),
+        x: clamp(phase.position.x + rollLateral, -32, 32),
+        z: clamp(phase.position.z + defendingSide * 1.2, -56, 56),
       };
       return command(player, rollTarget, "tackler-roll-away", false, "run");
     }

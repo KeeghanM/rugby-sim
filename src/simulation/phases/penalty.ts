@@ -162,22 +162,27 @@ export const updatePenalty = (
       (p) => p.team === phase.awardedTeam && p.role === ROLES.FlyHalf,
     ) ??
     state.players.find((p) => p.team === phase.awardedTeam);
+  const teamDir = attackDirection(phase.awardedTeam);
+  const defendingLineZ = clamp(phase.position.z + teamDir * 10, -55, 55);
+  const kickerReady =
+    kicker !== undefined && distance(kicker.position, phase.position) <= 2.2;
+  const allPlayersOnside = state.players.every((player) =>
+    player.team === phase.awardedTeam
+      ? player.id === kicker?.id ||
+        (player.position.z - phase.position.z) * teamDir <= 0.2
+      : (player.position.z - defendingLineZ) * teamDir >= -0.2,
+  );
 
   if (phase.stage === "decision") {
-    const allPlayersReady = state.players.every(
-      (player) =>
-        player.intentKind.startsWith("penalty-") &&
-        distance(player.position, player.intentTarget) <= 2.5,
-    );
-    if (phase.elapsed < 1.5 || !allPlayersReady) return;
+    if (!kicker) return;
+    if (phase.elapsed < 1.5 || !kickerReady || !allPlayersOnside) return;
     phase.stage = "executing";
     phase.elapsed = 0;
     return;
   }
 
   if (phase.stage === "executing") {
-    if (!kicker) return;
-    const teamDir = attackDirection(phase.awardedTeam);
+    if (!kicker || !kickerReady || !allPlayersOnside) return;
     if (phase.choice === "goal") {
       const shotClockSeconds = phase.elapsed * MATCH_CLOCK_RATE;
       const timedOut = shotClockSeconds >= GOAL_KICK_TIMEOUT_SECONDS;
