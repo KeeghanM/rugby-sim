@@ -100,7 +100,12 @@ assert(
   "Upcoming fixture is wrong",
 );
 
-while (career.checkpoint !== "seasonEnd") career = advanceCareer(career);
+while (career.checkpoint !== "seasonEnd") {
+  if (career.pendingEvent !== null) {
+    career = acknowledgeEvent(career);
+  }
+  career = advanceCareer(career);
+}
 assert(
   career.season.fixtures.every((fixture) => fixture.status === "played"),
   "Season is incomplete",

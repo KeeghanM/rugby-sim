@@ -2,13 +2,23 @@ import {
   CAREER_CONTENT_VERSION,
   CAREER_SIMULATION_VERSION,
   CHECKPOINTS,
+  createInitialCareerRecord,
   PLAYER_ROLES,
+  TRAINING_FOCUSES,
+  TRAINING_INTENSITIES,
   type BlockingEvent,
   type Career,
   type Club,
+  type Facilities,
   type Fixture,
+  type FixturePlayerPerformance,
   type InboxMessage,
+  type MatchReportData,
+  type MatchResult,
   type Player,
+  type PlayerCareerRecord,
+  type PlayerInjury,
+  type TrainingPlan,
 } from "./domain.ts";
 
 export const CAREER_SAVE_KEY = "rugby-sim.career";
@@ -110,6 +120,70 @@ function event(value: unknown, path: string): BlockingEvent {
   };
 }
 
+function playerInjury(value: unknown, path: string): PlayerInjury {
+  const input = record(value, path);
+  const rawSeverity = string(input.severity, `${path}.severity`);
+  if (
+    rawSeverity !== "minor" &&
+    rawSeverity !== "moderate" &&
+    rawSeverity !== "severe"
+  ) {
+    throw new Error(`Invalid career save: ${path}.severity is unsupported`);
+  }
+  return {
+    type: string(input.type, `${path}.type`),
+    weeksRemaining: boundedInteger(
+      input.weeksRemaining,
+      `${path}.weeksRemaining`,
+      1,
+      20,
+    ),
+    severity: rawSeverity,
+  };
+}
+
+function playerCareerRecord(value: unknown, path: string): PlayerCareerRecord {
+  if (value === undefined || value === null) {
+    return createInitialCareerRecord();
+  }
+  const input = record(value, path);
+  return {
+    appearances: integer(input.appearances ?? 0, `${path}.appearances`),
+    starts: integer(input.starts ?? 0, `${path}.starts`),
+    subAppearances: integer(
+      input.subAppearances ?? 0,
+      `${path}.subAppearances`,
+    ),
+    tries: integer(input.tries ?? 0, `${path}.tries`),
+    lineBreaks: integer(input.lineBreaks ?? 0, `${path}.lineBreaks`),
+    tacklesMade: integer(input.tacklesMade ?? 0, `${path}.tacklesMade`),
+    tacklesMissed: integer(input.tacklesMissed ?? 0, `${path}.tacklesMissed`),
+    distanceCovered: number(
+      input.distanceCovered ?? 0,
+      `${path}.distanceCovered`,
+    ),
+    distanceCarried: number(
+      input.distanceCarried ?? 0,
+      `${path}.distanceCarried`,
+    ),
+    successfulPasses: integer(
+      input.successfulPasses ?? 0,
+      `${path}.successfulPasses`,
+    ),
+    totalPasses: integer(input.totalPasses ?? 0, `${path}.totalPasses`),
+    successfulKicks: integer(
+      input.successfulKicks ?? 0,
+      `${path}.successfulKicks`,
+    ),
+    totalKicks: integer(input.totalKicks ?? 0, `${path}.totalKicks`),
+    penaltiesConceded: integer(
+      input.penaltiesConceded ?? 0,
+      `${path}.penaltiesConceded`,
+    ),
+    knockOns: integer(input.knockOns ?? 0, `${path}.knockOns`),
+  };
+}
+
 function player(value: unknown, path: string): Player {
   const input = record(value, path);
   const rawRole = string(input.role, `${path}.role`);
@@ -125,7 +199,45 @@ function player(value: unknown, path: string): Player {
     attack: boundedInteger(input.attack, `${path}.attack`, 0, 100),
     defence: boundedInteger(input.defence, `${path}.defence`, 0, 100),
     fitness: boundedInteger(input.fitness, `${path}.fitness`, 0, 100),
+    injury: nullable(input.injury, (item) =>
+      playerInjury(item, `${path}.injury`),
+    ),
+    careerRecord: playerCareerRecord(
+      input.careerRecord,
+      `${path}.careerRecord`,
+    ),
   };
+}
+
+function facilities(value: unknown, path: string): Facilities {
+  const input = record(value, path);
+  return {
+    gym: boundedInteger(input.gym, `${path}.gym`, 1, 5),
+    trainingGround: boundedInteger(
+      input.trainingGround,
+      `${path}.trainingGround`,
+      1,
+      5,
+    ),
+    medicalRoom: boundedInteger(input.medicalRoom, `${path}.medicalRoom`, 1, 5),
+  };
+}
+
+function trainingPlan(value: unknown, path: string): TrainingPlan {
+  const input = record(value, path);
+  const rawFocus = string(input.focus, `${path}.focus`);
+  const focus = TRAINING_FOCUSES.find((candidate) => candidate === rawFocus);
+  if (focus === undefined) {
+    throw new Error(`Invalid career save: ${path}.focus is unsupported`);
+  }
+  const rawIntensity = string(input.intensity, `${path}.intensity`);
+  const intensity = TRAINING_INTENSITIES.find(
+    (candidate) => candidate === rawIntensity,
+  );
+  if (intensity === undefined) {
+    throw new Error(`Invalid career save: ${path}.intensity is unsupported`);
+  }
+  return { focus, intensity };
 }
 
 function club(value: unknown, path: string): Club {
@@ -143,8 +255,10 @@ function club(value: unknown, path: string): Club {
     ),
     staffLevel: integer(input.staffLevel, `${path}.staffLevel`),
     facilityLevel: integer(input.facilityLevel, `${path}.facilityLevel`),
+    facilities: facilities(input.facilities, `${path}.facilities`),
     reputation: integer(input.reputation, `${path}.reputation`),
     balance: number(input.balance, `${path}.balance`),
+    trainingPlan: trainingPlan(input.trainingPlan, `${path}.trainingPlan`),
   };
 }
 
@@ -159,6 +273,9 @@ function fixture(value: unknown, path: string): Fixture {
     return {
       homeScore: integer(parsed.homeScore, `${path}.result.homeScore`),
       awayScore: integer(parsed.awayScore, `${path}.result.awayScore`),
+      homeTeamStats: parsed.homeTeamStats as any,
+      awayTeamStats: parsed.awayTeamStats as any,
+      players: parsed.players as any,
     };
   });
   if ((status === "played") !== (result !== null)) {
@@ -178,7 +295,11 @@ function fixture(value: unknown, path: string): Fixture {
 
 function inboxMessage(value: unknown, path: string): InboxMessage {
   const input = record(value, path);
-  return { ...event(value, path), read: boolean(input.read, `${path}.read`) };
+  return {
+    ...event(value, path),
+    read: boolean(input.read, `${path}.read`),
+    matchReport: input.matchReport as any,
+  };
 }
 
 function career(value: unknown): Career {
