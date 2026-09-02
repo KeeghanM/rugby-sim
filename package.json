@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "check:career": "node src/career/career.check.ts",
     "check:contracts": "node src/simulation/contracts.check.ts",
     "check:setup": "node src/setup/setup.check.ts",
     "monte-carlo": "node src/monte-carlo.ts",

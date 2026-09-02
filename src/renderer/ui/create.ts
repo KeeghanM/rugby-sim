@@ -3,7 +3,7 @@ import type { GameState } from "../../domain.ts";
 import { isEditableTarget, requiredElement } from "../../dom.ts";
 import { createManagerController } from "./manager-controller.ts";
 
-export const createUI = (state: GameState) => {
+export const createUI = (state: GameState, onExit?: () => void) => {
   const lifecycle = new AbortController();
   const { signal } = lifecycle;
   const scoreboard = requiredElement("scoreboard", HTMLOutputElement);
@@ -25,6 +25,7 @@ export const createUI = (state: GameState) => {
   const tvStatus = requiredElement("tv-status", HTMLSpanElement);
   const tvShotClock = requiredElement("tv-shot-clock", HTMLSpanElement);
   const managerViewBtn = requiredElement("manager-view-btn", HTMLButtonElement);
+  const matchExitBtn = requiredElement("match-exit-btn", HTMLButtonElement);
   const managerModal = requiredElement("manager-modal", HTMLDialogElement);
   const managerCloseBtn = requiredElement(
     "manager-close-btn",
@@ -60,6 +61,13 @@ export const createUI = (state: GameState) => {
     },
     signal,
   );
+
+  if (onExit) {
+    matchExitBtn.style.display = "flex";
+    matchExitBtn.addEventListener("click", onExit, { signal });
+  } else {
+    matchExitBtn.style.display = "none";
+  }
 
   let simulationSpeed = 1;
   let previousSpeed = 1;

@@ -12,6 +12,7 @@ export const createRenderer = (
   engine: Engine,
   canvas: HTMLCanvasElement,
   state: GameState,
+  onExit?: () => void,
 ) => {
   const scene = new Scene(engine);
   const env = createEnvironment(scene);
@@ -30,7 +31,7 @@ export const createRenderer = (
     gainLinePlane,
     ball,
   } = createPlayerViews(scene, state);
-  const ui = createUI(state);
+  const ui = createUI(state, onExit);
   const cameras = createCameras(scene, canvas, ui.manager.isOpen);
   let disposed = false;
 
