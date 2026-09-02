@@ -5,6 +5,7 @@ import {
   type Career,
   type Fixture,
 } from "../domain/index.ts";
+import type { MatchResult as SimulationMatchResult } from "../../domain.ts";
 import { deleteCareer } from "../save/index.ts";
 import {
   handleAdvancementActions,
@@ -45,7 +46,7 @@ export interface WiringCallbacks {
   onWatchMatch?: (
     career: Career,
     fixture: Fixture,
-    onFinish: (result: { homeScore: number; awayScore: number }) => void,
+    onFinish: (result: SimulationMatchResult) => void,
   ) => void;
 }
 
@@ -134,7 +135,19 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
             const current = getCareer();
             if (!current) return;
             setCareer(
-              advanceCareer(current, new Map([[upcoming.id, matchResult]])),
+              advanceCareer(
+                current,
+                new Map([
+                  [
+                    upcoming.id,
+                    {
+                      homeScore: matchResult.score[0],
+                      awayScore: matchResult.score[1],
+                      resultObj: matchResult,
+                    },
+                  ],
+                ]),
+              ),
             );
             persist();
             render();

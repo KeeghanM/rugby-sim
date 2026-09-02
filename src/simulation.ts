@@ -9,6 +9,8 @@ import {
 } from "./simulation/movement/index.ts";
 import type { Random } from "./simulation/types.ts";
 
+export const SIMULATION_STEP_SECONDS = 0.05;
+
 export { createGame, createMatchInput } from "./simulation/create-game.ts";
 export {
   createMatchResult,
@@ -72,7 +74,7 @@ export type SimulateMatchOptions = {
 export const simulateMatch = ({
   input = createMatchInput(),
   seed = Date.now(),
-  stepSeconds = 0.05,
+  stepSeconds = SIMULATION_STEP_SECONDS,
   maxTicks = 250_000,
 }: SimulateMatchOptions = {}) => {
   if (!(stepSeconds > 0) || !Number.isFinite(stepSeconds)) {

@@ -1,7 +1,7 @@
 import { COACHING_COURSES } from "./constants.ts";
 import { addDays, mondayForRound } from "./generators.ts";
 import { getManagerLevel, getManagerPerks } from "./manager.ts";
-import { resolveRound } from "./round-resolution.ts";
+import { resolveRound, type RecordedMatchResult } from "./round-resolution.ts";
 import { deriveStandings } from "./standings.ts";
 import { resolveWeeklyTraining } from "./training.ts";
 import type { Career, InboxMessage } from "./types.ts";
@@ -43,7 +43,7 @@ export function clearReadInboxMessages(career: Career): Career {
 
 export function advanceCareer(
   career: Career,
-  recordedResults?: Map<string, { homeScore: number; awayScore: number }>,
+  recordedResults?: Map<string, RecordedMatchResult>,
 ): Career {
   if (career.pendingEvent !== null || career.checkpoint === "seasonEnd")
     return career;

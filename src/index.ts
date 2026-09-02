@@ -5,10 +5,16 @@ import {
   type Career,
   type Fixture,
 } from "./career/index.ts";
-import type { GameState } from "./domain.ts";
+import type { GameState, MatchResult } from "./domain.ts";
 import { requiredElement } from "./dom.ts";
 import { createRenderer } from "./renderer/index.ts";
-import { createGame, createSeededRandom, updateGame } from "./simulation.ts";
+import {
+  createGame,
+  createMatchResult,
+  createSeededRandom,
+  SIMULATION_STEP_SECONDS,
+  updateGame,
+} from "./simulation.ts";
 
 type Screen = "career" | "match";
 
@@ -24,14 +30,19 @@ let engine: Engine | null = null;
 let state: GameState | null = null;
 let renderer: ReturnType<typeof createRenderer> | null = null;
 let random = Math.random;
+let accumulatedSimulationSeconds = 0;
 let disposed = false;
 
 const renderFrame = () => {
   if (!state || !renderer || !engine) return;
   const speed = renderer.getSimulationSpeed();
   if (speed > 0) {
-    const deltaSeconds = (Math.min(engine.getDeltaTime(), 100) / 1000) * speed;
-    updateGame(state, deltaSeconds, random);
+    accumulatedSimulationSeconds +=
+      (Math.min(engine.getDeltaTime(), 100) / 1000) * speed;
+    while (accumulatedSimulationSeconds >= SIMULATION_STEP_SECONDS) {
+      updateGame(state, SIMULATION_STEP_SECONDS, random);
+      accumulatedSimulationSeconds -= SIMULATION_STEP_SECONDS;
+    }
   }
   renderer.sync(state);
   renderer.scene.render();
@@ -48,23 +59,23 @@ const ensureEngine = () => {
 const startWatchedCareerMatch = (
   career: Career,
   fixture: Fixture,
-  onFinish: (result: { homeScore: number; awayScore: number }) => void,
+  onFinish: (result: MatchResult) => void,
 ) => {
   const activeEngine = ensureEngine();
   const input = createMatchInputForFixture(career, fixture);
   random = createSeededRandom(fixture.seed);
   state = createGame(input, random);
+  accumulatedSimulationSeconds = 0;
 
   const finishMatch = () => {
-    const finalScore = {
-      homeScore: state?.scores[0] ?? 0,
-      awayScore: state?.scores[1] ?? 0,
-    };
+    if (!state) return;
+    const result = createMatchResult(state, fixture.seed);
     renderer?.dispose();
     renderer = null;
     state = null;
+    accumulatedSimulationSeconds = 0;
     setScreen("career");
-    onFinish(finalScore);
+    onFinish(result);
   };
 
   renderer = createRenderer(activeEngine, canvas, state, finishMatch);

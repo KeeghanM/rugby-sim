@@ -1,4 +1,5 @@
 import { simulateMatch } from "../../simulation.ts";
+import type { MatchResult as SimulationMatchResult } from "../../domain.ts";
 import { INJURY_TYPES } from "./constants.ts";
 import { processMatchFinancesAndWages } from "./finances.ts";
 import { createMatchInputForFixture, roleName } from "./match-input.ts";
@@ -12,12 +13,15 @@ import type {
   PlayerInjury,
 } from "./types.ts";
 
+export type RecordedMatchResult = {
+  homeScore: number;
+  awayScore: number;
+  resultObj?: SimulationMatchResult;
+};
+
 export function resolveRound(
   career: Career,
-  recordedResults?: Map<
-    string,
-    { homeScore: number; awayScore: number; resultObj?: MatchResult }
-  >,
+  recordedResults?: Map<string, RecordedMatchResult>,
 ): { fixtures: Fixture[]; clubs: Club[]; newInbox: InboxMessage[] } {
   const newInbox: InboxMessage[] = [];
   const updatedClubsMap = new Map<string, Club>(
@@ -31,7 +35,8 @@ export function resolveRound(
     let result: MatchResult;
 
     const input = createMatchInputForFixture(career, fixture);
-    const simResult = simulateMatch({ input, seed: fixture.seed });
+    const simResult =
+      recorded?.resultObj ?? simulateMatch({ input, seed: fixture.seed });
 
     const homeClub = updatedClubsMap.get(fixture.homeClubId);
     const awayClub = updatedClubsMap.get(fixture.awayClubId);

@@ -30,13 +30,14 @@ import {
   type TransfersSubTab,
 } from "./views/transfers-view.ts";
 import { createCareerWiring } from "./wiring.ts";
+import type { MatchResult as SimulationMatchResult } from "../../domain.ts";
 
 export const createCareerUI = (
   root: HTMLElement,
   onWatchMatch?: (
     career: Career,
     fixture: Fixture,
-    onFinish: (result: { homeScore: number; awayScore: number }) => void,
+    onFinish: (result: SimulationMatchResult) => void,
   ) => void,
 ) => {
   const lifecycle = new AbortController();

@@ -3,6 +3,7 @@ import {
   advanceCareer,
   createMatchInputForFixture,
   type Career,
+  type RecordedMatchResult,
 } from "../domain/index.ts";
 import { clubById } from "./formatters.ts";
 import type { SimulationProgress } from "./types.ts";
@@ -25,10 +26,7 @@ export const runRoundSimulation = async (
   const roundFixtures = career.season.fixtures.filter(
     (f) => f.round === currentRound && f.status === "scheduled",
   );
-  const recordedResultsMap = new Map<
-    string,
-    { homeScore: number; awayScore: number }
-  >();
+  const recordedResultsMap = new Map<string, RecordedMatchResult>();
 
   callbacks.setSimulationProgress({
     round: currentRound,
@@ -66,7 +64,7 @@ export const runRoundSimulation = async (
     const input = createMatchInputForFixture(career, fixture);
     const result = simulateMatch({ input, seed: fixture.seed });
     const score = { homeScore: result.score[0], awayScore: result.score[1] };
-    recordedResultsMap.set(fixture.id, score);
+    recordedResultsMap.set(fixture.id, { ...score, resultObj: result });
 
     const updatedResults = Array.from(recordedResultsMap.entries()).map(
       ([fId, sc]) => {
