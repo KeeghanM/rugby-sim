@@ -108,21 +108,36 @@ export const updateScrum = (
 
   if (phase.stage === "set") {
     if (phase.elapsed < 1.2) return;
-    const feedingPackStrength = state.players
-      .filter((p) => p.team === phase.feedingTeam && isForward(p))
-      .reduce((sum, p) => sum + contactStrength(p), 0);
-    const defendingPackStrength = state.players
-      .filter((p) => p.team !== phase.feedingTeam && isForward(p))
-      .reduce((sum, p) => sum + contactStrength(p), 0);
+    const packStrength = (team: Team) => {
+      const forwards = state.players.filter(
+        (p) => p.team === team && isForward(p),
+      );
+      if (forwards.length === 0) return 1;
+      const totalWeight = forwards.reduce((sum, p) => sum + p.weight, 0);
+      const avgSkill =
+        forwards.reduce(
+          (sum, p) =>
+            sum + effectiveSkill(p, "tackling") * 0.6 + overallSkill(p) * 0.4,
+          0,
+        ) / forwards.length;
+      const avgFatigue =
+        forwards.reduce((sum, p) => sum + (0.5 + (p.stamina / 100) * 0.5), 0) /
+        forwards.length;
+      // Weight decides ~90% of pack contest; technique and discipline supply the remaining ~10%.
+      return totalWeight * avgFatigue * (0.9 + avgSkill * 0.1);
+    };
+
+    const feedingPackStrength = packStrength(phase.feedingTeam);
+    const defendingPackStrength = packStrength(otherTeam(phase.feedingTeam));
 
     const averageStrength = (feedingPackStrength + defendingPackStrength) / 2;
     const strengthDifference =
       (defendingPackStrength - feedingPackStrength) /
       Math.max(1, averageStrength);
-    // Feed remains an advantage, but pack technique and fatigue can overcome mass.
+    // Feed remains an advantage, but pack weight and technique decide turnovers.
     const turnoverRoll = random();
     const turnoverThreshold = clamp(
-      0.12 + strengthDifference * 0.48,
+      0.12 + strengthDifference * 0.45,
       0.03,
       0.45,
     );

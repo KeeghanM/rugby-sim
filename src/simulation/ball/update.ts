@@ -83,12 +83,12 @@ export const updateBall = (
           distance(a.position, state.ball.position) -
           distance(b.position, state.ball.position),
       )[0];
-    // Squared skill deficit keeps routine pickups reliable while preserving handling errors.
+    // Skill deficit keeps routine pickups reliable while scaling errors moderately.
     if (picker) {
       attemptPossession(
         state,
         picker,
-        (1 - effectiveSkill(picker, "handling")) ** 2 * 0.12,
+        (1 - effectiveSkill(picker, "handling")) * 0.08,
         random,
       );
     }
@@ -139,7 +139,7 @@ export const updateBall = (
       attemptPossession(
         state,
         rollingPicker,
-        (1 - effectiveSkill(rollingPicker, "handling")) ** 2 * 0.16,
+        (1 - effectiveSkill(rollingPicker, "handling")) * 0.1,
         random,
       );
       return;
@@ -273,12 +273,12 @@ export const updateBall = (
           distance(a.position, state.ball.position) -
           distance(b.position, state.ball.position),
       )[0];
-    // Squared skill deficit concentrates failures among weaker handlers instead of penalising all catches linearly.
+    // Skill deficit concentrates failures among weaker handlers without extreme spikes.
     if (catcher) {
       attemptPossession(
         state,
         catcher,
-        0.01 + (1 - effectiveSkill(catcher, "handling")) ** 2 * 0.4,
+        0.01 + (1 - effectiveSkill(catcher, "handling")) * 0.18,
         random,
         0.15,
       );

@@ -76,17 +76,26 @@ export const updateMaul = (
     if (phase.elapsed < 1) return;
     const attackStrength = groupStrength(state, phase.attackers, "handling");
     const defenceStrength = groupStrength(state, phase.defenders);
-    const attackScore = attackStrength * (0.9 + random() * 0.2) * 1.08;
-    const defenceScore = defenceStrength * (0.9 + random() * 0.2);
+    const attackScore = attackStrength * (0.85 + random() * 0.3) * 1.08;
+    const defenceScore = defenceStrength * (0.85 + random() * 0.3);
+    const turnoverProb = clamp(
+      0.22 +
+        ((defenceStrength - attackStrength) / Math.max(1, attackStrength)) *
+          0.45,
+      0.08,
+      0.65,
+    );
     phase.winningTeam =
-      defenceScore > attackScore
+      random() < turnoverProb
         ? otherTeam(phase.attackingTeam)
         : phase.attackingTeam;
     // Throwing side receives small formation advantage before random contest variation.
     phase.driveSpeed =
       phase.winningTeam === phase.attackingTeam
         ? clamp(
-            0.35 + ((attackScore - defenceScore) / attackStrength) * 2.2,
+            0.35 +
+              ((attackScore - defenceScore) / Math.max(1, attackStrength)) *
+                1.6,
             0.2,
             1.8,
           )

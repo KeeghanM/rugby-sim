@@ -114,15 +114,21 @@ export const attemptTackle = (state: GameState, random: Random) => {
     return false;
   }
 
-  // Base tackle chance is adjusted by technique, mass difference, and carrier momentum.
+  // Base tackle chance is adjusted by technique, skill-mitigated mass difference, and carrier momentum.
   const carrierSpeed = Math.hypot(carrier.velocity.x, carrier.velocity.z);
+  const weightDiff = tackler.weight - carrier.weight;
+  // Skilled tacklers mitigate weight deficits; less skilled tacklers suffer full size penalties.
+  const massPenaltyFactor =
+    weightDiff < 0 ? Math.max(0.2, 1.25 - tacklerSkill) : 1;
+  const massEffect = weightDiff * 0.0012 * massPenaltyFactor;
+
   const tackleChance = clamp(
     0.78 +
-      (tacklerSkill - carrierSkill) * 0.65 +
-      (tackler.weight - carrier.weight) * 0.0015 -
-      Math.max(0, carrierSpeed - 4.5) * 0.025,
-    0.2,
-    0.97,
+      (tacklerSkill - carrierSkill) * 0.25 +
+      massEffect -
+      Math.max(0, carrierSpeed - 4.5) * 0.02,
+    0.35,
+    0.95,
   );
   if (random() >= tackleChance) {
     tackler.tackleCooldown = 1.2;

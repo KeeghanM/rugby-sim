@@ -136,21 +136,20 @@ export const updateLineout = (
           defendingMembers.includes((player.slotIndex ?? 0) + 1),
       );
     if (!hooker || !jumper) return;
-    // Throw accuracy and jumper handling oppose defender handling and decision quality.
+    // Throw accuracy and jumper handling oppose defender handling and decision quality with probabilistic winner.
     const attackingScore =
       effectiveSkill(hooker, "passing") * 0.4 +
       effectiveSkill(jumper, "handling") * 0.6 +
-      0.18 +
-      random() * 0.3;
+      0.18;
     const defendingScore = defendingJumper
       ? effectiveSkill(defendingJumper, "handling") * 0.55 +
-        effectiveSkill(defendingJumper, "decision") * 0.45 +
-        random() * 0.3
+        effectiveSkill(defendingJumper, "decision") * 0.45
       : 0;
-    const winner =
-      defendingJumper && defendingScore > attackingScore
-        ? defendingJumper
-        : jumper;
+    const turnoverProb = defendingJumper
+      ? clamp(0.18 + (defendingScore - attackingScore) * 0.4, 0.05, 0.45)
+      : 0;
+    const isDefended = random() < turnoverProb;
+    const winner = isDefended && defendingJumper ? defendingJumper : jumper;
     hooker.stamina = clamp(hooker.stamina - 0.25, 0, 100);
     launchBall(state, hooker, winner.position, "lineout", winner.id, random);
     phase.stage = "inFlight";

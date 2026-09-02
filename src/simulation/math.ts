@@ -22,7 +22,7 @@ export const overallSkill = (player: Pick<Player, "skills" | "stamina">) =>
     Object.keys(player.skills).length) *
   (0.7 + (player.stamina / 100) * 0.3);
 
-// Effort sets gait while stamina, broad ability, and injury convert rated pace into match speed.
+// Effort sets gait while stamina and injury convert rated pace into match speed.
 export const effectiveSpeed = (player: Player, effort: Effort) => {
   const effortMultiplier =
     effort === "sprint"
@@ -33,11 +33,9 @@ export const effectiveSpeed = (player: Player, effort: Effort) => {
           ? 0.62
           : 0;
   const staminaMultiplier = 0.65 + (player.stamina / 100) * 0.35;
-  const skillMultiplier = 0.78 + overallSkill(player) * 0.28;
   return Math.max(
     0,
-    player.speed * effortMultiplier * staminaMultiplier * skillMultiplier -
-      player.injuryPenalty,
+    player.speed * effortMultiplier * staminaMultiplier - player.injuryPenalty,
   );
 };
 
@@ -60,7 +58,7 @@ export const contactStrength = (
   const technique =
     effectiveSkill(player, primary) * 0.7 + overallSkill(player) * 0.3;
   const fatigue = 0.45 + (player.stamina / 100) * 0.55;
-  return player.weight * fatigue * (0.42 + technique * 0.72);
+  return player.weight * fatigue * (0.6 + technique * 0.45);
 };
 
 // Team-relative sign handling maps both ends of pitch to same own-22 question.
