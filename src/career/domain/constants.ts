@@ -90,6 +90,7 @@ export const STAFF_ROLES = [
   "defenceCoach",
   "scCoach",
   "physio",
+  "chiefScout",
 ] as const;
 
 export type StaffRole = (typeof STAFF_ROLES)[number];
@@ -100,6 +101,7 @@ export const STAFF_NAMES: Record<StaffRole, string> = {
   defenceCoach: "Defence & Contact Coach",
   scCoach: "Head of Strength & Conditioning",
   physio: "Head Physiotherapist",
+  chiefScout: "Head of Recruitment & Scouting",
 };
 
 export const STAFF_EFFECTS: Record<StaffRole, string> = {
@@ -111,6 +113,8 @@ export const STAFF_EFFECTS: Record<StaffRole, string> = {
     "Accelerates power & speed progression; improves stamina resistance.",
   physio:
     "Speeds up injury rehabilitation and reduces match/training injury risk.",
+  chiefScout:
+    "Improves scouting accuracy and reveals hidden player potentials.",
 };
 
 export const FACILITY_NAMES = {

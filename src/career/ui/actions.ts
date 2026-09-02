@@ -6,7 +6,11 @@ import {
   enrollCoachingCourse,
   markInboxRead,
   optimizeSquadSelection,
+  releaseSquadPlayer,
+  scoutTargetPlayer,
   setClubTrainingPlan,
+  signFreeAgent,
+  submitTransferBid,
   swapSquadPlayers,
   updatePlaybookTactics,
   upgradeFacility,
@@ -128,6 +132,86 @@ export const handleSelectionActions = (
     callbacks.render();
     return true;
   }
+  return false;
+};
+
+export const handleTransferActions = (
+  target: Element | null,
+  career: Career,
+  callbacks: WiringCallbacks,
+): boolean => {
+  const signBtn = target?.closest<HTMLButtonElement>("[data-sign-free-agent]");
+  if (
+    signBtn?.dataset.signFreeAgent &&
+    signBtn?.dataset.wage &&
+    signBtn?.dataset.bonus
+  ) {
+    const pId = signBtn.dataset.signFreeAgent;
+    const wage = Number(signBtn.dataset.wage);
+    const bonus = Number(signBtn.dataset.bonus);
+    callbacks.setCareer(signFreeAgent(career, pId, wage, bonus));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const releaseBtn = target?.closest<HTMLButtonElement>(
+    "[data-release-player]",
+  );
+  if (
+    releaseBtn?.dataset.releasePlayer &&
+    releaseBtn?.dataset.playerName &&
+    releaseBtn?.dataset.severance
+  ) {
+    const pId = releaseBtn.dataset.releasePlayer;
+    const pName = releaseBtn.dataset.playerName;
+    const sev = Number(releaseBtn.dataset.severance);
+    if (
+      !confirm(
+        `Release ${pName}? This will pay a £${sev.toLocaleString()} severance fee and remove the player from your squad.`,
+      )
+    ) {
+      return true;
+    }
+    callbacks.setCareer(releaseSquadPlayer(career, pId));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const scoutBtn = target?.closest<HTMLButtonElement>("[data-scout-player]");
+  if (scoutBtn?.dataset.scoutPlayer) {
+    const pId = scoutBtn.dataset.scoutPlayer;
+    callbacks.setCareer(scoutTargetPlayer(career, pId));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const bidBtn = target?.closest<HTMLButtonElement>("[data-bid-player]");
+  if (
+    bidBtn?.dataset.bidPlayer &&
+    bidBtn?.dataset.targetClub &&
+    bidBtn?.dataset.suggestedFee &&
+    bidBtn?.dataset.wage
+  ) {
+    const pId = bidBtn.dataset.bidPlayer;
+    const targetClub = bidBtn.dataset.targetClub;
+    const fee = Number(bidBtn.dataset.suggestedFee);
+    const wage = Number(bidBtn.dataset.wage);
+    if (
+      !confirm(
+        `Submit transfer bid of £${fee.toLocaleString()} on £${wage.toLocaleString()}/wk wage?`,
+      )
+    ) {
+      return true;
+    }
+    callbacks.setCareer(submitTransferBid(career, targetClub, pId, fee, wage));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
   return false;
 };
 

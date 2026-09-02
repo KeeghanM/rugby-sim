@@ -268,11 +268,31 @@ export const renderHome = (career: Career, club: Club): string => {
     footer: `XP: ${mgr.xp.toLocaleString()} · Courses: ${mgr.qualifications.length}/5`,
   });
 
+  const scout = club.staff.find((s) => s.role === "chiefScout");
+  const transfersTile = createTile({
+    kicker: "Transfers & Scouting",
+    action: {
+      label: "Market →",
+      datasetAttr: 'data-career-view="transfers"',
+    },
+    value: `${career.freeAgents.length}`,
+    valueBadge: {
+      text: "Free Agents",
+      color: "#facc15",
+    },
+    content: `
+      <div style="margin-top: 0.4rem; font-size: 0.78rem; color: #cbd5e1;">
+        <span>Scout: <strong style="color: #38bdf8;">Lvl ${scout?.level ?? 1} (${Math.round((0.4 + (scout?.level ?? 1) * 0.12) * 100)}% Acc)</strong></span>
+      </div>`,
+    footer: `Squad: ${club.squad.length}/40 · ${40 - club.squad.length} Slots Open`,
+  });
+
   return `<div class="career-home-grid">
     ${pendingEventHtml}
     ${matchDayActionTile}
     ${latestMatchTile}
     ${managerTile}
+    ${transfersTile}
     ${squadTile}
     ${medicalTile}
     ${trainingTile}

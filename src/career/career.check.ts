@@ -14,7 +14,11 @@ import {
   loadCareer,
   optimizeSquadSelection,
   parseCareerSave,
+  releaseSquadPlayer,
   saveCareer,
+  scoutTargetPlayer,
+  signFreeAgent,
+  submitTransferBid,
   swapSquadPlayers,
   updatePlaybookTactics,
   upgradeFacility,
@@ -143,6 +147,91 @@ try {
 }
 assert(doubleEnrollRejected, "Concurrent course enrollment was allowed");
 
+// Test Transfers & Scouting Network
+assert(career.freeAgents.length === 24, "Free agents pool size should be 24");
+const firstFA = career.freeAgents[0];
+career = scoutTargetPlayer(career, firstFA.id);
+assert(
+  career.scoutingReports[firstFA.id] !== undefined,
+  "Scouting report was not generated",
+);
+assert(
+  career.scoutingReports[firstFA.id].revealed,
+  "Scouting report should be revealed",
+);
+
+// Test Release Squad Player (to open squad space)
+const playerToRelease = career.season.clubs[0].squad[39];
+const balanceBeforeRelease = career.season.clubs[0].balance;
+career = releaseSquadPlayer(career, playerToRelease.id);
+assert(
+  career.season.clubs[0].squad.length === 39,
+  "Squad size should decrease to 39",
+);
+assert(
+  career.season.clubs[0].balance < balanceBeforeRelease,
+  "Severance fee should be deducted",
+);
+assert(
+  career.freeAgents.some((p) => p.id === playerToRelease.id),
+  "Released player should enter free agents",
+);
+
+// Test Sign Free Agent
+career = signFreeAgent(
+  career,
+  firstFA.id,
+  firstFA.wage,
+  Math.round(firstFA.wage * 2),
+);
+assert(
+  career.season.clubs[0].squad.length === 40,
+  "Squad size should return to 40",
+);
+assert(
+  !career.freeAgents.some((p) => p.id === firstFA.id),
+  "Signed player should be removed from free agents",
+);
+
+// Test Transfer Bidding on Rival Club Player
+const playerToRelease2 = career.season.clubs[0].squad[39];
+career = releaseSquadPlayer(career, playerToRelease2.id);
+
+const rivalPlayer = career.season.clubs[1].squad[35];
+const rivalBalanceBefore = career.season.clubs[1].balance;
+
+// Test underbid rejection
+let underbidRejected = false;
+try {
+  career = submitTransferBid(
+    career,
+    "valley-stags",
+    rivalPlayer.id,
+    20_000,
+    2000,
+  );
+} catch {
+  underbidRejected = true;
+}
+assert(underbidRejected, "Low transfer bid was unexpectedly accepted");
+
+// Test realistic bid acceptance
+career = submitTransferBid(
+  career,
+  "valley-stags",
+  rivalPlayer.id,
+  160_000,
+  2200,
+);
+assert(
+  career.season.clubs[0].squad.some((p) => p.id === rivalPlayer.id),
+  "Transferred player should join buyer squad",
+);
+assert(
+  career.season.clubs[1].balance === rivalBalanceBefore + 160_000,
+  "Seller club should receive transfer fee",
+);
+
 // Test match input creation for fixture
 const firstFixture = career.season.fixtures[0];
 const matchInput = createMatchInputForFixture(career, firstFixture);
@@ -176,7 +265,8 @@ const blocked = advanceCareer(career);
 assert(blocked === career, "Pending event did not block advancement");
 career = acknowledgeEvent(career);
 assert(
-  career.pendingEvent === null && career.inbox[0]?.read === true,
+  career.pendingEvent === null &&
+    career.inbox.find((m) => m.id === "board-welcome")?.read === true,
   "Event was not acknowledged",
 );
 assert(

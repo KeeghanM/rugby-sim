@@ -1,4 +1,5 @@
 import {
+  calculatePlayerMarketValue,
   createInitialCareerRecord,
   PLAYER_ROLES,
   TRAINING_FOCUSES,
@@ -128,31 +129,54 @@ export function parsePlayer(value: unknown, path: string): Player {
       ? boundedInteger(input.defence, `${path}.defence`, 0, 100)
       : undefined;
 
-  return {
+  const skills = parsePlayerSkills(
+    input.skills,
+    `${path}.skills`,
+    rawAttack,
+    rawDefence,
+  );
+  const speed = boundedInteger(
+    input.speed ?? rawAttack ?? 70,
+    `${path}.speed`,
+    0,
+    100,
+  );
+  const strength = boundedInteger(
+    input.strength ?? rawDefence ?? 70,
+    `${path}.strength`,
+    0,
+    100,
+  );
+  const age = boundedInteger(input.age, `${path}.age`, 17, 45);
+  const wage = integer(input.wage ?? 1250, `${path}.wage`);
+  const contractYears =
+    typeof input.contractYears === "number"
+      ? boundedInteger(input.contractYears, `${path}.contractYears`, 0, 5)
+      : 2;
+  const potential =
+    typeof input.potential === "number"
+      ? boundedInteger(input.potential, `${path}.potential`, 40, 99)
+      : Math.min(
+          99,
+          Math.round(
+            (speed + strength + skills.tackling) / 3 +
+              Math.max(0, 31 - age) * 0.8,
+          ),
+        );
+
+  const partialPlayer: Player = {
     id: string(input.id, `${path}.id`),
     name: string(input.name, `${path}.name`),
-    age: boundedInteger(input.age, `${path}.age`, 17, 45),
+    age,
     role,
-    skills: parsePlayerSkills(
-      input.skills,
-      `${path}.skills`,
-      rawAttack,
-      rawDefence,
-    ),
-    speed: boundedInteger(
-      input.speed ?? rawAttack ?? 70,
-      `${path}.speed`,
-      0,
-      100,
-    ),
-    strength: boundedInteger(
-      input.strength ?? rawDefence ?? 70,
-      `${path}.strength`,
-      0,
-      100,
-    ),
+    skills,
+    speed,
+    strength,
     fitness: boundedInteger(input.fitness, `${path}.fitness`, 0, 100),
-    wage: integer(input.wage ?? 1250, `${path}.wage`),
+    wage,
+    contractYears,
+    marketValue: 0,
+    potential,
     injury: nullable(input.injury, (item) =>
       parsePlayerInjury(item, `${path}.injury`),
     ),
@@ -160,6 +184,16 @@ export function parsePlayer(value: unknown, path: string): Player {
       input.careerRecord,
       `${path}.careerRecord`,
     ),
+  };
+
+  const marketValue =
+    typeof input.marketValue === "number" && input.marketValue > 0
+      ? integer(input.marketValue, `${path}.marketValue`)
+      : calculatePlayerMarketValue(partialPlayer);
+
+  return {
+    ...partialPlayer,
+    marketValue,
   };
 }
 

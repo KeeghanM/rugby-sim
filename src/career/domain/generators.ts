@@ -9,10 +9,12 @@ import {
   type PlayerRole,
 } from "./constants.ts";
 import { createDefaultManagerProfile } from "./manager.ts";
+import { calculatePlayerMarketValue } from "./transfers.ts";
 import type {
   Career,
   Club,
   Fixture,
+  Player,
   PlayerCareerRecord,
   StaffMember,
 } from "./types.ts";
@@ -180,19 +182,33 @@ export function createClubs(): Club[] {
             (playerIndex < 15 ? 900 : playerIndex < 23 ? 500 : 250) +
             (stats.strength + stats.speed) * 6,
         );
-        return {
+        const age = 19 + ((playerIndex * 7 + clubIndex * 3) % 17);
+        const ovrEst =
+          (stats.strength + stats.speed + stats.skills.tackling) / 3;
+        const potential = Math.min(
+          99,
+          Math.round(ovrEst + Math.max(0, 31 - age) * 0.8),
+        );
+        const contractYears = 1 + ((playerIndex + clubIndex) % 3);
+
+        const tempPlayer: Player = {
           id: `${club.id}-p${String(playerIndex + 1).padStart(2, "0")}`,
           name: `${FIRST_NAMES[(playerIndex + clubIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(playerIndex * 5 + clubIndex) % LAST_NAMES.length]}`,
-          age: 19 + ((playerIndex * 7 + clubIndex * 3) % 17),
+          age,
           role,
           skills: stats.skills,
           speed: stats.speed,
           strength: stats.strength,
           fitness: stats.fitness,
           wage,
+          contractYears,
+          marketValue: 0,
+          potential,
           injury: null,
           careerRecord: createInitialCareerRecord(),
         };
+        tempPlayer.marketValue = calculatePlayerMarketValue(tempPlayer);
+        return tempPlayer;
       }),
       staff: staffMembers,
       staffLevel: Math.round(
@@ -255,6 +271,56 @@ export function createFixtures(): Fixture[] {
   );
 }
 
+export function createFreeAgents(count = 24): Player[] {
+  const sampleRoles: PlayerRole[] = [
+    "loosehead",
+    "hooker",
+    "tighthead",
+    "lock",
+    "blindside",
+    "openside",
+    "number8",
+    "scrumHalf",
+    "flyHalf",
+    "insideCentre",
+    "outsideCentre",
+    "leftWing",
+    "rightWing",
+    "fullBack",
+  ];
+
+  return Array.from({ length: count }, (_, i) => {
+    const role = sampleRoles[i % sampleRoles.length]!;
+    const stats = generatePlayerStats(role, i + 10, i + 2);
+    const age = 19 + ((i * 3 + 7) % 16);
+    const wage = Math.round(650 + (stats.strength + stats.speed) * 5.5);
+    const ovrEst = (stats.strength + stats.speed + stats.skills.tackling) / 3;
+    const potential = Math.min(
+      99,
+      Math.round(ovrEst + Math.max(0, 31 - age) * 0.9),
+    );
+
+    const tempPlayer: Player = {
+      id: `fa-${i + 1}`,
+      name: `${FIRST_NAMES[(i * 4 + 5) % FIRST_NAMES.length]} ${LAST_NAMES[(i * 6 + 7) % LAST_NAMES.length]}`,
+      age,
+      role,
+      skills: stats.skills,
+      speed: stats.speed,
+      strength: stats.strength,
+      fitness: 80,
+      wage,
+      contractYears: 0,
+      marketValue: 0,
+      potential,
+      injury: null,
+      careerRecord: createInitialCareerRecord(),
+    };
+    tempPlayer.marketValue = calculatePlayerMarketValue(tempPlayer);
+    return tempPlayer;
+  });
+}
+
 export function createCareer(managerName: string, clubId: string): Career {
   const name = managerName.trim();
   if (!name) throw new Error("Manager name is required");
@@ -276,6 +342,9 @@ export function createCareer(managerName: string, clubId: string): Career {
       clubs: createClubs(),
       fixtures: createFixtures(),
     },
+    freeAgents: createFreeAgents(),
+    scoutingReports: {},
+    transferOffers: [],
     currentRound: 1,
     currentDate: mondayForRound(1),
     checkpoint: "monday",

@@ -3,6 +3,7 @@ export const views = {
   selection: "Team Sheet",
   training: "Training",
   manager: "Manager & Playbook",
+  transfers: "Transfers & Scouting",
   staff: "Staff & Facilities",
   finances: "Finances",
   inbox: "Inbox",

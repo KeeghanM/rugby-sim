@@ -14,8 +14,10 @@ import {
   handleSelectionActions,
   handleStaffAndFacilityActions,
   handleTrainingActions,
+  handleTransferActions,
 } from "./actions.ts";
 import { views, type CareerView } from "./types.ts";
+import type { TransfersSubTab } from "./views/transfers-view.ts";
 
 export interface WiringCallbacks {
   root: HTMLElement;
@@ -32,6 +34,10 @@ export interface WiringCallbacks {
   setSelectedMessageId: (id: string | null) => void;
   getViewPlayerId: () => string | null;
   setViewPlayerId: (id: string | null) => void;
+  getTransfersSubTab: () => TransfersSubTab;
+  setTransfersSubTab: (tab: TransfersSubTab) => void;
+  getRoleFilter: () => string;
+  setRoleFilter: (filter: string) => void;
   setLoadError: (err: string | null) => void;
   persist: () => void;
   render: () => void;
@@ -103,12 +109,24 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
         return;
       }
 
+      const transfersTabBtn = target?.closest<HTMLButtonElement>(
+        "[data-transfers-tab]",
+      );
+      if (transfersTabBtn?.dataset.transfersTab) {
+        callbacks.setTransfersSubTab(
+          transfersTabBtn.dataset.transfersTab as TransfersSubTab,
+        );
+        render();
+        return;
+      }
+
       const career = getCareer();
       if (!career) return;
 
       if (handlePlayerModalActions(target, callbacks)) return;
       if (handleTrainingActions(target, career, callbacks)) return;
       if (handleManagerActions(target, career, callbacks)) return;
+      if (handleTransferActions(target, career, callbacks)) return;
       if (handleSelectionActions(target, career, callbacks)) return;
       if (handleStaffAndFacilityActions(target, career, callbacks)) return;
       if (handleInboxActions(target, career, callbacks)) return;
@@ -128,6 +146,19 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
             render();
           });
         }
+      }
+    },
+    { signal: lifecycle.signal },
+  );
+
+  root.addEventListener(
+    "change",
+    (event) => {
+      const select =
+        event.target instanceof HTMLSelectElement ? event.target : null;
+      if (select?.matches("[data-filter-free-agents]")) {
+        callbacks.setRoleFilter(select.value);
+        render();
       }
     },
     { signal: lifecycle.signal },

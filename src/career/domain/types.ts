@@ -46,7 +46,10 @@ export type LedgerCategory =
   | "staffWages"
   | "facilityUpgrade"
   | "staffRecruitment"
-  | "medicalCosts";
+  | "medicalCosts"
+  | "transferIncome"
+  | "transferSpend"
+  | "severanceSpend";
 
 export type LedgerEntry = {
   id: string;
@@ -95,6 +98,9 @@ export type Player = {
   strength: number;
   fitness: number;
   wage: number;
+  contractYears: number;
+  marketValue: number;
+  potential: number;
   injury: PlayerInjury | null;
   careerRecord: PlayerCareerRecord;
 };
@@ -198,9 +204,34 @@ export type ManagerProfile = {
   stats: ManagerStats;
 };
 
+export type ScoutingReport = {
+  playerId: string;
+  revealed: boolean;
+  accuracy: number;
+  ovrMin: number;
+  ovrMax: number;
+  potentialMin: number;
+  potentialMax: number;
+  strengths: string[];
+  weaknesses: string[];
+  scoutedRound: number;
+};
+
+export type TransferOffer = {
+  id: string;
+  round: number;
+  playerId: string;
+  fromClubId: string;
+  toClubId: string;
+  offeredFee: number;
+  offeredWage: number;
+  status: "pending" | "accepted" | "rejected";
+};
+
 export type InboxMessage = BlockingEvent & {
   read: boolean;
   matchReport?: MatchReportData;
+  transferOfferId?: string;
 };
 
 export type Career = {
@@ -213,6 +244,9 @@ export type Career = {
     clubs: Club[];
     fixtures: Fixture[];
   };
+  freeAgents: Player[];
+  scoutingReports: Record<string, ScoutingReport>;
+  transferOffers: TransferOffer[];
   currentRound: number;
   currentDate: string;
   checkpoint: Checkpoint;

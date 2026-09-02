@@ -4,6 +4,7 @@ import {
   STAFF_NAMES,
   STAFF_ROLES,
   createDefaultManagerProfile,
+  createFreeAgents,
   getManagerLevel,
   type ActiveCoachingCourse,
   type BlockingEvent,
@@ -17,8 +18,10 @@ import {
   type ManagerProfile,
   type ManagerStats,
   type PlaybookTactics,
+  type ScoutingReport,
   type StaffMember,
   type StaffRole,
+  type TransferOffer,
 } from "../domain/index.ts";
 import {
   parseFacilities,
@@ -289,6 +292,18 @@ export function parseCareer(value: unknown): Career {
         (item, index) => parseFixture(item, `career.season.fixtures[${index}]`),
       ),
     },
+    freeAgents: Array.isArray(input.freeAgents)
+      ? array(input.freeAgents, "career.freeAgents").map((item, index) =>
+          parsePlayer(item, `career.freeAgents[${index}]`),
+        )
+      : createFreeAgents(),
+    scoutingReports:
+      input.scoutingReports && typeof input.scoutingReports === "object"
+        ? (input.scoutingReports as Record<string, ScoutingReport>)
+        : {},
+    transferOffers: Array.isArray(input.transferOffers)
+      ? (input.transferOffers as TransferOffer[])
+      : [],
     currentRound: integer(input.currentRound, "career.currentRound", 1),
     currentDate: date(input.currentDate, "career.currentDate"),
     checkpoint,

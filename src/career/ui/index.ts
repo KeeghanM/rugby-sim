@@ -25,6 +25,10 @@ import { renderSelection } from "./views/selection-view.ts";
 import { renderSquad } from "./views/squad-view.ts";
 import { renderStaffView } from "./views/staff-view.ts";
 import { renderTraining } from "./views/training-view.ts";
+import {
+  renderTransfersView,
+  type TransfersSubTab,
+} from "./views/transfers-view.ts";
 import { createCareerWiring } from "./wiring.ts";
 
 export const createCareerUI = (
@@ -43,6 +47,8 @@ export const createCareerUI = (
   let selectedSwapIndex: number | null = null;
   let selectedMessageId: string | null = null;
   let viewPlayerId: string | null = null;
+  let transfersSubTab: TransfersSubTab = "freeAgents";
+  let roleFilter: string = "all";
   let simulationProgress: SimulationProgress | null = null;
   let loadError: string | null = null;
   let saveError: string | null = null;
@@ -78,17 +84,19 @@ export const createCareerUI = (
             ? renderTraining(club)
             : view === "manager"
               ? renderManagerView(career, club)
-              : view === "staff"
-                ? renderStaffView(club)
-                : view === "finances"
-                  ? renderFinancesView(club)
-                  : view === "inbox"
-                    ? renderInbox(career, selectedMessageId)
-                    : view === "squad"
-                      ? renderSquad(club)
-                      : view === "league"
-                        ? renderLeague(career)
-                        : renderFixtures(career);
+              : view === "transfers"
+                ? renderTransfersView(career, club, transfersSubTab, roleFilter)
+                : view === "staff"
+                  ? renderStaffView(club)
+                  : view === "finances"
+                    ? renderFinancesView(club)
+                    : view === "inbox"
+                      ? renderInbox(career, selectedMessageId)
+                      : view === "squad"
+                        ? renderSquad(club)
+                        : view === "league"
+                          ? renderLeague(career)
+                          : renderFixtures(career);
 
     let playerModalHtml = "";
     if (viewPlayerId) {
@@ -174,6 +182,14 @@ export const createCareerUI = (
     getViewPlayerId: () => viewPlayerId,
     setViewPlayerId: (id) => {
       viewPlayerId = id;
+    },
+    getTransfersSubTab: () => transfersSubTab,
+    setTransfersSubTab: (tab) => {
+      transfersSubTab = tab;
+    },
+    getRoleFilter: () => roleFilter,
+    setRoleFilter: (filter) => {
+      roleFilter = filter;
     },
     setLoadError: (err) => {
       loadError = err;
