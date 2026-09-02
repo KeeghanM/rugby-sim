@@ -1,4 +1,11 @@
-import { CLUBS, FIRST_NAMES, LAST_NAMES, PLAYER_ROLES } from "./constants.ts";
+import {
+  CLUBS,
+  FIRST_NAMES,
+  LAST_NAMES,
+  PLAYER_ROLES,
+  ROLE_GROUPS,
+  type PlayerRole,
+} from "./constants.ts";
 import type { Career, Club, Fixture, PlayerCareerRecord } from "./types.ts";
 
 export const createInitialCareerRecord = (): PlayerCareerRecord => ({
@@ -36,20 +43,130 @@ export function addDays(date: string, days: number): string {
   return next.toISOString().slice(0, 10);
 }
 
+function generatePlayerStats(
+  role: PlayerRole,
+  playerIndex: number,
+  clubIndex: number,
+) {
+  const seed = (playerIndex * 7 + clubIndex * 11) % 100;
+  const group = ROLE_GROUPS[role] ?? "centre";
+
+  let speed = 65;
+  let strength = 65;
+  let decision = 65;
+  let handling = 65;
+  let passing = 60;
+  let kicking = 40;
+  let tackling = 65;
+
+  switch (group) {
+    case "prop":
+      strength = 78 + (seed % 15);
+      tackling = 74 + (seed % 14);
+      handling = 55 + (seed % 16);
+      decision = 60 + (seed % 16);
+      passing = 50 + (seed % 16);
+      kicking = 20 + (seed % 15);
+      speed = 46 + (seed % 16);
+      break;
+    case "hooker":
+      strength = 75 + (seed % 14);
+      tackling = 76 + (seed % 14);
+      handling = 70 + (seed % 16);
+      decision = 65 + (seed % 16);
+      passing = 60 + (seed % 16);
+      kicking = 25 + (seed % 15);
+      speed = 52 + (seed % 16);
+      break;
+    case "lock":
+      strength = 80 + (seed % 15);
+      tackling = 75 + (seed % 14);
+      handling = 60 + (seed % 16);
+      decision = 64 + (seed % 16);
+      passing = 52 + (seed % 16);
+      kicking = 20 + (seed % 15);
+      speed = 50 + (seed % 16);
+      break;
+    case "backRow":
+      strength = 76 + (seed % 14);
+      tackling = 80 + (seed % 15);
+      handling = 68 + (seed % 16);
+      decision = 70 + (seed % 16);
+      passing = 62 + (seed % 16);
+      kicking = 30 + (seed % 15);
+      speed = 64 + (seed % 16);
+      break;
+    case "scrumHalf":
+      strength = 48 + (seed % 14);
+      tackling = 58 + (seed % 14);
+      handling = 78 + (seed % 16);
+      decision = 76 + (seed % 16);
+      passing = 84 + (seed % 14);
+      kicking = 70 + (seed % 16);
+      speed = 78 + (seed % 16);
+      break;
+    case "flyHalf":
+      strength = 50 + (seed % 14);
+      tackling = 54 + (seed % 14);
+      handling = 78 + (seed % 16);
+      decision = 82 + (seed % 14);
+      passing = 82 + (seed % 14);
+      kicking = 84 + (seed % 14);
+      speed = 70 + (seed % 16);
+      break;
+    case "centre":
+      strength = 70 + (seed % 14);
+      tackling = 76 + (seed % 14);
+      handling = 76 + (seed % 16);
+      decision = 74 + (seed % 16);
+      passing = 72 + (seed % 16);
+      kicking = 55 + (seed % 16);
+      speed = 75 + (seed % 16);
+      break;
+    case "outsideBack":
+      strength = 58 + (seed % 14);
+      tackling = 62 + (seed % 14);
+      handling = 76 + (seed % 16);
+      decision = 70 + (seed % 16);
+      passing = 62 + (seed % 16);
+      kicking = 65 + (seed % 16);
+      speed = 84 + (seed % 14);
+      break;
+  }
+
+  const fitness = 70 + ((playerIndex * 5 + clubIndex * 7) % 26);
+  return {
+    skills: {
+      decision: Math.min(99, decision),
+      handling: Math.min(99, handling),
+      passing: Math.min(99, passing),
+      kicking: Math.min(99, kicking),
+      tackling: Math.min(99, tackling),
+    },
+    speed: Math.min(99, speed),
+    strength: Math.min(99, strength),
+    fitness,
+  };
+}
+
 export function createClubs(): Club[] {
   return CLUBS.map((club, clubIndex) => ({
     ...club,
-    squad: PLAYER_ROLES.map((role, playerIndex) => ({
-      id: `${club.id}-p${String(playerIndex + 1).padStart(2, "0")}`,
-      name: `${FIRST_NAMES[(playerIndex + clubIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(playerIndex * 5 + clubIndex) % LAST_NAMES.length]}`,
-      age: 19 + ((playerIndex * 7 + clubIndex * 3) % 17),
-      role,
-      attack: 55 + ((playerIndex * 3 + clubIndex * 5) % 31),
-      defence: 54 + ((playerIndex * 7 + clubIndex * 3) % 32),
-      fitness: 60 + ((playerIndex * 5 + clubIndex * 7) % 26),
-      injury: null,
-      careerRecord: createInitialCareerRecord(),
-    })),
+    squad: PLAYER_ROLES.map((role, playerIndex) => {
+      const stats = generatePlayerStats(role, playerIndex, clubIndex);
+      return {
+        id: `${club.id}-p${String(playerIndex + 1).padStart(2, "0")}`,
+        name: `${FIRST_NAMES[(playerIndex + clubIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(playerIndex * 5 + clubIndex) % LAST_NAMES.length]}`,
+        age: 19 + ((playerIndex * 7 + clubIndex * 3) % 17),
+        role,
+        skills: stats.skills,
+        speed: stats.speed,
+        strength: stats.strength,
+        fitness: stats.fitness,
+        injury: null,
+        careerRecord: createInitialCareerRecord(),
+      };
+    }),
     staffLevel: 1 + (clubIndex % 3),
     facilityLevel: 1 + ((clubIndex + 1) % 3),
     facilities: {

@@ -19,20 +19,14 @@ export function clubToTeamDefinition(club: Club): TeamDefinition {
   club.squad.forEach((player, index) => {
     const jerseyNumber = index + 1;
     playerOverrides[jerseyNumber] = {
-      speedMultiplier: 0.88 + (player.fitness / 100) * 0.24,
-      weightMultiplier: 0.9 + (player.defence / 100) * 0.2,
+      speedMultiplier: 0.82 + (player.speed / 100) * 0.36,
+      weightMultiplier: 0.85 + (player.strength / 100) * 0.3,
       skills: {
-        decision: Math.max(
-          0.1,
-          Math.min(0.99, (player.attack * 0.5 + player.defence * 0.5) / 100),
-        ),
-        handling: Math.max(0.1, Math.min(0.99, player.attack / 100)),
-        passing: Math.max(0.1, Math.min(0.99, player.attack / 100)),
-        kicking: Math.max(
-          0.1,
-          Math.min(0.99, (player.attack * 0.8 + 15) / 100),
-        ),
-        tackling: Math.max(0.1, Math.min(0.99, player.defence / 100)),
+        decision: Math.max(0.1, Math.min(0.99, player.skills.decision / 100)),
+        handling: Math.max(0.1, Math.min(0.99, player.skills.handling / 100)),
+        passing: Math.max(0.1, Math.min(0.99, player.skills.passing / 100)),
+        kicking: Math.max(0.1, Math.min(0.99, player.skills.kicking / 100)),
+        tackling: Math.max(0.1, Math.min(0.99, player.skills.tackling / 100)),
       },
     };
   });

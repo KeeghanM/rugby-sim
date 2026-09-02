@@ -160,7 +160,7 @@ export const renderHome = (career: Career, club: Club): string => {
         <span class="fitness" style="width: 36px;"><i style="width:${avgFitness}%"></i></span>
         <strong>${avgFitness}%</strong> Avg Condition
       </div>`,
-    footer: "15 Starters · 8 Bench · 23 Squad",
+    footer: `15 Starters · 8 Bench · ${club.squad.length} Squad`,
   });
 
   const medicalContent =

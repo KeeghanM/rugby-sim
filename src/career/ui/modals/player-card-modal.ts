@@ -37,13 +37,13 @@ export const renderPlayerCardModal = (
   slotIndex?: number,
 ): string => {
   const ovr = getPlayerOverall(player);
-  const decision = Math.round(
-    Math.min(99, player.attack * 0.5 + player.defence * 0.5),
-  );
-  const handling = Math.round(Math.min(99, player.attack * 0.9 + 5));
-  const passing = Math.round(Math.min(99, player.attack * 0.85 + 8));
-  const kicking = Math.round(Math.min(99, player.attack * 0.8 + 12));
-  const tackling = Math.round(Math.min(99, player.defence * 0.95 + 4));
+  const decision = player.skills.decision;
+  const handling = player.skills.handling;
+  const passing = player.skills.passing;
+  const kicking = player.skills.kicking;
+  const tackling = player.skills.tackling;
+  const speed = player.speed;
+  const strength = player.strength;
 
   const slotInfo =
     slotIndex !== undefined
@@ -100,12 +100,12 @@ export const renderPlayerCardModal = (
 
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem;">
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgb(255 255 255 / 10%); border-radius: 0.45rem; padding: 0.75rem; text-align: center;">
-          <span style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Attack Rating</span>
-          <strong style="display: block; font-size: 1.4rem; color: #38bdf8; font-family: ui-monospace, monospace; margin-top: 0.2rem;">${player.attack}</strong>
+          <span style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Pace / Speed</span>
+          <strong style="display: block; font-size: 1.4rem; color: #38bdf8; font-family: ui-monospace, monospace; margin-top: 0.2rem;">${speed}</strong>
         </div>
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgb(255 255 255 / 10%); border-radius: 0.45rem; padding: 0.75rem; text-align: center;">
-          <span style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Defence Rating</span>
-          <strong style="display: block; font-size: 1.4rem; color: #4ade80; font-family: ui-monospace, monospace; margin-top: 0.2rem;">${player.defence}</strong>
+          <span style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Power / Strength</span>
+          <strong style="display: block; font-size: 1.4rem; color: #4ade80; font-family: ui-monospace, monospace; margin-top: 0.2rem;">${strength}</strong>
         </div>
         <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgb(255 255 255 / 10%); border-radius: 0.45rem; padding: 0.75rem; text-align: center;">
           <span style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Condition</span>
@@ -148,6 +148,7 @@ export const renderPlayerCardModal = (
         </div>
       </div>
 
+      <!-- Technical Skills Breakdown -->
       <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgb(255 255 255 / 8%); border-radius: 0.5rem; padding: 1rem; display: grid; gap: 0.65rem;">
         <span style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Technical Breakdown</span>
         ${renderSkillBar("Decision Making", decision, "#60a5fa")}

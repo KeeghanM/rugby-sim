@@ -85,6 +85,33 @@ export function parsePlayerCareerRecord(
   };
 }
 
+function parsePlayerSkills(
+  value: unknown,
+  path: string,
+  fallbackAttack?: number,
+  fallbackDefence?: number,
+) {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const input = value as Record<string, unknown>;
+    return {
+      decision: boundedInteger(input.decision, `${path}.decision`, 0, 100),
+      handling: boundedInteger(input.handling, `${path}.handling`, 0, 100),
+      passing: boundedInteger(input.passing, `${path}.passing`, 0, 100),
+      kicking: boundedInteger(input.kicking, `${path}.kicking`, 0, 100),
+      tackling: boundedInteger(input.tackling, `${path}.tackling`, 0, 100),
+    };
+  }
+  const atk = fallbackAttack ?? 65;
+  const def = fallbackDefence ?? 65;
+  return {
+    decision: Math.round(Math.min(99, atk * 0.5 + def * 0.5)),
+    handling: Math.round(Math.min(99, atk * 0.9)),
+    passing: Math.round(Math.min(99, atk * 0.85)),
+    kicking: Math.round(Math.min(99, atk * 0.7 + 10)),
+    tackling: Math.round(Math.min(99, def * 0.95)),
+  };
+}
+
 export function parsePlayer(value: unknown, path: string): Player {
   const input = record(value, path);
   const rawRole = string(input.role, `${path}.role`);
@@ -92,13 +119,38 @@ export function parsePlayer(value: unknown, path: string): Player {
   if (role === undefined) {
     throw new Error(`Invalid career save: ${path}.role is unsupported`);
   }
+  const rawAttack =
+    typeof input.attack === "number"
+      ? boundedInteger(input.attack, `${path}.attack`, 0, 100)
+      : undefined;
+  const rawDefence =
+    typeof input.defence === "number"
+      ? boundedInteger(input.defence, `${path}.defence`, 0, 100)
+      : undefined;
+
   return {
     id: string(input.id, `${path}.id`),
     name: string(input.name, `${path}.name`),
     age: boundedInteger(input.age, `${path}.age`, 17, 45),
     role,
-    attack: boundedInteger(input.attack, `${path}.attack`, 0, 100),
-    defence: boundedInteger(input.defence, `${path}.defence`, 0, 100),
+    skills: parsePlayerSkills(
+      input.skills,
+      `${path}.skills`,
+      rawAttack,
+      rawDefence,
+    ),
+    speed: boundedInteger(
+      input.speed ?? rawAttack ?? 70,
+      `${path}.speed`,
+      0,
+      100,
+    ),
+    strength: boundedInteger(
+      input.strength ?? rawDefence ?? 70,
+      `${path}.strength`,
+      0,
+      100,
+    ),
     fitness: boundedInteger(input.fitness, `${path}.fitness`, 0, 100),
     injury: nullable(input.injury, (item) =>
       parsePlayerInjury(item, `${path}.injury`),

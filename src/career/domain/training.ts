@@ -69,39 +69,63 @@ export function resolveWeeklyTraining(career: Career): Career {
 
       // 2. Training impact on healthy players
       let fitnessDelta = 0;
-      let attackDelta = 0;
-      let defenceDelta = 0;
+      let strDelta = 0;
+      let spdDelta = 0;
+      let decisionDelta = 0;
+      let handlingDelta = 0;
+      let passingDelta = 0;
+      let kickingDelta = 0;
+      let tacklingDelta = 0;
 
       if (plan.intensity === "light") fitnessDelta += 10;
       else if (plan.intensity === "medium") fitnessDelta += 2;
       else if (plan.intensity === "high") fitnessDelta -= 8;
 
-      if (plan.focus === "recovery") fitnessDelta += 14;
-      else if (plan.focus === "conditioning") fitnessDelta += 8;
-      else if (plan.focus === "strength") {
-        attackDelta += Math.random() < 0.3 + gymLevel * 0.1 ? 1 : 0;
-        defenceDelta += Math.random() < 0.3 + gymLevel * 0.1 ? 1 : 0;
-      } else if (plan.focus === "attack" || plan.focus === "handling") {
-        attackDelta += Math.random() < 0.45 ? 1 : 0;
+      if (plan.focus === "recovery") fitnessDelta += 16;
+      else if (plan.focus === "conditioning") {
+        fitnessDelta += 10;
+        spdDelta += Math.random() < 0.35 ? 1 : 0;
+      } else if (plan.focus === "strength") {
+        strDelta += Math.random() < 0.35 + gymLevel * 0.12 ? 1 : 0;
+        tacklingDelta += Math.random() < 0.3 ? 1 : 0;
+      } else if (plan.focus === "handling") {
+        handlingDelta += Math.random() < 0.45 ? 1 : 0;
+        passingDelta += Math.random() < 0.4 ? 1 : 0;
+      } else if (plan.focus === "attack") {
+        decisionDelta += Math.random() < 0.35 ? 1 : 0;
+        passingDelta += Math.random() < 0.35 ? 1 : 0;
+        kickingDelta += Math.random() < 0.35 ? 1 : 0;
       } else if (plan.focus === "defence") {
-        defenceDelta += Math.random() < 0.45 ? 1 : 0;
+        tacklingDelta += Math.random() < 0.45 ? 1 : 0;
+        decisionDelta += Math.random() < 0.35 ? 1 : 0;
+      } else if (plan.focus === "balanced") {
+        handlingDelta += Math.random() < 0.2 ? 1 : 0;
+        tacklingDelta += Math.random() < 0.2 ? 1 : 0;
+        decisionDelta += Math.random() < 0.2 ? 1 : 0;
       }
 
       const nextFitness = Math.max(
         25,
         Math.min(100, player.fitness + fitnessDelta),
       );
-      const nextAttack = Math.min(99, player.attack + attackDelta);
-      const nextDefence = Math.min(99, player.defence + defenceDelta);
+      const nextStrength = Math.min(99, player.strength + strDelta);
+      const nextSpeed = Math.min(99, player.speed + spdDelta);
+      const nextSkills = {
+        decision: Math.min(99, player.skills.decision + decisionDelta),
+        handling: Math.min(99, player.skills.handling + handlingDelta),
+        passing: Math.min(99, player.skills.passing + passingDelta),
+        kicking: Math.min(99, player.skills.kicking + kickingDelta),
+        tackling: Math.min(99, player.skills.tackling + tacklingDelta),
+      };
 
       // 3. Roll for training injury
-      let injuryRisk = 0.02;
-      if (plan.intensity === "light") injuryRisk = 0.005;
-      else if (plan.intensity === "high") injuryRisk = 0.06;
+      let injuryRisk = 0.012;
+      if (plan.intensity === "light") injuryRisk = 0.003;
+      else if (plan.intensity === "high") injuryRisk = 0.035;
 
-      if (plan.focus === "recovery") injuryRisk *= 0.3;
-      if (nextFitness < 50) injuryRisk += 0.03;
-      injuryRisk = Math.max(0.002, injuryRisk - medLevel * 0.008);
+      if (plan.focus === "recovery") injuryRisk *= 0.25;
+      if (nextFitness < 50) injuryRisk += 0.015;
+      injuryRisk = Math.max(0.001, injuryRisk - medLevel * 0.004);
 
       if (Math.random() < injuryRisk) {
         const injuryType =
@@ -124,8 +148,9 @@ export function resolveWeeklyTraining(career: Career): Career {
 
         return {
           ...player,
-          attack: nextAttack,
-          defence: nextDefence,
+          skills: nextSkills,
+          speed: nextSpeed,
+          strength: nextStrength,
           fitness: Math.max(20, nextFitness - 15),
           injury,
         };
@@ -133,8 +158,9 @@ export function resolveWeeklyTraining(career: Career): Career {
 
       return {
         ...player,
-        attack: nextAttack,
-        defence: nextDefence,
+        skills: nextSkills,
+        speed: nextSpeed,
+        strength: nextStrength,
         fitness: nextFitness,
       };
     });

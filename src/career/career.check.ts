@@ -6,6 +6,7 @@ import {
   createMatchInputForFixture,
   deleteCareer,
   deriveStandings,
+  getPlayerOverall,
   getUpcomingManagedFixture,
   hasCareer,
   loadCareer,
@@ -23,8 +24,8 @@ function assert(condition: unknown, message: string): asserts condition {
 let career = createCareer("Alex Morgan", "harbour-sharks");
 assert(career.season.clubs.length === 6, "Expected six clubs");
 assert(
-  career.season.clubs.every((club) => club.squad.length === 23),
-  "Expected 23-player squads",
+  career.season.clubs.every((club) => club.squad.length === 40),
+  "Expected 40-player squads",
 );
 
 // Test squad swapping
@@ -41,10 +42,8 @@ career = swapSquadPlayers(career, "harbour-sharks", 0, 1);
 // Test optimizeSquadSelection ("ovr" and "fitness")
 career = optimizeSquadSelection(career, "harbour-sharks", "ovr");
 const club = career.season.clubs[0];
-const propOvr1 =
-  (club.squad[0].attack + club.squad[0].defence + club.squad[0].fitness) / 3;
-const propOvrBench =
-  (club.squad[16].attack + club.squad[16].defence + club.squad[16].fitness) / 3;
+const propOvr1 = getPlayerOverall(club.squad[0]);
+const propOvrBench = getPlayerOverall(club.squad[16]);
 assert(
   propOvr1 >= propOvrBench,
   "Best squad selection failed to place highest OVR prop in starting XV",
@@ -153,7 +152,7 @@ for (const malformed of [
   "{",
   "{}",
   validSave.replace('"schemaVersion":1', '"schemaVersion":2'),
-  validSave.replace('"attack":55', '"attack":"bad"'),
+  validSave.replace('"decision":', '"decision":"bad"'),
 ]) {
   try {
     parseCareerSave(malformed);

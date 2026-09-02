@@ -76,18 +76,22 @@ export const startPenalty = (
   const packDominanceBonus =
     (packWeight > 880 ? 0.25 : 0) + (maulTendency > 0.5 ? 0.3 : 0);
 
-  let touchPreference = 0.5 + packDominanceBonus;
-  let goalPreference = 0.5;
+  let touchPreference = 0.45 + packDominanceBonus;
+  let goalPreference = 0.45;
 
   if (distToTryLine > 48 || lateralDistance > 26) {
     // Extreme range or angle makes touch overwhelmingly preferable.
     goalPreference = 0.05;
     touchPreference = 0.95;
-  } else if (distToTryLine <= 30 && lateralDistance <= 15) {
-    // Central kicks within 30 metres receive full estimated-success weighting.
-    goalPreference += estimatedGoalChance * 0.7;
+  } else if (distToTryLine <= 18) {
+    // Inside 18m of try line: heavily favour kicking to touch for a 5m attacking lineout drive
+    touchPreference += 0.55;
+    goalPreference += estimatedGoalChance * 0.15;
+  } else if (distToTryLine <= 34 && lateralDistance <= 16) {
+    // Central kicks within 34 metres receive estimated-success weighting.
+    goalPreference += estimatedGoalChance * 0.45;
   } else {
-    goalPreference += estimatedGoalChance * 0.4;
+    goalPreference += estimatedGoalChance * 0.25;
   }
 
   if (isLateInMatch) {

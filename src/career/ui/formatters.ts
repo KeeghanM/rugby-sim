@@ -1,4 +1,5 @@
-import type { Career, Fixture, Player } from "../domain/index.ts";
+import type { Career, Fixture } from "../domain/index.ts";
+export { getOvrClass, getPlayerOverall } from "../domain/index.ts";
 
 export const formatDate = (date: string): string =>
   new Intl.DateTimeFormat("en-GB", {
@@ -18,15 +19,6 @@ export const formatMoney = (amount: number): string =>
 
 export const formatDist = (d: number): string =>
   d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.round(d)} m`;
-
-export const getPlayerOverall = (player: Player): number =>
-  Math.round((player.attack + player.defence + player.fitness) / 3);
-
-export const getOvrClass = (ovr: number): string => {
-  if (ovr >= 78) return "ovr-elite";
-  if (ovr >= 68) return "ovr-good";
-  return "ovr-solid";
-};
 
 export const clubById = (career: Career, id: string) => {
   const club = career.season.clubs.find((candidate) => candidate.id === id);

@@ -85,7 +85,7 @@ export const renderSwapModal = (club: Club, swapIndex: number): string => {
                     </button>
                     <div style="font-size: 0.72rem; color: #94a3b8;">${roleName(player.role)} · Age ${player.age}</div>
                   </td>
-                  <td style="font-size: 0.76rem; color: #cbd5e1;">${SLOT_NAMES[index]}</td>
+                  <td style="font-size: 0.76rem; color: #cbd5e1;">${SLOT_NAMES[index] ?? "Squad Depth"}</td>
                   <td style="text-align: center;">
                     <button type="button" class="ovr-badge ${getOvrClass(ovr)}" data-view-player="${player.id}">
                       OVR ${ovr}

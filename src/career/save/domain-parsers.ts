@@ -142,8 +142,10 @@ export function parseCareer(value: unknown): Career {
     throw new Error("Invalid career save: club IDs must be unique");
   }
   const playerIds = parsed.season.clubs.flatMap((c) => {
-    if (c.squad.length !== 23) {
-      throw new Error("Invalid career save: every club must have 23 players");
+    if (c.squad.length < 23 || c.squad.length > 50) {
+      throw new Error(
+        "Invalid career save: every club must have between 23 and 50 players",
+      );
     }
     return c.squad.map((playerValue) => playerValue.id);
   });

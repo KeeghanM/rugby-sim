@@ -43,13 +43,22 @@ export type PlayerCareerRecord = {
   knockOns: number;
 };
 
+export type PlayerSkills = {
+  decision: number;
+  handling: number;
+  passing: number;
+  kicking: number;
+  tackling: number;
+};
+
 export type Player = {
   id: string;
   name: string;
   age: number;
   role: PlayerRole;
-  attack: number;
-  defence: number;
+  skills: PlayerSkills;
+  speed: number;
+  strength: number;
   fitness: number;
   injury: PlayerInjury | null;
   careerRecord: PlayerCareerRecord;

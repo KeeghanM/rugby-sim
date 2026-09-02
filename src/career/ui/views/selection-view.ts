@@ -47,6 +47,7 @@ export const renderSelection = (
 ): string => {
   const starters = club.squad.slice(0, 15);
   const bench = club.squad.slice(15, 23);
+  const depth = club.squad.slice(23);
 
   const renderRow = (player: Player, index: number, slotName: string) => {
     const ovr = getPlayerOverall(player);
@@ -77,8 +78,8 @@ export const renderSelection = (
             OVR ${ovr}
           </button>
         </td>
-        <td style="text-align: center;">${player.attack}</td>
-        <td style="text-align: center;">${player.defence}</td>
+        <td style="text-align: center;">${player.speed}</td>
+        <td style="text-align: center;">${player.strength}</td>
         <td style="text-align: center;">
           <span class="fitness"><i style="width:${player.fitness}%"></i></span>${player.fitness}%
         </td>
@@ -111,17 +112,23 @@ export const renderSelection = (
             <th style="text-align: center;">Age</th>
             <th>Natural Role</th>
             <th style="text-align: center;">Overall</th>
-            <th style="text-align: center;">Attack</th>
-            <th style="text-align: center;">Defence</th>
+            <th style="text-align: center;">Pace</th>
+            <th style="text-align: center;">Power</th>
             <th style="text-align: center;">Fitness</th>
             <th style="text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody>
           <tr class="section-divider-row"><td colspan="9">Starting XV (1 - 15)</td></tr>
-          ${starters.map((p, i) => renderRow(p, i, SLOT_NAMES[i])).join("")}
+          ${starters.map((p, i) => renderRow(p, i, SLOT_NAMES[i] ?? "Starter")).join("")}
           <tr class="section-divider-row"><td colspan="9">Finishing Reserves (16 - 23)</td></tr>
-          ${bench.map((p, i) => renderRow(p, i + 15, SLOT_NAMES[i + 15])).join("")}
+          ${bench.map((p, i) => renderRow(p, i + 15, SLOT_NAMES[i + 15] ?? "Reserve")).join("")}
+          ${
+            depth.length > 0
+              ? `<tr class="section-divider-row"><td colspan="9">Senior Squad Reserves & Depth (24 - ${club.squad.length})</td></tr>
+                 ${depth.map((p, i) => renderRow(p, i + 23, "Reserves")).join("")}`
+              : ""
+          }
         </tbody>
       </table>
     </div>

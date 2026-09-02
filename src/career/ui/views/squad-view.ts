@@ -32,7 +32,7 @@ export const renderSquad = (
       <span class="career-kicker">Registered players</span>
       <h2>${escapeHtml(club.name)} squad</h2>
     </div>
-    <span>23 players</span>
+    <span>${club.squad.length} players</span>
   </header>
   <div class="career-table-wrap">
     <table class="career-table squad">
@@ -40,12 +40,12 @@ export const renderSquad = (
         <tr>
           <th>#</th>
           <th>Player</th>
-          <th>Age</th>
+          <th style="text-align: center;">Age</th>
           <th>Role</th>
-          <th>Overall</th>
-          <th>Attack</th>
-          <th>Defence</th>
-          <th>Fitness</th>
+          <th style="text-align: center;">Overall</th>
+          <th style="text-align: center;">Pace</th>
+          <th style="text-align: center;">Power</th>
+          <th style="text-align: center;">Fitness</th>
         </tr>
       </thead>
       <tbody>
@@ -53,14 +53,29 @@ export const renderSquad = (
           .map(
             (player, index) =>
               `<tr>
-                <td>${index + 1}</td>
-                <td><button type="button" class="career-link-btn" data-view-player="${player.id}"><strong>${escapeHtml(player.name)}</strong></button></td>
-                <td>${player.age}</td>
+                <td style="text-align: center;">
+                  <span class="player-num-badge" style="background:${club.color}; width:22px; height:22px; font-size:0.7rem;">${index + 1}</span>
+                </td>
+                <td>
+                  <button type="button" class="career-link-btn" data-view-player="${player.id}">
+                    <strong>${escapeHtml(player.name)}</strong>
+                  </button>
+                  ${
+                    player.injury
+                      ? `<span class="group-tag" style="background:rgba(239,68,68,0.2); color:#f87171; font-size:0.62rem; margin-left: 0.35rem;">⚠️ ${player.injury.weeksRemaining}w</span>`
+                      : ""
+                  }
+                </td>
+                <td style="text-align: center;">${player.age}</td>
                 <td>${roleName(player.role)}</td>
-                <td><button type="button" class="ovr-badge ${getOvrClass(getPlayerOverall(player))}" data-view-player="${player.id}">OVR ${getPlayerOverall(player)}</button></td>
-                <td>${player.attack}</td>
-                <td>${player.defence}</td>
-                <td><span class="fitness"><i style="width:${player.fitness}%"></i></span>${player.fitness}%</td>
+                <td style="text-align: center;">
+                  <button type="button" class="ovr-badge ${getOvrClass(getPlayerOverall(player))}" data-view-player="${player.id}">
+                    OVR ${getPlayerOverall(player)}
+                  </button>
+                </td>
+                <td style="text-align: center;">${player.speed}</td>
+                <td style="text-align: center;">${player.strength}</td>
+                <td style="text-align: center;"><span class="fitness"><i style="width:${player.fitness}%"></i></span>${player.fitness}%</td>
               </tr>`,
           )
           .join("")}

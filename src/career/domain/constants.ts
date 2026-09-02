@@ -11,6 +11,7 @@ export const CLUBS = [
 ] as const;
 
 export const PLAYER_ROLES = [
+  // 1-15: Starting XV
   "loosehead",
   "hooker",
   "tighthead",
@@ -26,14 +27,33 @@ export const PLAYER_ROLES = [
   "outsideCentre",
   "rightWing",
   "fullBack",
+  // 16-23: Matchday Reserves (Bench)
   "hooker",
+  "prop",
   "prop",
   "lock",
   "backRow",
   "scrumHalf",
   "flyHalf",
-  "centre",
   "outsideBack",
+  // 24-40: Senior Squad Depth & Reserves
+  "loosehead",
+  "tighthead",
+  "hooker",
+  "lock",
+  "lock",
+  "blindside",
+  "openside",
+  "number8",
+  "backRow",
+  "scrumHalf",
+  "flyHalf",
+  "insideCentre",
+  "outsideCentre",
+  "centre",
+  "leftWing",
+  "rightWing",
+  "fullBack",
 ] as const;
 
 export type PlayerRole = (typeof PLAYER_ROLES)[number];
