@@ -11,7 +11,10 @@ const args = process.argv.slice(2).filter((argument) => argument !== "--");
 const matches = Number(args[0] ?? 100);
 const blueSkill = Number(args[1] ?? 85) / 100;
 const redSkill = Number(args[2] ?? 20) / 100;
-const teams = createMatchConfig();
+const presets = createMatchConfig();
+const teams = createMatchConfig({ 0: presets[0], 1: presets[0] });
+teams[1].name = presets[1].name;
+teams[1].color = presets[1].color;
 const skillKeys = [
   "decision",
   "handling",

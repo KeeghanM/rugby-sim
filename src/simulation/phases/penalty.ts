@@ -274,7 +274,7 @@ export const updatePenalty = (
     if (phase.isSuccess && hasReachedPosts) {
       state.scores[phase.awardedTeam] += 3;
       if (kicker) kicker.stats.successfulKicks += 1;
-      phase.isSuccess = false;
+      phase.isSuccess = null;
     }
 
     // Successful penalty goal restarts with non-scoring team kicking from halfway.
@@ -282,13 +282,17 @@ export const updatePenalty = (
       phase.elapsed >= 3.8 ||
       (phase.elapsed >= 2.0 && state.ball.position.y <= 0.2)
     ) {
-      state.phase = {
-        kind: "kickoff",
-        stage: "forming",
-        kickingTeam: otherTeam(phase.awardedTeam),
-        readyForSeconds: 0,
-        reason: "try",
-      };
+      if (phase.isSuccess === null) {
+        state.phase = {
+          kind: "kickoff",
+          stage: "forming",
+          kickingTeam: otherTeam(phase.awardedTeam),
+          readyForSeconds: 0,
+          reason: "try",
+        };
+      } else {
+        startGoalLineDropout(state, targetTryLine);
+      }
     }
   }
 };

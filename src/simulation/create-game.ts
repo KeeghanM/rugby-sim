@@ -6,6 +6,7 @@ import {
   type MatchTeamEntrants,
   type PlayerStats,
   type TeamMatchStats,
+  otherTeam,
 } from "../domain.ts";
 import { ATTACK_FORMATION } from "../formations.ts";
 import {
@@ -84,6 +85,7 @@ export const createGame = (
   const gameTeams = createMatchConfig(input.teams);
   const team0Tactics = rollTeamTactics(0, random, gameTeams);
   const team1Tactics = rollTeamTactics(1, random, gameTeams);
+  const firstHalfKickingTeam = random() < 0.5 ? 0 : 1;
   return {
     teams: gameTeams,
     players: ([0, 1] as const).flatMap((team) =>
@@ -164,14 +166,14 @@ export const createGame = (
     phase: {
       kind: "kickoff",
       stage: "forming",
-      kickingTeam: 1,
+      kickingTeam: firstHalfKickingTeam,
       readyForSeconds: 0,
       reason: "matchStart",
     },
     pendingClearanceKickerId: null,
     pendingLineoutTeam: null,
     defensiveLineZ: [-3, 3],
-    attackFlow: [1, -1],
+    attackFlow: [1, 1],
     formations: {
       0: team0Tactics.formations,
       1: team1Tactics.formations,
@@ -182,6 +184,7 @@ export const createGame = (
     },
     matchClockSeconds: 0,
     half: 1,
+    firstHalfKickingTeam,
     referee: {
       position: { x: 6, z: 2 },
       velocity: { x: 0, z: 0 },
@@ -195,7 +198,7 @@ export const createGame = (
       ],
     },
     phaseCount: 1,
-    possessionTeam: 0,
+    possessionTeam: otherTeam(firstHalfKickingTeam),
     gainLineZ: 0,
     possessionOriginZ: 0,
     distanceGained: 0,

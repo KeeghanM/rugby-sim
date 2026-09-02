@@ -1,4 +1,5 @@
-import { attackDirection, type GameState } from "../../domain.ts";
+import { attackDirection, type GameState, otherTeam } from "../../domain.ts";
+import { MATCH_CLOCK_RATE } from "../constants.ts";
 
 export const updateMatchClock = (state: GameState, deltaSeconds: number) => {
   const currentBallZ = state.ball.carrierId
@@ -17,8 +18,7 @@ export const updateMatchClock = (state: GameState, deltaSeconds: number) => {
   // Match time starts with kickoff rather than during pre-match or halftime formation.
   if (isPreKickoff) return;
 
-  // Six simulated match seconds per rendered second keeps full matches practical to watch.
-  state.matchClockSeconds += deltaSeconds * 6;
+  state.matchClockSeconds += deltaSeconds * MATCH_CLOCK_RATE;
 
   const isDeadBall =
     state.phase.kind !== "openPlay" &&
@@ -35,7 +35,7 @@ export const updateMatchClock = (state: GameState, deltaSeconds: number) => {
     state.phase = {
       kind: "kickoff",
       stage: "forming",
-      kickingTeam: 0,
+      kickingTeam: otherTeam(state.firstHalfKickingTeam),
       readyForSeconds: 0,
       reason: "halfTime",
     };

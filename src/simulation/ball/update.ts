@@ -17,6 +17,28 @@ import { launchBall } from "./launch.ts";
 import { startGoalLineDropout } from "./dropout.ts";
 import { startLineout } from "./lineout.ts";
 
+const throwingTeamAtTouch = (state: GameState): Team => {
+  const kickerTeam = state.ball.lastTouchedTeam ?? 0;
+  const direction = attackDirection(kickerTeam);
+  const oppositionTwentyTwo =
+    direction === 1
+      ? PITCH.twentyTwoMetreLines.north
+      : PITCH.twentyTwoMetreLines.south;
+  // Strictly inside own half excludes halfway restarts from the 50:22 rule.
+  const is5022 =
+    state.ball.kickerId !== null &&
+    state.ball.kickOrigin !== null &&
+    state.ball.kickOrigin.z * direction < 0 &&
+    (state.ball.position.z - oppositionTwentyTwo) * direction >= 0 &&
+    state.ball.bouncesRemaining < 2;
+
+  return state.pendingLineoutTeam !== null
+    ? state.pendingLineoutTeam
+    : is5022
+      ? kickerTeam
+      : otherTeam(kickerTeam);
+};
+
 const attemptPossession = (
   state: GameState,
   player: Player,
@@ -96,7 +118,7 @@ export const updateBall = (
     ) {
       startLineout(
         state,
-        state.ball.lastTouchedTeam ?? 0,
+        throwingTeamAtTouch(state),
         clamp(
           state.ball.position.z,
           PITCH.tryLines.south,
@@ -198,31 +220,9 @@ export const updateBall = (
       state.ball.flight === "grubber") &&
     Math.abs(state.ball.position.x) >= PITCH.touchLines.right
   ) {
-    const kickerTeam = state.ball.lastTouchedTeam ?? 0;
-    const kickDir = attackDirection(kickerTeam);
-    const opp22Z =
-      kickDir === 1
-        ? PITCH.twentyTwoMetreLines.north
-        : PITCH.twentyTwoMetreLines.south;
-
-    // Law 18 preserves throw-in for a 50:22 kick originating in own half, bouncing in field, and reaching opposition 22.
-    const is5022 =
-      state.ball.flight === "kick" &&
-      state.ball.kickOrigin !== null &&
-      state.ball.kickOrigin.z * kickDir <= 0 &&
-      (state.ball.position.z - opp22Z) * kickDir >= 0 &&
-      state.ball.bouncesRemaining < 2;
-
-    const throwingTeam =
-      state.pendingLineoutTeam !== null
-        ? state.pendingLineoutTeam
-        : is5022
-          ? kickerTeam
-          : otherTeam(kickerTeam);
-
     startLineout(
       state,
-      throwingTeam,
+      throwingTeamAtTouch(state),
       clamp(state.ball.position.z, PITCH.tryLines.south, PITCH.tryLines.north),
       state.ball.position.x,
     );

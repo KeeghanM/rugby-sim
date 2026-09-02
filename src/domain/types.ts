@@ -292,6 +292,7 @@ export type GameState = {
   activeShapePositions: Record<Team, ActiveShapePositions>;
   matchClockSeconds: number;
   half: 1 | 2 | "fullTime";
+  firstHalfKickingTeam: Team;
   referee: Referee;
   phaseCount: number;
   possessionTeam: Team;

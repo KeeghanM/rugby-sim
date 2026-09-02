@@ -275,13 +275,15 @@ export const getRuckCommands = (state: GameState, players: Player[]) => {
       attackers,
       defenders,
     );
-    const direction = attackDirection(player.team);
+    const direction = attackDirection(phase.attackingTeam);
     const offsideZ =
       player.team === phase.attackingTeam
         ? phase.position.z - direction * 0.5
         : phase.position.z + direction * 0.5;
     const isAheadOfRuckOffside =
-      (player.position.z - offsideZ) * direction > 0.3;
+      player.team === phase.attackingTeam
+        ? (player.position.z - offsideZ) * direction > 0.3
+        : (offsideZ - player.position.z) * direction > 0.3;
     const effort = joinsRuck
       ? "run"
       : isAheadOfRuckOffside

@@ -121,20 +121,23 @@ export const updateRuck = (
         return;
       }
 
-      const jackleMultiplier =
-        defendersArrived > 0 && attackersArrived === 0 ? 1.85 : 1.0;
+      const isolatedCarrier = defendersArrived > 0 && attackersArrived === 0;
+      const jackleMultiplier = isolatedCarrier ? 1.85 : 1.0;
       // First defender over isolated carrier receives jackal advantage before cleaners arrive.
       const originalAttackingTeam = phase.attackingTeam;
       const attackWeight = groupStrength(state, phase.joinedAttackers);
       const defenceWeight =
         groupStrength(state, phase.joinedDefenders) * jackleMultiplier;
-      phase.counterRuck =
-        defenceWeight * (0.8 + random() * 0.4) > attackWeight * 0.7;
-      phase.winningTeam =
-        phase.counterRuck &&
-        defenceWeight * (0.85 + random() * 0.3) > attackWeight
-          ? otherTeam(phase.attackingTeam)
-          : phase.attackingTeam;
+      const defensivePressure = defenceWeight / Math.max(1, attackWeight);
+      const turnoverChance = clamp(
+        0.035 + Math.max(0, defensivePressure - 0.8) * 0.2,
+        0.02,
+        isolatedCarrier ? 0.22 : 0.18,
+      );
+      phase.counterRuck = random() < turnoverChance;
+      phase.winningTeam = phase.counterRuck
+        ? otherTeam(phase.attackingTeam)
+        : phase.attackingTeam;
 
       state.teamStats[phase.winningTeam].rucksWon += 1;
       state.teamStats[otherTeam(phase.winningTeam)].rucksLost += 1;

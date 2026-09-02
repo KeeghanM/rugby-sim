@@ -26,8 +26,8 @@ import {
   overallSkill,
 } from "../math.ts";
 import type { Random } from "../types.ts";
+export { MATCH_CLOCK_RATE } from "../constants.ts";
 
-export const MATCH_CLOCK_RATE = 6;
 export const GOAL_KICK_TIMEOUT_SECONDS = 30;
 // Kicking skill shortens setup while random variation avoids identical shot routines.
 export const goalKickTime = (kicker: Player | undefined, random: Random) =>

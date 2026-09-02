@@ -39,19 +39,8 @@ export const attemptTackle = (state: GameState, random: Random) => {
   if (!carrier) return false;
   if (carrier.breakawaySeconds > 0) return false;
 
-  const defTeam = otherTeam(carrier.team);
-  const defDir = attackDirection(defTeam);
-  const offsideLineZ = state.defensiveLineZ[defTeam];
-  const hasBrokenDefensiveLine =
-    (carrier.position.z - offsideLineZ) * attackDirection(carrier.team) > 0.5;
-
-  // Once carrier passes the line, trailing defenders may tackle from any side in open play.
-  const isOffside = (p: Player) => {
-    if (p.kickOffside) return true;
-    return (
-      !hasBrokenDefensiveLine && (p.position.z - offsideLineZ) * defDir > 0.45
-    );
-  };
+  // Ruck offside ends once ball is out; only kick offside persists in open play.
+  const isOffside = (player: Player) => player.kickOffside;
 
   // Offside defender affecting play through tackle concedes immediate penalty.
   const offsideTackler = state.players
@@ -151,6 +140,20 @@ export const attemptTackle = (state: GameState, random: Random) => {
   }
 
   tackler.stats.tacklesMade += 1;
+
+  const postContactMetres = clamp(
+    1 +
+      carrierSpeed * 0.5 +
+      (carrier.weight - tackler.weight) * 0.01 +
+      (carrierSkill - tacklerSkill) * 2,
+    0.3,
+    4,
+  );
+  carrier.position.z = clamp(
+    carrier.position.z + attackDirection(carrier.team) * postContactMetres,
+    PITCH.deadBallLines.south,
+    PITCH.deadBallLines.north,
+  );
 
   // Law 15 permits rucks only in field of play, so in-goal contact resolves try or dropout directly.
   const isAttackingInGoal =

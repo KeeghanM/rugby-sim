@@ -51,6 +51,6 @@ export const getRuckTarget = (
   // Uncommitted attack preserves forward pods and backline depth behind breakdown.
   return {
     x: clampX((isForward(player) ? podX : slot.x) + ruck.x * 0.2),
-    z: clampZ(ruck.z + direction * Math.min(-6, slot.z * 0.7)),
+    z: clampZ(ruck.z + direction * Math.max(-6, slot.z * 0.7)),
   };
 };

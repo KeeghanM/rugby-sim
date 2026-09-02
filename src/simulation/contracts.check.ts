@@ -1,7 +1,7 @@
 import { ATTACK_FORMATION, getKickoffTarget } from "../formations.ts";
 import { attackDirection, type GameState } from "../domain.ts";
 import { createMatchConfig, getPlayerProfile } from "../teams/index.ts";
-import { carryBall, startLineout } from "./ball.ts";
+import { carryBall, startLineout, updateBall } from "./ball.ts";
 import { createGame, createMatchInput } from "./create-game.ts";
 import { getPenaltyCommands, getRuckCommands } from "./decisions/set-piece.ts";
 import { createMatchResult } from "./match-result.ts";
@@ -79,6 +79,10 @@ const baseline = getPlayerProfile(0, 1, role, teams);
 check(overridden.weight !== baseline.weight, "Preset override had no effect");
 
 const kickoffState = createGame(input, () => 0.5);
+check(
+  kickoffState.attackFlow[0] === kickoffState.attackFlow[1],
+  "Equivalent formations started with opposing lateral flows",
+);
 const kickoff = kickoffState.phase;
 if (kickoff.kind !== "kickoff")
   throw new Error("Match did not start at kickoff");
@@ -173,7 +177,7 @@ const tackleState = createGame(input, () => 0.5);
 for (const player of tackleState.players) player.position = { x: 30, z: -50 };
 const carrier = tackleState.players.find((player) => player.team === 0)!;
 const tackler = tackleState.players.find((player) => player.team === 1)!;
-carrier.position = { x: 0, z: 10.6 };
+carrier.position = { x: 0, z: 9.8 };
 tackler.position = { x: 0, z: 9.4 };
 tackleState.phase = { kind: "openPlay" };
 carryBall(tackleState, carrier);
@@ -181,8 +185,8 @@ tackleState.defensiveLineZ[1] = 10;
 const tackleRolls = [0, 0.5];
 attemptTackle(tackleState, () => tackleRolls.shift() ?? 0.5);
 check(
-  tackler.stats.tacklesMade === 1,
-  "Trailing defender tackle was not recorded",
+  tackler.stats.tacklesMade === 1 && carrier.position.z > 9.8,
+  "Tactical defensive line prevented a legal tackle",
 );
 const tacklePhase = currentPhase(tackleState);
 if (tacklePhase.kind !== "ruck") throw new Error("Tackle did not start ruck");
@@ -202,6 +206,27 @@ check(
       attackDirection(tacklePhase.attackingTeam) >
       0,
   "Tackler did not retreat to stable defending-side target",
+);
+
+const rollingTouchState = createGame(input, () => 0.5);
+rollingTouchState.phase = { kind: "openPlay" };
+rollingTouchState.ball = {
+  position: { x: 34.9, y: 0.15, z: 10 },
+  velocity: { x: 5, y: 0, z: 0 },
+  carrierId: null,
+  flight: "rolling",
+  intendedReceiverId: null,
+  lastTouchedTeam: 0,
+  passerId: null,
+  kickerId: rollingTouchState.players.find((player) => player.team === 0)!.id,
+  kickOrigin: { x: 0, z: 10 },
+  bouncesRemaining: 0,
+};
+updateBall(rollingTouchState, 0.1, () => 0.5);
+const rollingTouchPhase = currentPhase(rollingTouchState);
+check(
+  rollingTouchPhase.kind === "lineout" && rollingTouchPhase.throwingTeam === 1,
+  "Ordinary rolling kick retained throw-in for kicking team",
 );
 
 console.log("Match contract checks passed");
