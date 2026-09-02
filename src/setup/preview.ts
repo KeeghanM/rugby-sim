@@ -14,42 +14,38 @@ import { createGame, createMatchInput } from "../simulation/create-game.ts";
 import { shapeContexts } from "./types.ts";
 import type { TacticalShape } from "../domain.ts";
 
-export const ensureTacticalShapes = (
+export const resolveTacticalShapes = (
   teams: MatchConfig,
   teamId: Team,
   context: FormationContext,
 ): TacticalShape[] => {
-  if (!teams[teamId].tacticalShapes) {
-    teams[teamId].tacticalShapes = {};
+  const configured = teams[teamId].tacticalShapes?.[context];
+  if (configured?.length) {
+    return configured.map((shape) => ({
+      ...shape,
+      positions: shape.positions?.map((position) => ({ ...position })),
+    }));
   }
-  let shapes = teams[teamId].tacticalShapes![context];
-  if (!shapes || shapes.length === 0) {
-    const configItem = shapeContexts.find((c) => c.value === context)!;
-    const defaultPreset = String(
-      teams[teamId].formations[configItem.formation],
-    );
-    shapes = [
-      {
-        id: `${context}-1`,
-        name: "Play 1 (Primary)",
-        weight: 60,
-        preset: defaultPreset,
-        positions: teams[teamId].customFormations[context]?.map((p) => ({
-          ...p,
-        })),
-      },
-      {
-        id: `${context}-2`,
-        name: "Play 2 (Alternate)",
-        weight: 40,
-        preset: configItem.presets[1]
-          ? String(configItem.presets[1])
-          : defaultPreset,
-      },
-    ];
-    teams[teamId].tacticalShapes![context] = shapes;
-  }
-  return shapes;
+
+  const configItem = shapeContexts.find((item) => item.value === context)!;
+  const defaultPreset = String(teams[teamId].formations[configItem.formation]);
+  return [
+    {
+      id: `${context}-1`,
+      name: "Shape 1 (Primary)",
+      weight: 60,
+      preset: defaultPreset,
+      positions: teams[teamId].customFormations[context]?.map((position) => ({
+        ...position,
+      })),
+    },
+    {
+      id: `${context}-2`,
+      name: "Shape 2 (Alternate)",
+      weight: 40,
+      preset: String(configItem.presets[1] ?? defaultPreset),
+    },
+  ];
 };
 
 export const previewPositions = (
@@ -58,16 +54,13 @@ export const previewPositions = (
   shapeContext: FormationContext,
   selectedShapeIndex: number,
 ): Position[] => {
-  const shapes = ensureTacticalShapes(teams, selectedTeam, shapeContext);
+  const shapes = resolveTacticalShapes(teams, selectedTeam, shapeContext);
   const idx = selectedShapeIndex >= shapes.length ? 0 : selectedShapeIndex;
   const currentShape = shapes[idx] ?? shapes[0];
 
   if (currentShape.positions && currentShape.positions.length > 0) {
     return currentShape.positions.map((position) => ({ ...position }));
   }
-
-  const custom = teams[selectedTeam].customFormations[shapeContext];
-  if (custom) return custom.map((position) => ({ ...position }));
 
   const game = createGame(createMatchInput(teams), () => 0.5);
   const ownPlayers = game.players.filter(
@@ -76,11 +69,23 @@ export const previewPositions = (
   const direction = selectedTeam === 0 ? 1 : -1;
   const formation = { ...game.formations[selectedTeam] };
   if (currentShape.preset) {
-    const contextItem = shapeContexts.find(
-      (item) => item.value === shapeContext,
-    );
-    if (contextItem) {
-      (formation as any)[contextItem.formation] = currentShape.preset;
+    if (shapeContext === "openAttack") {
+      formation.openAttack = currentShape.preset as typeof formation.openAttack;
+    } else if (shapeContext === "openDefence") {
+      formation.openDefence =
+        currentShape.preset as typeof formation.openDefence;
+    } else if (shapeContext === "kickoffAttack") {
+      formation.kickoffAttack =
+        currentShape.preset as typeof formation.kickoffAttack;
+    } else if (shapeContext === "kickoffDefence") {
+      formation.kickoffDefence =
+        currentShape.preset as typeof formation.kickoffDefence;
+    } else if (shapeContext === "scrumAttack") {
+      formation.scrumAttack =
+        currentShape.preset as typeof formation.scrumAttack;
+    } else {
+      formation.scrumDefence =
+        currentShape.preset as typeof formation.scrumDefence;
     }
   }
   const opponentCarrier = game.players.find(

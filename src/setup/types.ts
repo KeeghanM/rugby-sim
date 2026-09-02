@@ -3,7 +3,21 @@ import { clamp } from "../math.ts";
 export { escapeHtml } from "../html.ts";
 export { clamp } from "../math.ts";
 
-export type SetupView = "squad" | "tactics" | "shape";
+export const setupViews = {
+  squad: "Squad",
+  tactics: "Tactics",
+  shape: "Shape Board",
+} as const;
+
+export type SetupView = keyof typeof setupViews;
+
+export type SetupState = {
+  selectedTeam: Team;
+  view: SetupView;
+  selectedPlayer: number;
+  shapeContext: FormationContext;
+  selectedShapeIndex: number;
+};
 
 export const skillKeys = [
   "decision",
@@ -96,10 +110,10 @@ export const modifierControl = (
       <div style="display:flex; justify-content:space-between; width:100%; align-items:baseline;">
         <span>${label}</span>
         <span style="font-size:0.72rem; color:#94a3b8; font-weight:500;">
-          Total: <strong style="color:#38bdf8; font-family:ui-monospace, monospace;">${Math.round(effectiveTotal)}</strong>
+          Total: <strong data-modifier-total style="color:#38bdf8; font-family:ui-monospace, monospace;">${Math.round(effectiveTotal)}</strong>
         </span>
       </div>
-      <input type="range" min="-50" max="50" step="1" value="${roundDelta}" data-modifier="${key}" data-scope="player" />
+      <input type="range" min="-50" max="50" step="1" value="${roundDelta}" data-modifier="${key}" data-effective-base="${effectiveTotal - roundDelta}" data-scope="player" />
       <output style="font-weight:700; color:${deltaColor}; font-family:ui-monospace, monospace;">${deltaStr}</output>
     </label>`;
 };

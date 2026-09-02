@@ -3,22 +3,21 @@ import { Scene } from "@babylonjs/core/scene";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import type { GameState } from "../../domain.ts";
 import { escapeHtml } from "../../html.ts";
+import type { UIContext } from "./create.ts";
 
 export const syncDebug = (
   game: GameState,
-  ctx: any,
+  ctx: UIContext,
   scene: Scene,
   engine: Engine,
-  debugMode: boolean,
 ) => {
   const { playerCards, ballCard, tempWorld, tempProj, debugOverlay } = ctx;
-  if (!debugOverlay) return;
-  if (!debugMode) {
+  if (!ctx.isDebugMode()) {
     debugOverlay.style.display = "none";
     return;
   }
   debugOverlay.style.display = "block";
-  const activeCam: any = scene.activeCamera;
+  const activeCam = scene.activeCamera;
   if (!activeCam) return;
   const transformMatrix = scene.getTransformMatrix();
   const renderWidth = engine.getRenderWidth();
@@ -98,7 +97,7 @@ export const syncDebug = (
       ballCard.style.left = `${tempProj.x}px`;
       ballCard.style.top = `${tempProj.y}px`;
       const carrier = game.players.find(
-        (p: any) => p.id === game.ball.carrierId,
+        (player) => player.id === game.ball.carrierId,
       );
       const carrierText = carrier
         ? `Carried by #${carrier.number} ${carrier.role}`
@@ -108,7 +107,7 @@ export const syncDebug = (
       let targetText = "None";
       if (game.ball.intendedReceiverId) {
         const receiver = game.players.find(
-          (p: any) => p.id === game.ball.intendedReceiverId,
+          (player) => player.id === game.ball.intendedReceiverId,
         );
         targetText = receiver
           ? `Receiver #${receiver.number} ${receiver.role}`

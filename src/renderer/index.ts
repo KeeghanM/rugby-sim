@@ -30,8 +30,9 @@ export const createRenderer = (
     gainLinePlane,
     ball,
   } = createPlayerViews(scene, state);
-  const cameras = createCameras(scene, canvas);
   const ui = createUI(state);
+  const cameras = createCameras(scene, canvas, ui.manager.isOpen);
+  let disposed = false;
 
   return {
     scene,
@@ -51,16 +52,14 @@ export const createRenderer = (
         isRefCam,
       );
       env.updateScoreboards(game);
-      syncUI(
-        game,
-        ui,
-        scene,
-        engine,
-        ui.isDebugMode(),
-        ui.getManagerOpen(),
-        ui.getSelectedManagerTeam(),
-        ui.getSelectedManagerView(),
-      );
+      syncUI(game, ui, scene, engine);
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      cameras.dispose();
+      ui.dispose();
+      scene.dispose();
     },
   };
 };

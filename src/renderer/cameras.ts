@@ -2,6 +2,7 @@ import { FreeCamera, Matrix, UniversalCamera, Vector3 } from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import type { GameState } from "../domain.ts";
 import { attackDirection, PITCH, ROLES } from "../domain.ts";
+import { isEditableTarget, requiredElement } from "../dom.ts";
 import { clamp, distance } from "../simulation/math.ts";
 
 export type CameraMode = "dynamic" | "free";
@@ -13,7 +14,13 @@ type DynamicShotType =
   | "sidelineTight"
   | "breakawayChase";
 
-export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
+export const createCameras = (
+  scene: Scene,
+  canvas: HTMLCanvasElement,
+  isInputSuppressed: () => boolean,
+) => {
+  const lifecycle = new AbortController();
+  const { signal } = lifecycle;
   const broadcastCam = new FreeCamera(
     "broadcastCam",
     new Vector3(52, 21, 0),
@@ -70,35 +77,37 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
   ]);
 
   const heldKeys = new Set<string>();
-  window.addEventListener("keydown", (e) => heldKeys.add(e.key.toLowerCase()));
-  window.addEventListener("keyup", (e) => heldKeys.delete(e.key.toLowerCase()));
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (!isInputSuppressed() && !isEditableTarget(event.target)) {
+        heldKeys.add(event.key.toLowerCase());
+      }
+    },
+    { signal },
+  );
+  window.addEventListener(
+    "keyup",
+    (event) => heldKeys.delete(event.key.toLowerCase()),
+    { signal },
+  );
 
   const updateCameraControls = () => {
     broadcastCam.detachControl();
     freeCam.detachControl();
-    if (cameraMode === "free") freeCam.attachControl(canvas, true);
-  };
-
-  const updateCamButtons = () => {
-    const camButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
-    );
-    for (const b of camButtons) {
-      b.classList.toggle("active", b.dataset.cam === cameraMode);
+    if (cameraMode === "free" && !isInputSuppressed()) {
+      freeCam.attachControl(canvas, true);
     }
   };
 
-  const updateZoomDisplay = () => {
-    const zoomDisplay = document.getElementById("zoom-display");
-    const zoomSlider = document.getElementById(
-      "zoom-slider",
-    ) as HTMLInputElement | null;
-    if (zoomDisplay) zoomDisplay.textContent = `${zoom.toFixed(1)}×`;
-    if (
-      zoomSlider &&
-      parseFloat(zoomSlider.value).toFixed(1) !== zoom.toFixed(1)
-    ) {
-      zoomSlider.value = String(zoom);
+  const camButtons = [
+    requiredElement("camera-dynamic-btn", HTMLButtonElement),
+    requiredElement("camera-free-btn", HTMLButtonElement),
+  ];
+
+  const updateCamButtons = () => {
+    for (const b of camButtons) {
+      b.classList.toggle("active", b.dataset.cam === cameraMode);
     }
   };
 
@@ -107,7 +116,6 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
       const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
       freeCam.fov = fov;
     }
-    updateZoomDisplay();
   };
 
   const setCameraMode = (mode: CameraMode) => {
@@ -122,58 +130,64 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
     }
     updateCameraControls();
     updateCamButtons();
-    updateZoomDisplay();
   };
 
-  const camButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("[data-cam]"),
-  );
-  const zoomSlider = document.getElementById(
-    "zoom-slider",
-  ) as HTMLInputElement | null;
-
   for (const btn of camButtons) {
-    btn.addEventListener("click", () => {
-      const m = btn.dataset.cam as CameraMode | undefined;
-      if (m === "dynamic" || m === "free") setCameraMode(m);
-    });
-  }
-
-  if (zoomSlider) {
-    zoomSlider.addEventListener("input", () => {
-      zoom = Math.min(
-        ZOOM_MAX,
-        Math.max(ZOOM_MIN, parseFloat(zoomSlider.value) || 1),
-      );
-      applyZoomImmediate();
-    });
+    btn.addEventListener(
+      "click",
+      () => {
+        const mode = btn.dataset.cam;
+        if (mode === "dynamic" || mode === "free") setCameraMode(mode);
+      },
+      { signal },
+    );
   }
 
   canvas.addEventListener(
     "wheel",
     (e) => {
+      if (isInputSuppressed()) return;
       e.preventDefault();
       const delta = -e.deltaY * 0.0012;
       zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta));
       applyZoomImmediate();
     },
-    { passive: false },
+    { passive: false, signal },
   );
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "c" || e.key === "C") {
-      setCameraMode(cameraMode === "dynamic" ? "free" : "dynamic");
-    }
-  });
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (
+        !isInputSuppressed() &&
+        !isEditableTarget(event.target) &&
+        !event.repeat &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        (event.key === "c" || event.key === "C")
+      ) {
+        setCameraMode(cameraMode === "dynamic" ? "free" : "dynamic");
+      }
+    },
+    { signal },
+  );
 
   updateCamButtons();
   updateCameraControls();
-  updateZoomDisplay();
   applyZoomImmediate();
+  let wasInputSuppressed = false;
 
   return {
     getCurrentShot: () => (cameraMode === "dynamic" ? currentShot : "free"),
     sync: (game: GameState) => {
+      const inputSuppressed = isInputSuppressed();
+      if (inputSuppressed !== wasInputSuppressed) {
+        heldKeys.clear();
+        moveHoldTime = 0;
+        updateCameraControls();
+        wasInputSuppressed = inputSuppressed;
+      }
       if (cameraMode === "dynamic") {
         shotDuration += 0.016;
 
@@ -311,6 +325,12 @@ export const createCameras = (scene: Scene, canvas: HTMLCanvasElement) => {
           freeCam.position.y = Math.min(220, freeCam.position.y + vertSpeed);
         }
       }
+    },
+    dispose() {
+      lifecycle.abort();
+      heldKeys.clear();
+      broadcastCam.detachControl();
+      freeCam.detachControl();
     },
   };
 };

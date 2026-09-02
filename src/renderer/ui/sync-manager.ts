@@ -1,6 +1,10 @@
-import type { GameState } from "../../domain.ts";
+import type { GameState, Player, Substitute } from "../../domain.ts";
 import { isForward } from "../../formations.ts";
 import { escapeHtml } from "../../html.ts";
+import type { UIContext } from "./create.ts";
+import type { ManagerView } from "./manager-controller.ts";
+
+type SquadPlayer = Player | Substitute;
 
 const getPlayerName = (number: number, role: string): string => {
   switch (number) {
@@ -35,11 +39,11 @@ const getPlayerName = (number: number, role: string): string => {
     case 15:
       return "Fullback";
     case 16:
-      return "Reserve Prop";
-    case 17:
       return "Reserve Hooker";
+    case 17:
+      return "Reserve Loosehead Prop";
     case 18:
-      return "Reserve Prop";
+      return "Reserve Tighthead Prop";
     case 19:
       return "Reserve Lock";
     case 20:
@@ -55,13 +59,13 @@ const getPlayerName = (number: number, role: string): string => {
   }
 };
 
-const getOverall = (p: any): number => {
+const getOverall = (player: Pick<Player, "skills">): number => {
   const avg =
-    (p.skills.decision +
-      p.skills.handling +
-      p.skills.passing +
-      p.skills.kicking +
-      p.skills.tackling) *
+    (player.skills.decision +
+      player.skills.handling +
+      player.skills.passing +
+      player.skills.kicking +
+      player.skills.tackling) *
     20;
   return Math.round(avg);
 };
@@ -97,10 +101,9 @@ const formatDist = (d: number) =>
 
 export const syncManager = (
   game: GameState,
-  ctx: any,
+  ctx: UIContext,
   selectedManagerTeam: 0 | 1,
-  selectedManagerView: "roster" | "stats",
-  managerOpen: boolean,
+  selectedManagerView: ManagerView,
 ) => {
   const {
     managerTeamSummary,
@@ -109,21 +112,13 @@ export const syncManager = (
     tabTeam0,
     tabTeam1,
   } = ctx;
-  if (!managerOpen || !managerTeamSummary || !managerRosterTbody) return;
-
-  const teamDef: any = game.teams[selectedManagerTeam];
+  const teamDef = game.teams[selectedManagerTeam];
   const teamColor = teamDef.color;
 
   // Team selector labels and colors.
   if (tabTeam0) {
-    const swatch = tabTeam0.querySelector(
-      ".team-tab-swatch",
-    ) as HTMLElement | null;
-    const label = tabTeam0.querySelector(
-      "#tab-team-0-label",
-    ) as HTMLElement | null;
-    if (swatch) swatch.style.backgroundColor = game.teams[0].color;
-    if (label) label.textContent = game.teams[0].name;
+    ctx.tabTeam0Swatch.style.backgroundColor = game.teams[0].color;
+    ctx.tabTeam0Label.textContent = game.teams[0].name;
     if (selectedManagerTeam === 0) {
       tabTeam0.style.borderBottomColor = game.teams[0].color;
     } else {
@@ -131,14 +126,8 @@ export const syncManager = (
     }
   }
   if (tabTeam1) {
-    const swatch = tabTeam1.querySelector(
-      ".team-tab-swatch",
-    ) as HTMLElement | null;
-    const label = tabTeam1.querySelector(
-      "#tab-team-1-label",
-    ) as HTMLElement | null;
-    if (swatch) swatch.style.backgroundColor = game.teams[1].color;
-    if (label) label.textContent = game.teams[1].name;
+    ctx.tabTeam1Swatch.style.backgroundColor = game.teams[1].color;
+    ctx.tabTeam1Label.textContent = game.teams[1].name;
     if (selectedManagerTeam === 1) {
       tabTeam1.style.borderBottomColor = game.teams[1].color;
     } else {
@@ -147,10 +136,10 @@ export const syncManager = (
   }
 
   const teamPlayers = game.players.filter(
-    (pl: any) => pl.team === selectedManagerTeam,
+    (player) => player.team === selectedManagerTeam,
   );
   const benchSubs = game.substitutes.filter(
-    (s: any) => s.team === selectedManagerTeam,
+    (player) => player.team === selectedManagerTeam,
   );
 
   if (selectedManagerView === "stats") {
@@ -172,16 +161,17 @@ export const syncManager = (
     }
 
     const all = [...teamPlayers, ...benchSubs];
-    const sum = (fn: (p: any) => number) => all.reduce((s, p) => s + fn(p), 0);
-    const totalDistM = sum((p: any) => p.stats.distanceCovered);
-    const totalCarriedM = sum((p: any) => p.stats.distanceCarried);
-    const totalTacklesMade = sum((p: any) => p.stats.tacklesMade);
-    const totalTacklesMissed = sum((p: any) => p.stats.tacklesMissed);
-    const totalTries = sum((p: any) => p.stats.triesScored);
-    const totalBreaks = sum((p: any) => p.stats.lineBreaks);
-    const totalPens = sum((p: any) => p.stats.penaltiesConceded);
-    const totalKnockOns = sum((p: any) => p.stats.knockOns);
-    const setPieces: any = game.teamStats[selectedManagerTeam];
+    const sum = (read: (player: SquadPlayer) => number) =>
+      all.reduce((total, player) => total + read(player), 0);
+    const totalDistM = sum((player) => player.stats.distanceCovered);
+    const totalCarriedM = sum((player) => player.stats.distanceCarried);
+    const totalTacklesMade = sum((player) => player.stats.tacklesMade);
+    const totalTacklesMissed = sum((player) => player.stats.tacklesMissed);
+    const totalTries = sum((player) => player.stats.triesScored);
+    const totalBreaks = sum((player) => player.stats.lineBreaks);
+    const totalPens = sum((player) => player.stats.penaltiesConceded);
+    const totalKnockOns = sum((player) => player.stats.knockOns);
+    const setPieces = game.teamStats[selectedManagerTeam];
     const totalTackles = totalTacklesMade + totalTacklesMissed;
     const tacklePct =
       totalTackles > 0
@@ -243,9 +233,10 @@ export const syncManager = (
         </span>
       </div>`;
 
-    const renderStatRow = (player: any, isSub = false) => {
+    const renderStatRow = (player: SquadPlayer, isSub = false) => {
       const s = player.stats;
-      const opacity = isSub && !player.isUsed ? "opacity: 0.65;" : "";
+      const isUsed = "isUsed" in player && player.isUsed;
+      const opacity = isSub && !isUsed ? "opacity: 0.65;" : "";
       const tacklesTotal = s.tacklesMade + s.tacklesMissed;
       const pTacklePct =
         tacklesTotal > 0 ? Math.round((s.tacklesMade / tacklesTotal) * 100) : 0;
@@ -289,9 +280,9 @@ export const syncManager = (
 
     managerRosterTbody.innerHTML = `
       <tr class="section-divider-row"><td colspan="10">Starting XV</td></tr>
-      ${teamPlayers.map((p: any) => renderStatRow(p)).join("")}
+      ${teamPlayers.map((player) => renderStatRow(player)).join("")}
       <tr class="section-divider-row"><td colspan="10">Finishing Reserves</td></tr>
-      ${benchSubs.map((s: any) => renderStatRow(s, true)).join("")}`;
+      ${benchSubs.map((player) => renderStatRow(player, true)).join("")}`;
   } else {
     if (managerRosterThead) {
       managerRosterThead.innerHTML = `
@@ -304,9 +295,9 @@ export const syncManager = (
         </tr>`;
     }
 
-    const forwards = teamPlayers.filter((p: any) => isForward(p));
+    const forwards = teamPlayers.filter((player) => isForward(player));
     const packWeight = forwards.reduce(
-      (sum: number, p: any) => sum + Math.round(p.weight),
+      (sum, player) => sum + Math.round(player.weight),
       0,
     );
     const avgFwdWeight =
@@ -355,14 +346,15 @@ export const syncManager = (
         </div>
       </div>`;
 
-    const renderRosterRow = (player: any, isSub = false) => {
+    const renderRosterRow = (player: SquadPlayer, isSub = false) => {
       const ovr = getOverall(player);
       const ovrClass = getOvrClass(ovr);
-      const cond = getConditionInfo(player.stamina, isSub, player.isUsed);
-      const opacity = isSub && !player.isUsed ? "opacity: 0.7;" : "";
+      const isUsed = "isUsed" in player && player.isUsed;
+      const cond = getConditionInfo(player.stamina, isSub, isUsed);
+      const opacity = isSub && !isUsed ? "opacity: 0.7;" : "";
 
       const statusBadge = isSub
-        ? player.isUsed
+        ? isUsed
           ? `<span class="group-tag" style="background:rgba(148,163,184,0.15); color:#94a3b8; border-color:transparent; margin-left: 0.4rem;">Subbed On</span>`
           : `<span class="group-tag" style="background:rgba(34,197,94,0.15); color:#4ade80; border-color:rgba(34,197,94,0.3); margin-left: 0.4rem;">Ready</span>`
         : "";
@@ -401,8 +393,8 @@ export const syncManager = (
 
     managerRosterTbody.innerHTML = `
       <tr class="section-divider-row"><td colspan="5">Starting XV</td></tr>
-      ${teamPlayers.map((p: any) => renderRosterRow(p)).join("")}
+      ${teamPlayers.map((player) => renderRosterRow(player)).join("")}
       <tr class="section-divider-row"><td colspan="5">Finishing Reserves</td></tr>
-      ${benchSubs.map((s: any) => renderRosterRow(s, true)).join("")}`;
+      ${benchSubs.map((player) => renderRosterRow(player, true)).join("")}`;
   }
 };

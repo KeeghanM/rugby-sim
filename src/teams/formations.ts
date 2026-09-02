@@ -68,7 +68,7 @@ const rollContext = <Context extends FormationContext>(
         );
   return {
     formation,
-    positions: shape?.positions ?? definition.customFormations[context],
+    positions: shape ? shape.positions : definition.customFormations[context],
   };
 };
 

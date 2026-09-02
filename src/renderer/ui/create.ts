@@ -1,172 +1,132 @@
-import { Color3, Matrix, Vector3 } from "@babylonjs/core";
-import { Scene } from "@babylonjs/core/scene";
-import { Engine } from "@babylonjs/core/Engines/engine";
+import { Vector3 } from "@babylonjs/core";
 import type { GameState } from "../../domain.ts";
-import { PITCH } from "../../domain.ts";
-import { isForward } from "../../formations.ts";
+import { isEditableTarget, requiredElement } from "../../dom.ts";
+import { createManagerController } from "./manager-controller.ts";
 
 export const createUI = (state: GameState) => {
-  const scoreboard = document.getElementById("scoreboard");
-  const speedSlider = document.getElementById(
-    "speed-slider",
-  ) as HTMLInputElement | null;
-  const speedDisplay = document.getElementById("speed-display");
-  const debugToggle = document.getElementById(
-    "debug-toggle",
-  ) as HTMLInputElement | null;
-  const debugOverlay = document.getElementById("debug-overlay");
-  const uiControls = document.getElementById("ui-controls");
-  const controlsToggleBtn = document.getElementById("controls-toggle-btn");
+  const lifecycle = new AbortController();
+  const { signal } = lifecycle;
+  const scoreboard = requiredElement("scoreboard", HTMLOutputElement);
+  const speedSlider = requiredElement("speed-slider", HTMLInputElement);
+  const speedDisplay = requiredElement("speed-display", HTMLSpanElement);
+  const debugOverlay = requiredElement("debug-overlay", HTMLDivElement);
+  const tvTeam0 = requiredElement("tv-team-0", HTMLDivElement);
+  const tvTeam1 = requiredElement("tv-team-1", HTMLDivElement);
+  const tvTeam0Badge = requiredElement("tv-team0-badge", HTMLSpanElement);
+  const tvTeam1Badge = requiredElement("tv-team1-badge", HTMLSpanElement);
+  const tvTeam0Name = requiredElement("tv-team0-name", HTMLSpanElement);
+  const tvTeam0Score = requiredElement("tv-team0-score", HTMLSpanElement);
+  const tvTeam1Name = requiredElement("tv-team1-name", HTMLSpanElement);
+  const tvTeam1Score = requiredElement("tv-team1-score", HTMLSpanElement);
+  const tvClock = requiredElement("tv-clock", HTMLSpanElement);
+  const tvHalf = requiredElement("tv-half", HTMLSpanElement);
+  const tvPhasePill = requiredElement("tv-phase-pill", HTMLSpanElement);
+  const tvMeters = requiredElement("tv-meters", HTMLSpanElement);
+  const tvStatus = requiredElement("tv-status", HTMLSpanElement);
+  const tvShotClock = requiredElement("tv-shot-clock", HTMLSpanElement);
+  const managerViewBtn = requiredElement("manager-view-btn", HTMLButtonElement);
+  const managerModal = requiredElement("manager-modal", HTMLDialogElement);
+  const managerCloseBtn = requiredElement(
+    "manager-close-btn",
+    HTMLButtonElement,
+  );
+  const tabTeam0 = requiredElement("tab-team-0", HTMLButtonElement);
+  const tabTeam1 = requiredElement("tab-team-1", HTMLButtonElement);
+  const tabTeam0Swatch = requiredElement("tab-team-0-swatch", HTMLSpanElement);
+  const tabTeam1Swatch = requiredElement("tab-team-1-swatch", HTMLSpanElement);
+  const tabTeam0Label = requiredElement("tab-team-0-label", HTMLSpanElement);
+  const tabTeam1Label = requiredElement("tab-team-1-label", HTMLSpanElement);
+  const subtabRoster = requiredElement("subtab-roster", HTMLButtonElement);
+  const subtabStats = requiredElement("subtab-stats", HTMLButtonElement);
+  const managerTeamSummary = requiredElement(
+    "manager-team-summary",
+    HTMLDivElement,
+  );
+  const managerRosterThead = requiredElement(
+    "manager-roster-thead",
+    HTMLTableSectionElement,
+  );
+  const managerRosterTbody = requiredElement(
+    "manager-roster-tbody",
+    HTMLTableSectionElement,
+  );
+  const manager = createManagerController(
+    {
+      dialog: managerModal,
+      opener: managerViewBtn,
+      closeButton: managerCloseBtn,
+      teamTabs: [tabTeam0, tabTeam1],
+      viewTabs: { roster: subtabRoster, stats: subtabStats },
+    },
+    signal,
+  );
 
-  const tvTeam0 = document.getElementById("tv-team-0");
-  const tvTeam1 = document.getElementById("tv-team-1");
-  const tvTeam0Name = document.getElementById("tv-team0-name");
-  const tvTeam0Score = document.getElementById("tv-team0-score");
-  const tvTeam1Name = document.getElementById("tv-team1-name");
-  const tvTeam1Score = document.getElementById("tv-team1-score");
-  const tvClock = document.getElementById("tv-clock");
-  const tvHalf = document.getElementById("tv-half");
-  const tvPhasePill = document.getElementById("tv-phase-pill");
-  const tvMeters = document.getElementById("tv-meters");
-  const tvStatus = document.getElementById("tv-status");
-  const tvShotClock = document.getElementById("tv-shot-clock");
-
-  const managerModal = document.getElementById("manager-modal");
-  const managerViewBtn = document.getElementById("manager-view-btn");
-  const managerCloseBtn = document.getElementById("manager-close-btn");
-  const tabTeam0 = document.getElementById("tab-team-0");
-  const tabTeam1 = document.getElementById("tab-team-1");
-  const subtabRoster = document.getElementById("subtab-roster");
-  const subtabStats = document.getElementById("subtab-stats");
-  const managerTeamSummary = document.getElementById("manager-team-summary");
-  const managerRosterThead = document.getElementById("manager-roster-thead");
-  const managerRosterTbody = document.getElementById("manager-roster-tbody");
-
-  let managerOpen = false;
-  let selectedManagerTeam: 0 | 1 = 0;
-  let selectedManagerView: "roster" | "stats" = "roster";
-
-  const setManagerOpen = (open: boolean) => {
-    managerOpen = open;
-    if (managerModal) managerModal.classList.toggle("active", open);
-  };
-
-  if (managerViewBtn)
-    managerViewBtn.addEventListener("click", () => setManagerOpen(true));
-  if (managerCloseBtn)
-    managerCloseBtn.addEventListener("click", () => setManagerOpen(false));
-  if (managerModal)
-    managerModal.addEventListener("click", (e) => {
-      if (e.target === managerModal) setManagerOpen(false);
-    });
-  if (tabTeam0)
-    tabTeam0.addEventListener("click", () => {
-      selectedManagerTeam = 0;
-      tabTeam0.classList.add("active");
-      tabTeam1?.classList.remove("active");
-    });
-  if (tabTeam1)
-    tabTeam1.addEventListener("click", () => {
-      selectedManagerTeam = 1;
-      tabTeam1.classList.add("active");
-      tabTeam0?.classList.remove("active");
-    });
-  if (subtabRoster)
-    subtabRoster.addEventListener("click", () => {
-      selectedManagerView = "roster";
-      subtabRoster.classList.add("active");
-      subtabStats?.classList.remove("active");
-    });
-  if (subtabStats)
-    subtabStats.addEventListener("click", () => {
-      selectedManagerView = "stats";
-      subtabStats.classList.add("active");
-      subtabRoster?.classList.remove("active");
-    });
   let simulationSpeed = 1;
   let previousSpeed = 1;
   let debugMode = false;
 
-  const updateSpeedDisplay = (speed: number) => {
-    if (!speedDisplay) return;
+  const updateSpeedDisplay = () => {
     speedDisplay.textContent =
-      speed === 0 ? "0.0× (Paused)" : `${speed.toFixed(1)}×`;
+      simulationSpeed === 0
+        ? "0.0× (Paused)"
+        : `${simulationSpeed.toFixed(1)}×`;
   };
 
-  if (speedSlider) {
-    const rawVal = parseFloat(speedSlider.value);
-    simulationSpeed = Number.isFinite(rawVal) ? Math.max(0, rawVal) : 1;
-    if (simulationSpeed > 0) previousSpeed = simulationSpeed;
-    updateSpeedDisplay(simulationSpeed);
-
-    speedSlider.addEventListener("input", () => {
-      const val = parseFloat(speedSlider.value);
-      simulationSpeed = Number.isFinite(val) ? Math.max(0, val) : 1;
+  const rawSpeed = Number(speedSlider.value);
+  simulationSpeed = Number.isFinite(rawSpeed) ? Math.max(0, rawSpeed) : 1;
+  if (simulationSpeed > 0) previousSpeed = simulationSpeed;
+  updateSpeedDisplay();
+  speedSlider.addEventListener(
+    "input",
+    () => {
+      const value = Number(speedSlider.value);
+      simulationSpeed = Number.isFinite(value) ? Math.max(0, value) : 1;
       if (simulationSpeed > 0) previousSpeed = simulationSpeed;
-      updateSpeedDisplay(simulationSpeed);
-    });
-  }
+      updateSpeedDisplay();
+    },
+    { signal },
+  );
 
-  // Match controls remain available when pointer focus is on the 3D view.
-  window.addEventListener("keydown", (e) => {
-    if (
-      document.activeElement?.tagName === "INPUT" ||
-      document.activeElement?.tagName === "TEXTAREA"
-    ) {
-      return;
-    }
-    if (e.key === " ") {
-      e.preventDefault();
-      if (simulationSpeed > 0) {
-        previousSpeed = simulationSpeed;
-        simulationSpeed = 0;
-      } else {
-        simulationSpeed = previousSpeed > 0 ? previousSpeed : 1.0;
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (manager.isOpen() || event.repeat || isEditableTarget(event.target)) {
+        return;
       }
-      if (speedSlider) {
+      if (event.key === " ") {
+        event.preventDefault();
+        if (simulationSpeed > 0) {
+          previousSpeed = simulationSpeed;
+          simulationSpeed = 0;
+        } else {
+          simulationSpeed = previousSpeed > 0 ? previousSpeed : 1;
+        }
         speedSlider.value = String(simulationSpeed);
+        updateSpeedDisplay();
+      } else if (event.key === "d" || event.key === "D") {
+        debugMode = !debugMode;
       }
-      updateSpeedDisplay(simulationSpeed);
-    } else if (e.key === "d" || e.key === "D") {
-      debugMode = !debugMode;
-      if (debugToggle) debugToggle.checked = debugMode;
-    }
-  });
-  if (debugToggle) {
-    debugMode = debugToggle.checked;
-    debugToggle.addEventListener("change", () => {
-      debugMode = debugToggle.checked;
-    });
-  }
+    },
+    { signal },
+  );
 
   const playerCards = new Map<string, HTMLElement>();
-  let ballCard: HTMLElement | null = null;
-  if (debugOverlay) {
-    for (const player of state.players) {
-      const card = document.createElement("div");
-      card.className = `debug-card team-${player.team}`;
-      debugOverlay.appendChild(card);
-      playerCards.set(player.id, card);
-    }
-    ballCard = document.createElement("div");
-    ballCard.className = "debug-card ball-card";
-    debugOverlay.appendChild(ballCard);
+  for (const player of state.players) {
+    const card = document.createElement("div");
+    card.className = `debug-card team-${player.team}`;
+    debugOverlay.appendChild(card);
+    playerCards.set(player.id, card);
   }
+  const ballCard = document.createElement("div");
+  ballCard.className = "debug-card ball-card";
+  debugOverlay.appendChild(ballCard);
 
-  const tempWorld = new Vector3();
-  const tempProj = new Vector3();
-  const ballTarget = new Vector3(0, 0, 0);
-
-  return {
+  const context = {
     scoreboard,
-    speedSlider,
-    speedDisplay,
-    debugToggle,
-    debugOverlay,
-    uiControls,
-    controlsToggleBtn,
     tvTeam0,
     tvTeam1,
+    tvTeam0Badge,
+    tvTeam1Badge,
     tvTeam0Name,
     tvTeam0Score,
     tvTeam1Name,
@@ -177,26 +137,32 @@ export const createUI = (state: GameState) => {
     tvMeters,
     tvStatus,
     tvShotClock,
-    managerModal,
-    managerViewBtn,
-    managerCloseBtn,
     tabTeam0,
     tabTeam1,
-    subtabRoster,
-    subtabStats,
+    tabTeam0Swatch,
+    tabTeam1Swatch,
+    tabTeam0Label,
+    tabTeam1Label,
     managerTeamSummary,
     managerRosterThead,
     managerRosterTbody,
-    getManagerOpen: () => managerOpen,
-    setManagerOpen,
-    getSelectedManagerTeam: () => selectedManagerTeam,
-    getSelectedManagerView: () => selectedManagerView,
+    manager,
     getSimulationSpeed: () => simulationSpeed,
     isDebugMode: () => debugMode,
+    debugOverlay,
     playerCards,
     ballCard,
-    tempWorld,
-    tempProj,
-    ballTarget,
+    tempWorld: new Vector3(),
+    tempProj: new Vector3(),
+    dispose() {
+      manager.dispose();
+      lifecycle.abort();
+      debugOverlay.replaceChildren();
+      playerCards.clear();
+    },
   };
+
+  return context;
 };
+
+export type UIContext = ReturnType<typeof createUI>;

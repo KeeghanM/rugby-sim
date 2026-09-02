@@ -3,16 +3,13 @@ import { syncDebug } from "./sync-debug.ts";
 import type { GameState } from "../../domain.ts";
 import { Scene } from "@babylonjs/core/scene";
 import { Engine } from "@babylonjs/core/Engines/engine";
+import type { UIContext } from "./create.ts";
 
 export const syncUI = (
   game: GameState,
-  ctx: any,
+  ctx: UIContext,
   scene: Scene,
   engine: Engine,
-  debugMode: boolean,
-  managerOpen: boolean,
-  selectedManagerTeam: 0 | 1,
-  selectedManagerView: "roster" | "stats",
 ) => {
   // Main scoreboard and TV broadcast scoreboard.
   const {
@@ -46,7 +43,7 @@ export const syncUI = (
     game.half === "fullTime" ? "FT" : game.half === 2 ? "2ND" : "1ST";
   const clockStr = `${mins}:${secs} (${halfText})`;
   const baseScore = `${game.teams[0].name} ${game.scores[0]} - ${game.scores[1]} ${game.teams[1].name}`;
-  const p: any = game.phase;
+  const p = game.phase;
   let topLevelStatus = "OPEN PLAY";
   if (p.kind === "openPlay")
     topLevelStatus =
@@ -59,7 +56,7 @@ export const syncUI = (
     topLevelStatus = p.reason === "goalLineDropout" ? "DROP OUT" : "KICKOFF";
   else if (p.kind === "conversion") topLevelStatus = "CONVERSION";
   else if (p.kind === "penalty") topLevelStatus = "PENALTY";
-  let phaseDesc: string;
+  let phaseDesc = "Open play";
   if (p.kind === "openPlay") phaseDesc = "Open play";
   else if (p.kind === "ruck")
     phaseDesc = `Ruck ${p.stage} - ${p.tempo} ${p.play}`;
@@ -73,7 +70,6 @@ export const syncUI = (
         : `Kickoff ${p.stage}`;
   else if (p.kind === "conversion") phaseDesc = `Conversion ${p.stage}`;
   else if (p.kind === "penalty") phaseDesc = `Penalty ${p.choice} ${p.stage}`;
-  else phaseDesc = (p as any).kind;
   if (tvTeam0) {
     const isPoss = game.possessionTeam === 0;
     tvTeam0.classList.toggle("possession", isPoss);
@@ -83,11 +79,8 @@ export const syncUI = (
     tvTeam0.style.background = isPoss
       ? `${game.teams[0].color}33`
       : "transparent";
-    const badge = tvTeam0.querySelector(".tv-team-badge") as HTMLElement | null;
-    if (badge) {
-      badge.style.backgroundColor = game.teams[0].color;
-      badge.style.boxShadow = `0 0 8px ${game.teams[0].color}`;
-    }
+    ctx.tvTeam0Badge.style.backgroundColor = game.teams[0].color;
+    ctx.tvTeam0Badge.style.boxShadow = `0 0 8px ${game.teams[0].color}`;
   }
   if (tvTeam1) {
     const isPoss = game.possessionTeam === 1;
@@ -98,11 +91,8 @@ export const syncUI = (
     tvTeam1.style.background = isPoss
       ? `${game.teams[1].color}33`
       : "transparent";
-    const badge = tvTeam1.querySelector(".tv-team-badge") as HTMLElement | null;
-    if (badge) {
-      badge.style.backgroundColor = game.teams[1].color;
-      badge.style.boxShadow = `0 0 8px ${game.teams[1].color}`;
-    }
+    ctx.tvTeam1Badge.style.backgroundColor = game.teams[1].color;
+    ctx.tvTeam1Badge.style.boxShadow = `0 0 8px ${game.teams[1].color}`;
   }
   if (tvTeam0Name) tvTeam0Name.textContent = game.teams[0].name.toUpperCase();
   if (tvTeam0Score) tvTeam0Score.textContent = game.scores[0].toString();
@@ -136,7 +126,7 @@ export const syncUI = (
       tvShotClock.textContent = `SHOT ${Math.max(0, Math.ceil(30 - p.elapsed * 6))}`;
   }
   if (scoreboard) {
-    if (ctx.debugMode) {
+    if (ctx.isDebugMode()) {
       const gainPrefix = game.distanceGained >= 0 ? "+" : "";
       const phaseMetrics = `Phase ${game.phaseCount} (${gainPrefix}${game.distanceGained.toFixed(0)}m)`;
       scoreboard.textContent = `${clockStr} | ${baseScore} | ${phaseMetrics} | ${phaseDesc}`;
@@ -144,6 +134,13 @@ export const syncUI = (
       scoreboard.textContent = `${clockStr} | ${baseScore}`;
     }
   }
-  syncManager(game, ctx, selectedManagerTeam, selectedManagerView, managerOpen);
-  syncDebug(game, ctx, scene, engine, debugMode);
+  if (ctx.manager.shouldRender(performance.now())) {
+    syncManager(
+      game,
+      ctx,
+      ctx.manager.getSelectedTeam(),
+      ctx.manager.getSelectedView(),
+    );
+  }
+  syncDebug(game, ctx, scene, engine);
 };

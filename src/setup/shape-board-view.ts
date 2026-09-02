@@ -2,6 +2,7 @@ import type {
   FormationContext,
   MatchConfig,
   Position,
+  TacticalShape,
   Team,
 } from "../domain.ts";
 import { boundsFor, escapeHtml, shapeContexts, text } from "./types.ts";
@@ -12,11 +13,10 @@ export const renderShapeBoard = (
   shapeContext: FormationContext,
   selectedShapeIndex: number,
   positions: Position[],
-  ensureTacticalShapes: (teamId: Team, context: FormationContext) => any[],
+  shapes: TacticalShape[],
 ) => {
   const team = teams[selectedTeam];
   const context = shapeContexts.find((item) => item.value === shapeContext)!;
-  const shapes = ensureTacticalShapes(selectedTeam, shapeContext);
   const idx = selectedShapeIndex >= shapes.length ? 0 : selectedShapeIndex;
   const currentShape = shapes[idx] ?? shapes[0];
   const totalWeight = shapes.reduce((sum, s) => sum + Math.max(0, s.weight), 0);
@@ -35,7 +35,7 @@ export const renderShapeBoard = (
         <section class="shape-workbench">
           <div class="section-heading">
             <div>
-              <span>Tactical Play Variations</span>
+              <span>Tactical Shape Variations</span>
               <h2>${context.label}</h2>
             </div>
             <button type="button" class="reset-shape" data-reset-shape>Reset to preset</button>
@@ -52,13 +52,13 @@ export const renderShapeBoard = (
                 </button>`,
                 )
                 .join("")}
-              <button type="button" class="add-shape-btn" data-add-shape>+ Add Play</button>
+              <button type="button" class="add-shape-btn" data-add-shape>+ Add Shape</button>
             </div>
           </div>
 
           <div class="shape-controls-card">
             <label class="shape-name-control">
-              <span>Play Name</span>
+              <span>Shape Name</span>
               <input type="text" data-shape-name value="${escapeHtml(currentShape.name)}" placeholder="e.g. Blue Strike, Green Pods..." />
             </label>
             <label class="shape-weight-control">
@@ -66,7 +66,7 @@ export const renderShapeBoard = (
               <input type="range" min="5" max="100" step="5" value="${currentShape.weight}" data-shape-weight />
               <output>${probabilityPercent}% chance</output>
             </label>
-            ${shapes.length > 1 ? `<button type="button" class="delete-shape-btn" data-delete-shape title="Delete play">✕ Delete</button>` : ""}
+            ${shapes.length > 1 ? `<button type="button" class="delete-shape-btn" data-delete-shape title="Delete shape">✕ Delete</button>` : ""}
           </div>
 
           <div class="preset-row">

@@ -554,16 +554,25 @@
         position: fixed;
         z-index: 50;
         inset: 0;
-        background: rgb(0 0 0 / 70%);
-        backdrop-filter: blur(8px);
-        display: none;
+        width: 100dvw;
+        height: 100dvh;
+        max-width: none;
+        max-height: none;
+        margin: 0;
+        border: 0;
+        background: transparent;
         align-items: center;
         justify-content: center;
         padding: 1.5rem;
       }
 
-      #manager-modal.active {
+      #manager-modal[open] {
         display: flex;
+      }
+
+      #manager-modal::backdrop {
+        background: rgb(0 0 0 / 70%);
+        backdrop-filter: blur(8px);
       }
 
       .manager-dialog {
@@ -1014,15 +1023,8 @@
         user-select: auto;
       }
 
-      #pregame.hidden {
-        display: none;
-      }
-
-      #pregame:not(.hidden) ~ #tv-scoreboard,
-      #pregame:not(.hidden) ~ #top-controls,
-      #pregame:not(.hidden) ~ #manager-modal,
-      #pregame:not(.hidden) ~ #scoreboard,
-      #pregame:not(.hidden) ~ #debug-overlay {
+      #pregame[hidden],
+      #match-screen[hidden] {
         display: none;
       }
 
@@ -1880,151 +1882,174 @@
   </head>
   <body>
     <div id="pregame"></div>
-
-    <!-- TV broadcast scoreboard. -->
-    <div id="tv-scoreboard" class="tv-bug" aria-live="polite">
-      <div class="tv-top-row">
-        <!-- Team 0 score. -->
-        <div class="tv-team tv-team-0" id="tv-team-0">
-          <span class="tv-team-badge"></span>
-          <span class="tv-team-name" id="tv-team0-name">BLU</span>
-          <span class="tv-team-score" id="tv-team0-score">0</span>
-        </div>
-        <div class="tv-team-divider"></div>
-        <!-- Team 1 score. -->
-        <div class="tv-team tv-team-1" id="tv-team-1">
-          <span class="tv-team-score" id="tv-team1-score">0</span>
-          <span class="tv-team-name" id="tv-team1-name">RED</span>
-          <span class="tv-team-badge"></span>
-        </div>
-        <!-- Match clock and half. -->
-        <div class="tv-clock-box">
-          <span id="tv-clock" class="tv-clock">00:00</span>
-          <span id="tv-half" class="tv-half">1ST</span>
-        </div>
-      </div>
-      <!-- Phase, territory, shot clock, and match status. -->
-      <div class="tv-bottom-bar">
-        <span id="tv-phase-pill" class="tv-phase-pill">PHASE 1</span>
-        <span id="tv-meters" class="tv-meters">+0m</span>
-        <span id="tv-shot-clock" class="tv-shot-clock" hidden>SHOT 30</span>
-        <span id="tv-status" class="tv-status">KICKOFF</span>
-      </div>
-    </div>
-
-    <!-- Top-center navigation and match controls. -->
-    <div id="top-controls" class="top-nav-bar">
-      <!-- Simulation speed. -->
-      <div class="top-nav-group">
-        <span class="top-nav-label">Speed</span>
-        <span id="speed-display" class="top-nav-val">1.0×</span>
-        <input
-          type="range"
-          id="speed-slider"
-          min="0"
-          max="10"
-          step="0.1"
-          value="1"
-          class="top-nav-slider"
-        />
-      </div>
-
-      <div class="top-nav-divider"></div>
-
-      <!-- Camera mode. -->
-      <div class="top-nav-group">
-        <div class="cam-buttons">
-          <button type="button" data-cam="dynamic" class="cam-btn active">
-            🎬 Dynamic
-          </button>
-          <button type="button" data-cam="free" class="cam-btn">Free</button>
-        </div>
-      </div>
-
-      <div class="top-nav-divider"></div>
-
-      <!-- Team management. -->
-      <button type="button" id="manager-view-btn" class="top-nav-btn">
-        📋 Manager (M)
-      </button>
-    </div>
-
-    <!-- Team management modal. -->
-    <div
-      id="manager-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="manager-modal-title"
-    >
-      <div class="manager-dialog">
-        <div class="manager-header">
-          <div class="manager-title" id="manager-modal-title">
-            📋 Team Management Dashboard
+    <div id="match-screen" hidden>
+      <!-- TV broadcast scoreboard. -->
+      <div id="tv-scoreboard" class="tv-bug" aria-live="polite">
+        <div class="tv-top-row">
+          <!-- Team 0 score. -->
+          <div class="tv-team tv-team-0" id="tv-team-0">
+            <span class="tv-team-badge" id="tv-team0-badge"></span>
+            <span class="tv-team-name" id="tv-team0-name">BLU</span>
+            <span class="tv-team-score" id="tv-team0-score">0</span>
           </div>
-          <button
-            type="button"
-            id="manager-close-btn"
-            class="manager-close-btn"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          <div class="tv-team-divider"></div>
+          <!-- Team 1 score. -->
+          <div class="tv-team tv-team-1" id="tv-team-1">
+            <span class="tv-team-score" id="tv-team1-score">0</span>
+            <span class="tv-team-name" id="tv-team1-name">RED</span>
+            <span class="tv-team-badge" id="tv-team1-badge"></span>
+          </div>
+          <!-- Match clock and half. -->
+          <div class="tv-clock-box">
+            <span id="tv-clock" class="tv-clock">00:00</span>
+            <span id="tv-half" class="tv-half">1ST</span>
+          </div>
         </div>
-        <div class="manager-tabs">
-          <div class="manager-team-tabs">
+        <!-- Phase, territory, shot clock, and match status. -->
+        <div class="tv-bottom-bar">
+          <span id="tv-phase-pill" class="tv-phase-pill">PHASE 1</span>
+          <span id="tv-meters" class="tv-meters">+0m</span>
+          <span id="tv-shot-clock" class="tv-shot-clock" hidden>SHOT 30</span>
+          <span id="tv-status" class="tv-status">KICKOFF</span>
+        </div>
+      </div>
+
+      <!-- Top-center navigation and match controls. -->
+      <div id="top-controls" class="top-nav-bar">
+        <!-- Simulation speed. -->
+        <div class="top-nav-group">
+          <span class="top-nav-label">Speed</span>
+          <span id="speed-display" class="top-nav-val">1.0×</span>
+          <input
+            type="range"
+            id="speed-slider"
+            min="0"
+            max="10"
+            step="0.1"
+            value="1"
+            class="top-nav-slider"
+            aria-label="Simulation speed"
+          />
+        </div>
+
+        <div class="top-nav-divider"></div>
+
+        <!-- Camera mode. -->
+        <div class="top-nav-group">
+          <div class="cam-buttons">
             <button
               type="button"
-              class="team-tab-btn active"
-              data-team="0"
-              id="tab-team-0"
+              id="camera-dynamic-btn"
+              data-cam="dynamic"
+              class="cam-btn active"
             >
-              <span class="team-tab-swatch" id="tab-team-0-swatch"></span>
-              <span id="tab-team-0-label">Team 1</span>
+              🎬 Dynamic
             </button>
             <button
               type="button"
-              class="team-tab-btn"
-              data-team="1"
-              id="tab-team-1"
+              id="camera-free-btn"
+              data-cam="free"
+              class="cam-btn"
             >
-              <span class="team-tab-swatch" id="tab-team-1-swatch"></span>
-              <span id="tab-team-1-label">Team 2</span>
+              Free
             </button>
           </div>
-          <div class="manager-subtabs">
+        </div>
+
+        <div class="top-nav-divider"></div>
+
+        <!-- Team management. -->
+        <button
+          type="button"
+          id="manager-view-btn"
+          class="top-nav-btn"
+          aria-controls="manager-modal"
+          aria-expanded="false"
+        >
+          📋 Manager (M)
+        </button>
+      </div>
+
+      <!-- Team management modal. -->
+      <dialog id="manager-modal" aria-labelledby="manager-modal-title">
+        <div class="manager-dialog">
+          <div class="manager-header">
+            <div class="manager-title" id="manager-modal-title">
+              📋 Team Management Dashboard
+            </div>
             <button
               type="button"
-              class="manager-subtab-btn active"
-              id="subtab-roster"
+              id="manager-close-btn"
+              class="manager-close-btn"
+              aria-label="Close"
             >
-              👥 Squad & Condition
-            </button>
-            <button type="button" class="manager-subtab-btn" id="subtab-stats">
-              📊 Game Stats
+              ✕
             </button>
           </div>
+          <div class="manager-tabs">
+            <div class="manager-team-tabs" role="group" aria-label="Team">
+              <button
+                type="button"
+                class="team-tab-btn active"
+                data-team="0"
+                id="tab-team-0"
+                aria-pressed="true"
+              >
+                <span class="team-tab-swatch" id="tab-team-0-swatch"></span>
+                <span id="tab-team-0-label">Team 1</span>
+              </button>
+              <button
+                type="button"
+                class="team-tab-btn"
+                data-team="1"
+                id="tab-team-1"
+                aria-pressed="false"
+              >
+                <span class="team-tab-swatch" id="tab-team-1-swatch"></span>
+                <span id="tab-team-1-label">Team 2</span>
+              </button>
+            </div>
+            <div class="manager-subtabs" role="group" aria-label="View">
+              <button
+                type="button"
+                class="manager-subtab-btn active"
+                id="subtab-roster"
+                aria-pressed="true"
+              >
+                👥 Squad & Condition
+              </button>
+              <button
+                type="button"
+                class="manager-subtab-btn"
+                id="subtab-stats"
+                aria-pressed="false"
+              >
+                📊 Game Stats
+              </button>
+            </div>
+          </div>
+          <div class="manager-body">
+            <div class="team-summary-card" id="manager-team-summary"></div>
+            <table class="roster-table">
+              <thead id="manager-roster-thead">
+                <tr>
+                  <th class="player-num-col">#</th>
+                  <th>Player / Role</th>
+                  <th>Physicals</th>
+                  <th>Skill</th>
+                  <th>Condition</th>
+                </tr>
+              </thead>
+              <tbody id="manager-roster-tbody"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="manager-body">
-          <div class="team-summary-card" id="manager-team-summary"></div>
-          <table class="roster-table">
-            <thead id="manager-roster-thead">
-              <tr>
-                <th class="player-num-col">#</th>
-                <th>Player / Role</th>
-                <th>Physicals</th>
-                <th>Skill</th>
-                <th>Condition</th>
-              </tr>
-            </thead>
-            <tbody id="manager-roster-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      </dialog>
 
-    <output id="scoreboard" aria-live="polite"></output>
-    <div id="debug-overlay"></div>
-    <canvas id="renderCanvas"></canvas>
+      <output id="scoreboard" aria-live="polite"></output>
+      <div id="debug-overlay"></div>
+      <canvas id="renderCanvas"></canvas>
+    </div>
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>
