@@ -3,14 +3,18 @@ import {
   advanceCareer,
   clearReadInboxMessages,
   deleteInboxMessage,
+  enrollCoachingCourse,
   markInboxRead,
   optimizeSquadSelection,
   setClubTrainingPlan,
   swapSquadPlayers,
+  updatePlaybookTactics,
   upgradeFacility,
   upgradeStaff,
   type Career,
+  type CoachingCourseId,
   type FacilityType,
+  type PlaybookTactics,
   type StaffRole,
   type TrainingFocus,
   type TrainingIntensity,
@@ -185,6 +189,33 @@ export const handleInboxActions = (
     callbacks.render();
     return true;
   }
+  return false;
+};
+
+export const handleManagerActions = (
+  target: Element | null,
+  career: Career,
+  callbacks: WiringCallbacks,
+): boolean => {
+  const enrollBtn = target?.closest<HTMLButtonElement>("[data-enroll-course]");
+  if (enrollBtn?.dataset.enrollCourse) {
+    const courseId = enrollBtn.dataset.enrollCourse as CoachingCourseId;
+    callbacks.setCareer(enrollCoachingCourse(career, courseId));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const pbBtn = target?.closest<HTMLButtonElement>("[data-playbook-setting]");
+  if (pbBtn?.dataset.playbookSetting && pbBtn?.dataset.playbookValue) {
+    const setting = pbBtn.dataset.playbookSetting as keyof PlaybookTactics;
+    const value = pbBtn.dataset.playbookValue;
+    callbacks.setCareer(updatePlaybookTactics(career, { [setting]: value }));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
   return false;
 };
 

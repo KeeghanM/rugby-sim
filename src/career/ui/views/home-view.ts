@@ -1,7 +1,12 @@
 import { escapeHtml } from "../../../html.ts";
 import { createTile, registerStyles } from "../../../ui/index.ts";
 import type { Career, Club } from "../../domain/index.ts";
-import { roleName } from "../../domain/index.ts";
+import {
+  getManagerLevel,
+  getManagerReputationTier,
+  getUpcomingManagedFixture,
+  roleName,
+} from "../../domain/index.ts";
 import { renderTable } from "../components/table.ts";
 import {
   clubById,
@@ -10,7 +15,6 @@ import {
   getOvrClass,
   getPlayerOverall,
 } from "../formatters.ts";
-import { getUpcomingManagedFixture } from "../../domain/index.ts";
 
 const HOME_STYLES = `
   .career-home-grid {
@@ -243,10 +247,32 @@ export const renderHome = (career: Career, club: Club): string => {
     footer: `Total Messages: ${career.inbox.length}`,
   });
 
+  const mgr = career.manager;
+  const mgrLevel = getManagerLevel(mgr.xp);
+  const repTier = getManagerReputationTier(mgr.reputation);
+  const managerTile = createTile({
+    kicker: "Manager Profile",
+    action: {
+      label: "Playbook →",
+      datasetAttr: 'data-career-view="manager"',
+    },
+    value: `Lvl ${mgrLevel.level}`,
+    valueBadge: {
+      text: repTier.badge,
+      color: "#818cf8",
+    },
+    content: `
+      <div style="margin-top: 0.4rem; font-size: 0.78rem; color: #cbd5e1;">
+        <span>Playbook: <strong style="color: #38bdf8;">${mgr.playbook.attackStructure.replace(/_/g, " ")}</strong></span>
+      </div>`,
+    footer: `XP: ${mgr.xp.toLocaleString()} · Courses: ${mgr.qualifications.length}/5`,
+  });
+
   return `<div class="career-home-grid">
     ${pendingEventHtml}
     ${matchDayActionTile}
     ${latestMatchTile}
+    ${managerTile}
     ${squadTile}
     ${medicalTile}
     ${trainingTile}

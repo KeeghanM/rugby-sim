@@ -8,6 +8,7 @@ import {
   STAFF_ROLES,
   type PlayerRole,
 } from "./constants.ts";
+import { createDefaultManagerProfile } from "./manager.ts";
 import type {
   Career,
   Club,
@@ -267,7 +268,7 @@ export function createCareer(managerName: string, clubId: string): Career {
   };
   return {
     id: `career-${clubId}-2026`,
-    manager: { name },
+    manager: createDefaultManagerProfile(name),
     managedClubId: clubId,
     season: {
       id: "league-2026",

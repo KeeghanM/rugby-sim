@@ -226,3 +226,153 @@ export const LAST_NAMES = [
   "Turner",
   "Walker",
 ] as const;
+
+export type CoachingCourseId =
+  | "wr_foundation"
+  | "attack_architecture"
+  | "defense_mastermind"
+  | "setpiece_mastery"
+  | "elite_director";
+
+export type AttackStructurePreset =
+  "standard" | "pod_1_3_3_1" | "pod_2_4_2" | "wide_spread";
+
+export type DefenseStructurePreset =
+  "drift" | "blitz" | "pendulum_cover" | "aggressive_rush";
+
+export type SetPieceFocusPreset =
+  "balanced" | "quick_tap" | "maul_drive" | "territory_boot";
+
+export type KickPressurePreset = "low" | "standard" | "high";
+export type MatchTempoPreset = "controlled" | "balanced" | "high_tempo";
+
+export type CoachingCourseInfo = {
+  id: CoachingCourseId;
+  name: string;
+  badge: string;
+  category: "Foundation" | "Attack" | "Defense" | "Set Piece" | "Elite";
+  levelRequired: number;
+  cost: number;
+  roundsDuration: number;
+  description: string;
+  perks: string[];
+  unlocks: {
+    attackStructures?: AttackStructurePreset[];
+    defenseStructures?: DefenseStructurePreset[];
+    setPieceFocuses?: SetPieceFocusPreset[];
+    trainingBonusPct?: number;
+    disciplineBonus?: number;
+    matchXpBonusPct?: number;
+  };
+};
+
+export const COACHING_COURSES: Record<CoachingCourseId, CoachingCourseInfo> = {
+  wr_foundation: {
+    id: "wr_foundation",
+    name: "World Rugby Level 1 (Foundation)",
+    badge: "📜",
+    category: "Foundation",
+    levelRequired: 1,
+    cost: 5_000,
+    roundsDuration: 2,
+    description:
+      "Fundamental coaching principles, training drills, and foundational player development.",
+    perks: ["+5% Squad Training Efficiency", "+10% Match XP Gain"],
+    unlocks: {
+      trainingBonusPct: 0.05,
+      matchXpBonusPct: 0.1,
+    },
+  },
+  attack_architecture: {
+    id: "attack_architecture",
+    name: "Attack Architecture & Pods Specialist",
+    badge: "⚡",
+    category: "Attack",
+    levelRequired: 2,
+    cost: 15_000,
+    roundsDuration: 3,
+    description:
+      "Advanced phase play structures, 1-3-3-1 and 2-4-2 forward pods to manipulate defensive edges.",
+    perks: [
+      "Unlocks 1-3-3-1 Forward Pod Structure",
+      "Unlocks 2-4-2 Wide Pod Structure",
+      "Unlocks High-Tempo Play",
+    ],
+    unlocks: {
+      attackStructures: ["pod_1_3_3_1", "pod_2_4_2"],
+    },
+  },
+  defense_mastermind: {
+    id: "defense_mastermind",
+    name: "Defensive Mastermind & Blitz Systems",
+    badge: "🛡️",
+    category: "Defense",
+    levelRequired: 2,
+    cost: 20_000,
+    roundsDuration: 3,
+    description:
+      "High-pressure blitz rush defense, drift containment, and backfield pendulum coverage.",
+    perks: [
+      "Unlocks Blitz Press Defense",
+      "Unlocks Pendulum Backfield Cover",
+      "Unlocks Aggressive Rush Defense",
+    ],
+    unlocks: {
+      defenseStructures: ["blitz", "pendulum_cover", "aggressive_rush"],
+    },
+  },
+  setpiece_mastery: {
+    id: "setpiece_mastery",
+    name: "Set-Piece & Breakdown Mastery",
+    badge: "🏉",
+    category: "Set Piece",
+    levelRequired: 3,
+    cost: 30_000,
+    roundsDuration: 4,
+    description:
+      "Technical scrummaging, deceptive lineout movements, rolling maul dominance, and breakdown poaching.",
+    perks: [
+      "Unlocks Maul Drive Focus",
+      "Unlocks Territory Boot Strategy",
+      "Unlocks Quick Tap Strategy",
+    ],
+    unlocks: {
+      setPieceFocuses: ["quick_tap", "maul_drive", "territory_boot"],
+    },
+  },
+  elite_director: {
+    id: "elite_director",
+    name: "Elite Director of Rugby License",
+    badge: "🏆",
+    category: "Elite",
+    levelRequired: 4,
+    cost: 60_000,
+    roundsDuration: 5,
+    description:
+      "The highest coaching qualification in professional rugby. Elite leadership, tactical masterminding, and mental discipline.",
+    perks: [
+      "+10% Squad Training Efficiency",
+      "+15 Manager Reputation",
+      "+5 Squad Tactical Discipline",
+      "Unlocks Wide Spread Attack",
+    ],
+    unlocks: {
+      trainingBonusPct: 0.1,
+      disciplineBonus: 5,
+      attackStructures: ["wide_spread"],
+    },
+  },
+};
+
+export const LEVEL_THRESHOLDS = [
+  0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200,
+];
+
+export const MANAGER_REPUTATION_TIERS = [
+  { min: 90, title: "Legend of the Game", badge: "⭐ Legend" },
+  { min: 75, title: "Elite Director", badge: "🥇 Elite" },
+  { min: 60, title: "Established Tactician", badge: "🥈 Established" },
+  { min: 40, title: "Respected Coach", badge: "🥉 Respected" },
+  { min: 20, title: "Club Manager", badge: "🛡️ Pro" },
+  { min: 0, title: "Rookie Coach", badge: "🔰 Rookie" },
+] as const;

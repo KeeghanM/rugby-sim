@@ -6,6 +6,8 @@ import {
   createMatchInputForFixture,
   deleteCareer,
   deriveStandings,
+  enrollCoachingCourse,
+  getManagerLevel,
   getPlayerOverall,
   getUpcomingManagedFixture,
   hasCareer,
@@ -14,6 +16,7 @@ import {
   parseCareerSave,
   saveCareer,
   swapSquadPlayers,
+  updatePlaybookTactics,
   upgradeFacility,
   upgradeStaff,
   type StorageLike,
@@ -83,6 +86,63 @@ assert(
   "Fittest squad selection failed to place fittest hooker in starting XV",
 );
 
+// Test Manager Progression, Badges, and Playbook
+assert(career.manager.level === 1, "Manager initial level should be 1");
+assert(
+  career.manager.reputation === 35,
+  "Manager initial reputation should be 35",
+);
+assert(
+  career.manager.qualifications.length === 0,
+  "Manager initial qualifications should be empty",
+);
+assert(
+  career.manager.playbook.attackStructure === "standard",
+  "Playbook default attack structure should be standard",
+);
+assert(getManagerLevel(250).level === 3, "XP 250 should be Level 3");
+
+// Test Playbook Updating
+career = updatePlaybookTactics(career, {
+  tempo: "high_tempo",
+  kickPressure: "high",
+});
+assert(
+  career.manager.playbook.tempo === "high_tempo",
+  "Playbook tempo update failed",
+);
+
+let lockedTacticRejected = false;
+try {
+  career = updatePlaybookTactics(career, { attackStructure: "pod_1_3_3_1" });
+} catch {
+  lockedTacticRejected = true;
+}
+assert(
+  lockedTacticRejected,
+  "Locked tactic was allowed without required qualification",
+);
+
+// Test Course Enrollment
+const balanceBeforeCourse = career.season.clubs[0].balance;
+career = enrollCoachingCourse(career, "wr_foundation");
+assert(
+  career.manager.activeCourse?.courseId === "wr_foundation",
+  "Course enrollment failed",
+);
+assert(
+  career.season.clubs[0].balance === balanceBeforeCourse - 5000,
+  "Course tuition was not deducted",
+);
+
+let doubleEnrollRejected = false;
+try {
+  career = enrollCoachingCourse(career, "attack_architecture");
+} catch {
+  doubleEnrollRejected = true;
+}
+assert(doubleEnrollRejected, "Concurrent course enrollment was allowed");
+
 // Test match input creation for fixture
 const firstFixture = career.season.fixtures[0];
 const matchInput = createMatchInputForFixture(career, firstFixture);
@@ -138,6 +198,15 @@ assert(
   career.season.fixtures.every((fixture) => fixture.result !== null),
   "Fixture resolved without result",
 );
+assert(
+  career.manager.qualifications.includes("wr_foundation"),
+  "Enrolled course was not completed",
+);
+assert(
+  career.manager.stats.matchesManaged === 10,
+  "Manager matches managed should be 10",
+);
+assert(career.manager.xp > 0, "Manager XP was not earned");
 const standings = deriveStandings(career);
 assert(standings.length === 6, "Expected six standings rows");
 assert(

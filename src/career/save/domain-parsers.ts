@@ -1,14 +1,22 @@
 import {
   CHECKPOINTS,
+  COACHING_COURSES,
   STAFF_NAMES,
   STAFF_ROLES,
+  createDefaultManagerProfile,
+  getManagerLevel,
+  type ActiveCoachingCourse,
   type BlockingEvent,
   type Career,
   type Club,
+  type CoachingCourseId,
   type Fixture,
   type InboxMessage,
   type LedgerCategory,
   type LedgerEntry,
+  type ManagerProfile,
+  type ManagerStats,
+  type PlaybookTactics,
   type StaffMember,
   type StaffRole,
 } from "../domain/index.ts";
@@ -146,9 +154,119 @@ export function parseInboxMessage(value: unknown, path: string): InboxMessage {
   };
 }
 
+export function parseManagerProfile(
+  value: unknown,
+  path: string,
+): ManagerProfile {
+  const input = record(value, path);
+  const name = string(input.name, `${path}.name`);
+  const base = createDefaultManagerProfile(name);
+
+  const reputation =
+    typeof input.reputation === "number"
+      ? Math.max(1, Math.min(100, Math.round(input.reputation)))
+      : base.reputation;
+  const xp =
+    typeof input.xp === "number" ? Math.max(0, Math.round(input.xp)) : base.xp;
+  const levelInfo = getManagerLevel(xp);
+
+  let qualifications: CoachingCourseId[] = [];
+  if (Array.isArray(input.qualifications)) {
+    qualifications = input.qualifications.filter(
+      (q): q is CoachingCourseId =>
+        typeof q === "string" && q in COACHING_COURSES,
+    );
+  }
+
+  let activeCourse: ActiveCoachingCourse | null = null;
+  if (input.activeCourse && typeof input.activeCourse === "object") {
+    const ac = input.activeCourse as any;
+    if (
+      typeof ac.courseId === "string" &&
+      ac.courseId in COACHING_COURSES &&
+      typeof ac.roundsRemaining === "number"
+    ) {
+      activeCourse = {
+        courseId: ac.courseId,
+        roundsRemaining: Math.max(1, Math.round(ac.roundsRemaining)),
+      };
+    }
+  }
+
+  const playbookInput =
+    input.playbook && typeof input.playbook === "object"
+      ? (input.playbook as any)
+      : {};
+  const playbook: PlaybookTactics = {
+    attackStructure:
+      typeof playbookInput.attackStructure === "string"
+        ? playbookInput.attackStructure
+        : base.playbook.attackStructure,
+    defenseStructure:
+      typeof playbookInput.defenseStructure === "string"
+        ? playbookInput.defenseStructure
+        : base.playbook.defenseStructure,
+    setPieceFocus:
+      typeof playbookInput.setPieceFocus === "string"
+        ? playbookInput.setPieceFocus
+        : base.playbook.setPieceFocus,
+    kickPressure:
+      typeof playbookInput.kickPressure === "string"
+        ? playbookInput.kickPressure
+        : base.playbook.kickPressure,
+    tempo:
+      typeof playbookInput.tempo === "string"
+        ? playbookInput.tempo
+        : base.playbook.tempo,
+  };
+
+  const statsInput =
+    input.stats && typeof input.stats === "object" ? (input.stats as any) : {};
+  const stats: ManagerStats = {
+    matchesManaged:
+      typeof statsInput.matchesManaged === "number"
+        ? Math.max(0, Math.round(statsInput.matchesManaged))
+        : 0,
+    wins:
+      typeof statsInput.wins === "number"
+        ? Math.max(0, Math.round(statsInput.wins))
+        : 0,
+    draws:
+      typeof statsInput.draws === "number"
+        ? Math.max(0, Math.round(statsInput.draws))
+        : 0,
+    losses:
+      typeof statsInput.losses === "number"
+        ? Math.max(0, Math.round(statsInput.losses))
+        : 0,
+    pointsFor:
+      typeof statsInput.pointsFor === "number"
+        ? Math.max(0, Math.round(statsInput.pointsFor))
+        : 0,
+    pointsAgainst:
+      typeof statsInput.pointsAgainst === "number"
+        ? Math.max(0, Math.round(statsInput.pointsAgainst))
+        : 0,
+    trophiesWon:
+      typeof statsInput.trophiesWon === "number"
+        ? Math.max(0, Math.round(statsInput.trophiesWon))
+        : 0,
+  };
+
+  return {
+    name,
+    reputation,
+    xp,
+    level: levelInfo.level,
+    qualifications,
+    activeCourse,
+    playbook,
+    stats,
+  };
+}
+
 export function parseCareer(value: unknown): Career {
   const input = record(value, "career");
-  const manager = record(input.manager, "career.manager");
   const season = record(input.season, "career.season");
   const rawCheckpoint = string(input.checkpoint, "career.checkpoint");
   const checkpoint = CHECKPOINTS.find(
@@ -159,7 +277,7 @@ export function parseCareer(value: unknown): Career {
   }
   const parsed: Career = {
     id: string(input.id, "career.id"),
-    manager: { name: string(manager.name, "career.manager.name") },
+    manager: parseManagerProfile(input.manager, "career.manager"),
     managedClubId: string(input.managedClubId, "career.managedClubId"),
     season: {
       id: string(season.id, "career.season.id"),

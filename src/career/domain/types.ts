@@ -1,8 +1,14 @@
 import type { PlayerStats, TeamMatchStats } from "../../domain.ts";
 import type {
+  AttackStructurePreset,
   Checkpoint,
+  CoachingCourseId,
+  DefenseStructurePreset,
   FacilityType,
+  KickPressurePreset,
+  MatchTempoPreset,
   PlayerRole,
+  SetPieceFocusPreset,
   StaffRole,
   TrainingFocus,
   TrainingIntensity,
@@ -158,6 +164,40 @@ export type MatchReportData = {
   players: FixturePlayerPerformance[];
 };
 
+export type PlaybookTactics = {
+  attackStructure: AttackStructurePreset;
+  defenseStructure: DefenseStructurePreset;
+  setPieceFocus: SetPieceFocusPreset;
+  kickPressure: KickPressurePreset;
+  tempo: MatchTempoPreset;
+};
+
+export type ActiveCoachingCourse = {
+  courseId: CoachingCourseId;
+  roundsRemaining: number;
+};
+
+export type ManagerStats = {
+  matchesManaged: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  trophiesWon: number;
+};
+
+export type ManagerProfile = {
+  name: string;
+  reputation: number;
+  xp: number;
+  level: number;
+  qualifications: CoachingCourseId[];
+  activeCourse: ActiveCoachingCourse | null;
+  playbook: PlaybookTactics;
+  stats: ManagerStats;
+};
+
 export type InboxMessage = BlockingEvent & {
   read: boolean;
   matchReport?: MatchReportData;
@@ -165,7 +205,7 @@ export type InboxMessage = BlockingEvent & {
 
 export type Career = {
   id: string;
-  manager: { name: string };
+  manager: ManagerProfile;
   managedClubId: string;
   season: {
     id: string;

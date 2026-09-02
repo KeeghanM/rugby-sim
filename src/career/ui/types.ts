@@ -2,6 +2,7 @@ export const views = {
   home: "Club Office",
   selection: "Team Sheet",
   training: "Training",
+  manager: "Manager & Playbook",
   staff: "Staff & Facilities",
   finances: "Finances",
   inbox: "Inbox",
