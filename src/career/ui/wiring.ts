@@ -42,7 +42,6 @@ export interface WiringCallbacks {
   persist: () => void;
   render: () => void;
   runRoundSimulation: () => void;
-  onExhibition: () => void;
   onWatchMatch?: (
     career: Career,
     fixture: Fixture,
@@ -64,7 +63,6 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
     setLoadError,
     persist,
     render,
-    onExhibition,
     onWatchMatch,
   } = callbacks;
 
@@ -87,10 +85,6 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
         setSelectedMessageId(null);
         setViewPlayerId(null);
         render();
-        return;
-      }
-      if (target?.closest("[data-exhibition]")) {
-        onExhibition();
         return;
       }
       if (target?.closest("[data-delete-save]")) {

@@ -110,7 +110,6 @@ export const renderCareerSetup = (
     <span>Rugby Sim</span>
     <h1>Take the club.<br />Shape the season.</h1>
     <p>Ten rounds. One league. Every decision builds toward match day.</p>
-    <button type="button" data-exhibition>Open Match Lab</button>
   </section>
   <form class="career-create" data-create-career>
     <span class="career-kicker">New career</span>

@@ -8,31 +8,21 @@ import {
 import type { GameState } from "./domain.ts";
 import { requiredElement } from "./dom.ts";
 import { createRenderer } from "./renderer/index.ts";
-import {
-  createGame,
-  createMatchConfig,
-  createMatchInput,
-  createSeededRandom,
-  updateGame,
-} from "./simulation.ts";
-import { createMatchSetup } from "./setup/index.ts";
+import { createGame, createSeededRandom, updateGame } from "./simulation.ts";
 
-type Screen = "career" | "pregame" | "match";
+type Screen = "career" | "match";
 
 const careerRoot = requiredElement("career-screen", HTMLDivElement);
 const canvas = requiredElement("renderCanvas", HTMLCanvasElement);
-const pregame = requiredElement("pregame", HTMLDivElement);
 const matchScreen = requiredElement("match-screen", HTMLDivElement);
 const setScreen = (screen: Screen) => {
   careerRoot.hidden = screen !== "career";
-  pregame.hidden = screen !== "pregame";
   matchScreen.hidden = screen !== "match";
 };
 
 let engine: Engine | null = null;
 let state: GameState | null = null;
 let renderer: ReturnType<typeof createRenderer> | null = null;
-let setup: ReturnType<typeof createMatchSetup> | null = null;
 let random = Math.random;
 let disposed = false;
 
@@ -84,35 +74,6 @@ const startWatchedCareerMatch = (
 
 let careerUI: ReturnType<typeof createCareerUI>;
 
-const startExhibition = () => {
-  careerUI.dispose();
-  setScreen("pregame");
-  const activeEngine = ensureEngine();
-  const teams = createMatchConfig();
-  setup = createMatchSetup(pregame, teams, () => {
-    setup?.dispose();
-    random = createSeededRandom(Date.now());
-    state = createGame(createMatchInput(teams), random);
-
-    const finishExhibition = () => {
-      renderer?.dispose();
-      renderer = null;
-      state = null;
-      setScreen("career");
-      careerUI = createCareerUI(
-        careerRoot,
-        startExhibition,
-        startWatchedCareerMatch,
-      );
-    };
-
-    renderer = createRenderer(activeEngine, canvas, state, finishExhibition);
-    pregame.replaceChildren();
-    setScreen("match");
-    activeEngine.resize();
-  });
-};
-
 const resize = () => engine?.resize();
 const dispose = () => {
   if (disposed) return;
@@ -121,7 +82,6 @@ const dispose = () => {
   renderer?.dispose();
   renderer = null;
   state = null;
-  setup?.dispose();
   careerUI.dispose();
   window.removeEventListener("resize", resize);
   window.removeEventListener("pagehide", handlePageHide);
@@ -133,7 +93,7 @@ const handlePageHide = (event: PageTransitionEvent) => {
 };
 
 setScreen("career");
-careerUI = createCareerUI(careerRoot, startExhibition, startWatchedCareerMatch);
+careerUI = createCareerUI(careerRoot, startWatchedCareerMatch);
 window.addEventListener("resize", resize);
 window.addEventListener("pagehide", handlePageHide);
 import.meta.hot?.dispose(dispose);

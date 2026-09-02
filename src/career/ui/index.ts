@@ -33,7 +33,6 @@ import { createCareerWiring } from "./wiring.ts";
 
 export const createCareerUI = (
   root: HTMLElement,
-  onExhibition: () => void,
   onWatchMatch?: (
     career: Career,
     fixture: Fixture,
@@ -197,7 +196,6 @@ export const createCareerUI = (
     persist,
     render,
     runRoundSimulation: executeRoundSimulation,
-    onExhibition,
     onWatchMatch,
   });
 

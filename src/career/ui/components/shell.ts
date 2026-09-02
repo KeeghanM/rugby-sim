@@ -104,11 +104,8 @@ const SHELL_STYLES = `
     font-size: 0.78rem;
     transition: background 0.15s, border-color 0.15s;
   }
-  .career-lab-link {
-    margin-top: auto;
-  }
   .career-new-link {
-    margin-top: 0.5rem;
+    margin-top: auto;
     color: #64748b;
     border-color: transparent;
   }
@@ -194,7 +191,6 @@ export const renderShell = (options: ShellOptions): string => {
             `<button type="button" data-career-view="${key}" class="${view === key ? "active" : ""}">${label}${key === "inbox" && unread ? `<b>${unread}</b>` : ""}</button>`,
         )
         .join("")}</nav>
-      <button type="button" class="career-lab-link" data-exhibition>Match Lab</button>
       <button type="button" class="career-new-link" data-new-career>New career</button>
     </aside>
     <section class="career-main">
