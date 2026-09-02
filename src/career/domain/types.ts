@@ -1,7 +1,9 @@
 import type { PlayerStats, TeamMatchStats } from "../../domain.ts";
 import type {
   Checkpoint,
+  FacilityType,
   PlayerRole,
+  StaffRole,
   TrainingFocus,
   TrainingIntensity,
 } from "./constants.ts";
@@ -21,6 +23,32 @@ export type Facilities = {
   gym: number;
   trainingGround: number;
   medicalRoom: number;
+};
+
+export type StaffMember = {
+  id: string;
+  role: StaffRole;
+  name: string;
+  level: number;
+  wage: number;
+};
+
+export type LedgerCategory =
+  | "matchIncome"
+  | "prizeMoney"
+  | "playerWages"
+  | "staffWages"
+  | "facilityUpgrade"
+  | "staffRecruitment"
+  | "medicalCosts";
+
+export type LedgerEntry = {
+  id: string;
+  round: number;
+  date: string;
+  category: LedgerCategory;
+  description: string;
+  amount: number;
 };
 
 export type FixtureStatus = "scheduled" | "played";
@@ -60,6 +88,7 @@ export type Player = {
   speed: number;
   strength: number;
   fitness: number;
+  wage: number;
   injury: PlayerInjury | null;
   careerRecord: PlayerCareerRecord;
 };
@@ -70,10 +99,12 @@ export type Club = {
   color: string;
   reputation: number;
   squad: Player[];
+  staff: StaffMember[];
   staffLevel: number;
   facilityLevel: number;
   facilities: Facilities;
   balance: number;
+  ledger: LedgerEntry[];
   trainingPlan: TrainingPlan;
 };
 

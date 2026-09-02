@@ -84,6 +84,63 @@ export const TRAINING_INTENSITIES = ["light", "medium", "high"] as const;
 
 export type TrainingIntensity = (typeof TRAINING_INTENSITIES)[number];
 
+export const STAFF_ROLES = [
+  "headCoach",
+  "attackCoach",
+  "defenceCoach",
+  "scCoach",
+  "physio",
+] as const;
+
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
+export const STAFF_NAMES: Record<StaffRole, string> = {
+  headCoach: "Head Coach",
+  attackCoach: "Attack & Skills Coach",
+  defenceCoach: "Defence & Contact Coach",
+  scCoach: "Head of Strength & Conditioning",
+  physio: "Head Physiotherapist",
+};
+
+export const STAFF_EFFECTS: Record<StaffRole, string> = {
+  headCoach: "Enhances overall player development & tactical adherence.",
+  attackCoach: "Boosts attack, passing, and handling training gains.",
+  defenceCoach:
+    "Improves tackling technique, defensive line speed, and discipline.",
+  scCoach:
+    "Accelerates power & speed progression; improves stamina resistance.",
+  physio:
+    "Speeds up injury rehabilitation and reduces match/training injury risk.",
+};
+
+export const FACILITY_NAMES = {
+  gym: "High Performance Gym",
+  trainingGround: "Tactical Training Grounds",
+  medicalRoom: "Medical & Rehab Suite",
+} as const;
+
+export type FacilityType = keyof typeof FACILITY_NAMES;
+
+export const FACILITY_EFFECTS = {
+  gym: "Increases strength & power training gains across the squad.",
+  trainingGround: "Improves skill development rate in all tactical sessions.",
+  medicalRoom: "Decreases injury severity & accelerates weekly rehab recovery.",
+} as const;
+
+export const FACILITY_UPGRADE_COSTS: Record<number, number> = {
+  2: 80_000,
+  3: 180_000,
+  4: 380_000,
+  5: 750_000,
+};
+
+export const STAFF_UPGRADE_COSTS: Record<number, number> = {
+  2: 40_000,
+  3: 90_000,
+  4: 180_000,
+  5: 350_000,
+};
+
 export const ROLE_GROUPS: Record<PlayerRole, string> = {
   loosehead: "prop",
   prop: "prop",

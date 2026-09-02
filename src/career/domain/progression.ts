@@ -24,6 +24,20 @@ export function markInboxRead(career: Career, messageId: string): Career {
   };
 }
 
+export function deleteInboxMessage(career: Career, messageId: string): Career {
+  return {
+    ...career,
+    inbox: career.inbox.filter((message) => message.id !== messageId),
+  };
+}
+
+export function clearReadInboxMessages(career: Career): Career {
+  return {
+    ...career,
+    inbox: career.inbox.filter((message) => !message.read),
+  };
+}
+
 export function advanceCareer(
   career: Career,
   recordedResults?: Map<string, { homeScore: number; awayScore: number }>,

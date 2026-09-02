@@ -1,15 +1,49 @@
 import {
   acknowledgeEvent,
   advanceCareer,
+  clearReadInboxMessages,
+  deleteInboxMessage,
   markInboxRead,
   optimizeSquadSelection,
   setClubTrainingPlan,
   swapSquadPlayers,
+  upgradeFacility,
+  upgradeStaff,
   type Career,
+  type FacilityType,
+  type StaffRole,
   type TrainingFocus,
   type TrainingIntensity,
 } from "../domain/index.ts";
 import type { WiringCallbacks } from "./wiring.ts";
+
+export const handleStaffAndFacilityActions = (
+  target: Element | null,
+  career: Career,
+  callbacks: WiringCallbacks,
+): boolean => {
+  const staffBtn = target?.closest<HTMLButtonElement>("[data-upgrade-staff]");
+  if (staffBtn?.dataset.upgradeStaff) {
+    const role = staffBtn.dataset.upgradeStaff as StaffRole;
+    callbacks.setCareer(upgradeStaff(career, career.managedClubId, role));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  const facilityBtn = target?.closest<HTMLButtonElement>(
+    "[data-upgrade-facility]",
+  );
+  if (facilityBtn?.dataset.upgradeFacility) {
+    const facType = facilityBtn.dataset.upgradeFacility as FacilityType;
+    callbacks.setCareer(upgradeFacility(career, career.managedClubId, facType));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  return false;
+};
 
 export const handleTrainingActions = (
   target: Element | null,
@@ -119,6 +153,25 @@ export const handleInboxActions = (
   career: Career,
   callbacks: WiringCallbacks,
 ): boolean => {
+  const deleteBtn = target?.closest<HTMLButtonElement>("[data-delete-message]");
+  if (deleteBtn?.dataset.deleteMessage) {
+    const msgId = deleteBtn.dataset.deleteMessage;
+    callbacks.setCareer(deleteInboxMessage(career, msgId));
+    if (callbacks.getSelectedMessageId() === msgId) {
+      callbacks.setSelectedMessageId(null);
+    }
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
+  if (target?.closest("[data-clear-read-inbox]")) {
+    callbacks.setCareer(clearReadInboxMessages(career));
+    callbacks.persist();
+    callbacks.render();
+    return true;
+  }
+
   if (target?.closest("[data-back-inbox]")) {
     callbacks.setSelectedMessageId(null);
     callbacks.render();

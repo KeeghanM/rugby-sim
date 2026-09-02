@@ -14,6 +14,8 @@ import {
   parseCareerSave,
   saveCareer,
   swapSquadPlayers,
+  upgradeFacility,
+  upgradeStaff,
   type StorageLike,
 } from "./index.ts";
 
@@ -27,6 +29,29 @@ assert(
   career.season.clubs.every((club) => club.squad.length === 40),
   "Expected 40-player squads",
 );
+
+// Test facility and staff upgrades
+const initialBalance = career.season.clubs[0].balance;
+const initialGym = career.season.clubs[0].facilities.gym;
+career = upgradeFacility(career, "harbour-sharks", "gym");
+const upgradedClub = career.season.clubs[0];
+assert(upgradedClub.facilities.gym === initialGym + 1, "Gym upgrade failed");
+assert(upgradedClub.balance < initialBalance, "Upgrade cost was not deducted");
+assert(upgradedClub.ledger.length === 1, "Ledger entry was not recorded");
+
+const initialHeadCoach = upgradedClub.staff.find(
+  (s) => s.role === "headCoach",
+)!;
+career = upgradeStaff(career, "harbour-sharks", "headCoach");
+const staffUpgradedClub = career.season.clubs[0];
+const newHeadCoach = staffUpgradedClub.staff.find(
+  (s) => s.role === "headCoach",
+)!;
+assert(
+  newHeadCoach.level === initialHeadCoach.level + 1,
+  "Staff upgrade failed",
+);
+assert(staffUpgradedClub.ledger.length === 2, "Staff ledger entry missing");
 
 // Test squad swapping
 const firstPlayerBefore = career.season.clubs[0].squad[0].id;

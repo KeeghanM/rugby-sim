@@ -152,6 +152,7 @@ export function parsePlayer(value: unknown, path: string): Player {
       100,
     ),
     fitness: boundedInteger(input.fitness, `${path}.fitness`, 0, 100),
+    wage: integer(input.wage ?? 1250, `${path}.wage`),
     injury: nullable(input.injury, (item) =>
       parsePlayerInjury(item, `${path}.injury`),
     ),

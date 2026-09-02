@@ -4,9 +4,17 @@ import {
   LAST_NAMES,
   PLAYER_ROLES,
   ROLE_GROUPS,
+  STAFF_NAMES,
+  STAFF_ROLES,
   type PlayerRole,
 } from "./constants.ts";
-import type { Career, Club, Fixture, PlayerCareerRecord } from "./types.ts";
+import type {
+  Career,
+  Club,
+  Fixture,
+  PlayerCareerRecord,
+  StaffMember,
+} from "./types.ts";
 
 export const createInitialCareerRecord = (): PlayerCareerRecord => ({
   appearances: 0,
@@ -150,37 +158,60 @@ function generatePlayerStats(
 }
 
 export function createClubs(): Club[] {
-  return CLUBS.map((club, clubIndex) => ({
-    ...club,
-    squad: PLAYER_ROLES.map((role, playerIndex) => {
-      const stats = generatePlayerStats(role, playerIndex, clubIndex);
+  return CLUBS.map((club, clubIndex) => {
+    const staffMembers: StaffMember[] = STAFF_ROLES.map((role, sIndex) => {
+      const level = 1 + ((clubIndex + sIndex) % 3);
       return {
-        id: `${club.id}-p${String(playerIndex + 1).padStart(2, "0")}`,
-        name: `${FIRST_NAMES[(playerIndex + clubIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(playerIndex * 5 + clubIndex) % LAST_NAMES.length]}`,
-        age: 19 + ((playerIndex * 7 + clubIndex * 3) % 17),
+        id: `staff-${club.id}-${role}`,
         role,
-        skills: stats.skills,
-        speed: stats.speed,
-        strength: stats.strength,
-        fitness: stats.fitness,
-        injury: null,
-        careerRecord: createInitialCareerRecord(),
+        name: `${FIRST_NAMES[(clubIndex * 3 + sIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(clubIndex * 4 + sIndex * 3) % LAST_NAMES.length]}`,
+        level,
+        wage: Math.round(1200 + level * 750),
       };
-    }),
-    staffLevel: 1 + (clubIndex % 3),
-    facilityLevel: 1 + ((clubIndex + 1) % 3),
-    facilities: {
-      gym: 1 + (clubIndex % 3),
-      trainingGround: 1 + ((clubIndex + 1) % 3),
-      medicalRoom: 1 + ((clubIndex + 2) % 3),
-    },
-    reputation: 58 + clubIndex * 4,
-    balance: 1_000_000 + clubIndex * 75_000,
-    trainingPlan: {
-      focus: "balanced",
-      intensity: "medium",
-    },
-  }));
+    });
+
+    return {
+      ...club,
+      squad: PLAYER_ROLES.map((role, playerIndex) => {
+        const stats = generatePlayerStats(role, playerIndex, clubIndex);
+        const wage = Math.round(
+          850 +
+            (playerIndex < 15 ? 900 : playerIndex < 23 ? 500 : 250) +
+            (stats.strength + stats.speed) * 6,
+        );
+        return {
+          id: `${club.id}-p${String(playerIndex + 1).padStart(2, "0")}`,
+          name: `${FIRST_NAMES[(playerIndex + clubIndex * 2) % FIRST_NAMES.length]} ${LAST_NAMES[(playerIndex * 5 + clubIndex) % LAST_NAMES.length]}`,
+          age: 19 + ((playerIndex * 7 + clubIndex * 3) % 17),
+          role,
+          skills: stats.skills,
+          speed: stats.speed,
+          strength: stats.strength,
+          fitness: stats.fitness,
+          wage,
+          injury: null,
+          careerRecord: createInitialCareerRecord(),
+        };
+      }),
+      staff: staffMembers,
+      staffLevel: Math.round(
+        staffMembers.reduce((sum, s) => sum + s.level, 0) / staffMembers.length,
+      ),
+      facilityLevel: 1 + ((clubIndex + 1) % 3),
+      facilities: {
+        gym: 1 + (clubIndex % 3),
+        trainingGround: 1 + ((clubIndex + 1) % 3),
+        medicalRoom: 1 + ((clubIndex + 2) % 3),
+      },
+      reputation: 58 + clubIndex * 4,
+      balance: 1_000_000 + clubIndex * 75_000,
+      ledger: [],
+      trainingPlan: {
+        focus: "balanced",
+        intensity: "medium",
+      },
+    };
+  });
 }
 
 export function createFixtures(): Fixture[] {

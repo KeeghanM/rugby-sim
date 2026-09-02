@@ -15,12 +15,14 @@ import { renderSimulationModal } from "./modals/simulation-modal.ts";
 import { runRoundSimulation } from "./simulation-runner.ts";
 import type { CareerView, SimulationProgress } from "./types.ts";
 import { renderFixtures } from "./views/fixtures-view.ts";
+import { renderFinancesView } from "./views/finances-view.ts";
 import { renderHome } from "./views/home-view.ts";
 import { renderInbox } from "./views/inbox-view.ts";
 import { renderLeague } from "./views/league-view.ts";
 import { renderCareerSetup } from "./views/onboarding-view.ts";
 import { renderSelection } from "./views/selection-view.ts";
 import { renderSquad } from "./views/squad-view.ts";
+import { renderStaffView } from "./views/staff-view.ts";
 import { renderTraining } from "./views/training-view.ts";
 import { createCareerWiring } from "./wiring.ts";
 
@@ -73,13 +75,17 @@ export const createCareerUI = (
           ? renderSelection(club, selectedSwapIndex)
           : view === "training"
             ? renderTraining(club)
-            : view === "inbox"
-              ? renderInbox(career, selectedMessageId)
-              : view === "squad"
-                ? renderSquad(club)
-                : view === "league"
-                  ? renderLeague(career)
-                  : renderFixtures(career);
+            : view === "staff"
+              ? renderStaffView(club)
+              : view === "finances"
+                ? renderFinancesView(club)
+                : view === "inbox"
+                  ? renderInbox(career, selectedMessageId)
+                  : view === "squad"
+                    ? renderSquad(club)
+                    : view === "league"
+                      ? renderLeague(career)
+                      : renderFixtures(career);
 
     let playerModalHtml = "";
     if (viewPlayerId) {

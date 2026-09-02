@@ -198,12 +198,36 @@ export const renderHome = (career: Career, club: Club): string => {
     footer: `Gym Lvl ${club.facilities.gym} · Grounds Lvl ${club.facilities.trainingGround}`,
   });
 
-  const opsTile = createTile({
-    kicker: "Club Operations",
+  const playerWagesWeekly = club.squad.reduce((sum, p) => sum + p.wage, 0);
+  const staffWagesWeekly = club.staff.reduce((sum, s) => sum + s.wage, 0);
+  const totalWeeklyWages = playerWagesWeekly + staffWagesWeekly;
+
+  // Expected monthly P&L (4 weeks: ~2 home matches gate income minus 4 weeks of wages)
+  const estHomeGate = Math.round(
+    (3200 + club.reputation * 55 + 60 * 45) * 18 * 0.72,
+  );
+  const estMonthlyIncome = estHomeGate * 2;
+  const estMonthlyExpenses = totalWeeklyWages * 4;
+  const estMonthlyPnL = estMonthlyIncome - estMonthlyExpenses;
+  const isProfit = estMonthlyPnL >= 0;
+  const pnlColor = isProfit ? "#4ade80" : "#f87171";
+  const pnlText = isProfit
+    ? `+${formatMoney(estMonthlyPnL)}/mo`
+    : `-${formatMoney(Math.abs(estMonthlyPnL))}/mo`;
+
+  const financesTile = createTile({
+    kicker: "Club Finances",
+    action: {
+      label: "Finances →",
+      datasetAttr: 'data-career-view="finances"',
+    },
     value: formatMoney(club.balance),
     valueColor: "#38bdf8",
-    subtitle: `Staff Level: <strong>Lvl ${club.staffLevel}</strong>`,
-    footer: `Club Reputation: ${club.reputation}/100`,
+    content: `
+      <div style="margin-top: 0.4rem; font-size: 0.78rem; color: #cbd5e1;">
+        Monthly P&L: <strong style="color: ${pnlColor}; font-family: ui-monospace, monospace; font-size: 0.95rem;">${pnlText}</strong>
+      </div>`,
+    footer: `Wages: -${formatMoney(totalWeeklyWages)}/wk · Gate: +${formatMoney(estHomeGate)}`,
   });
 
   const commsTile = createTile({
@@ -226,7 +250,7 @@ export const renderHome = (career: Career, club: Club): string => {
     ${squadTile}
     ${medicalTile}
     ${trainingTile}
-    ${opsTile}
+    ${financesTile}
     ${commsTile}
 
     <!-- League Table Snapshot -->

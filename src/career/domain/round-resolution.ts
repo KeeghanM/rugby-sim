@@ -1,5 +1,6 @@
 import { simulateMatch } from "../../simulation.ts";
 import { INJURY_TYPES } from "./constants.ts";
+import { processMatchFinancesAndWages } from "./finances.ts";
 import { createMatchInputForFixture, roleName } from "./match-input.ts";
 import type {
   Career,
@@ -157,6 +158,17 @@ export function resolveRound(
           careerRecord: updatedCareerRecord,
         };
       });
+
+      const isHome = clubId === fixture.homeClubId;
+      const opponentClub = isHome ? awayClub : homeClub;
+      const financiallyUpdatedClub = processMatchFinancesAndWages(
+        club,
+        fixture.round,
+        fixture.date,
+        isHome,
+        opponentClub?.reputation ?? 60,
+      );
+      updatedClubsMap.set(clubId, financiallyUpdatedClub);
     }
 
     return {

@@ -11,6 +11,7 @@ import {
   handleInboxActions,
   handlePlayerModalActions,
   handleSelectionActions,
+  handleStaffAndFacilityActions,
   handleTrainingActions,
 } from "./actions.ts";
 import { views, type CareerView } from "./types.ts";
@@ -107,6 +108,7 @@ export const createCareerWiring = (callbacks: WiringCallbacks): void => {
       if (handlePlayerModalActions(target, callbacks)) return;
       if (handleTrainingActions(target, career, callbacks)) return;
       if (handleSelectionActions(target, career, callbacks)) return;
+      if (handleStaffAndFacilityActions(target, career, callbacks)) return;
       if (handleInboxActions(target, career, callbacks)) return;
       if (handleAdvancementActions(target, career, callbacks)) return;
 

@@ -1,10 +1,16 @@
 import {
   CHECKPOINTS,
+  STAFF_NAMES,
+  STAFF_ROLES,
   type BlockingEvent,
   type Career,
   type Club,
   type Fixture,
   type InboxMessage,
+  type LedgerCategory,
+  type LedgerEntry,
+  type StaffMember,
+  type StaffRole,
 } from "../domain/index.ts";
 import {
   parseFacilities,
@@ -14,6 +20,7 @@ import {
 import {
   array,
   boolean,
+  boundedInteger,
   date,
   integer,
   nullable,
@@ -31,12 +38,48 @@ export function parseEvent(value: unknown, path: string): BlockingEvent {
   };
 }
 
+export function parseStaffMember(value: unknown, path: string): StaffMember {
+  const input = record(value, path);
+  const rawRole = string(input.role, `${path}.role`);
+  const role = STAFF_ROLES.find((candidate) => candidate === rawRole);
+  if (role === undefined) {
+    throw new Error(`Invalid career save: ${path}.role is unsupported`);
+  }
+  return {
+    id: string(input.id, `${path}.id`),
+    role,
+    name: string(input.name, `${path}.name`),
+    level: boundedInteger(input.level, `${path}.level`, 1, 5),
+    wage: integer(input.wage, `${path}.wage`),
+  };
+}
+
+export function parseLedgerEntry(value: unknown, path: string): LedgerEntry {
+  const input = record(value, path);
+  return {
+    id: string(input.id, `${path}.id`),
+    round: integer(input.round, `${path}.round`),
+    date: string(input.date, `${path}.date`),
+    category: string(input.category, `${path}.category`) as LedgerCategory,
+    description: string(input.description, `${path}.description`),
+    amount: number(input.amount, `${path}.amount`),
+  };
+}
+
 export function parseClub(value: unknown, path: string): Club {
   const input = record(value, path);
   const color = string(input.color, `${path}.color`);
   if (!/^#[0-9a-f]{6}$/i.test(color)) {
     throw new Error(`Invalid career save: ${path}.color is unsupported`);
   }
+  const defaultStaff: StaffMember[] = STAFF_ROLES.map((role) => ({
+    id: `staff-${string(input.id, `${path}.id`)}-${role}`,
+    role,
+    name: STAFF_NAMES[role],
+    level: 1,
+    wage: 1950,
+  }));
+
   return {
     id: string(input.id, `${path}.id`),
     name: string(input.name, `${path}.name`),
@@ -44,11 +87,21 @@ export function parseClub(value: unknown, path: string): Club {
     squad: array(input.squad, `${path}.squad`).map((item, index) =>
       parsePlayer(item, `${path}.squad[${index}]`),
     ),
+    staff: Array.isArray(input.staff)
+      ? array(input.staff, `${path}.staff`).map((item, index) =>
+          parseStaffMember(item, `${path}.staff[${index}]`),
+        )
+      : defaultStaff,
     staffLevel: integer(input.staffLevel, `${path}.staffLevel`),
     facilityLevel: integer(input.facilityLevel, `${path}.facilityLevel`),
     facilities: parseFacilities(input.facilities, `${path}.facilities`),
     reputation: integer(input.reputation, `${path}.reputation`),
     balance: number(input.balance, `${path}.balance`),
+    ledger: Array.isArray(input.ledger)
+      ? array(input.ledger, `${path}.ledger`).map((item, index) =>
+          parseLedgerEntry(item, `${path}.ledger[${index}]`),
+        )
+      : [],
     trainingPlan: parseTrainingPlan(input.trainingPlan, `${path}.trainingPlan`),
   };
 }

@@ -6,7 +6,7 @@ import { clubById, formatDist } from "../formatters.ts";
 const INBOX_STYLES = `
   .career-inbox {
     display: grid;
-    gap: 0.4rem;
+    gap: 0.45rem;
   }
   .career-inbox button {
     display: grid;
@@ -64,6 +64,7 @@ export const renderInbox = (
 ): string => {
   const selectedMsg = career.inbox.find((m) => m.id === selectedMessageId);
 
+  // If viewing a match report message
   if (selectedMsg && selectedMsg.matchReport) {
     const report = selectedMsg.matchReport;
     const isHome = report.homeClubId === career.managedClubId;
@@ -79,10 +80,15 @@ export const renderInbox = (
 
     return `<section class="career-section">
       <header style="flex-wrap: wrap;">
-        <div>
-          <button type="button" class="career-secondary-btn" data-back-inbox style="padding: 0.35rem 0.75rem; font-size: 0.75rem; margin-bottom: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; width: 100%; margin-bottom: 0.5rem;">
+          <button type="button" class="career-secondary-btn" data-back-inbox style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
             ← Back to Inbox
           </button>
+          <button type="button" class="career-swap-btn" data-delete-message="${escapeHtml(selectedMsg.id)}" style="color: #f87171; font-size: 0.75rem; padding: 0.35rem 0.65rem; margin-left: auto;">
+            🗑 Delete Message
+          </button>
+        </div>
+        <div>
           <span class="career-kicker">Round ${report.round} Official Match Report</span>
           <h2>${escapeHtml(selectedMsg.title)}</h2>
         </div>
@@ -200,21 +206,71 @@ export const renderInbox = (
     </section>`;
   }
 
+  // If viewing a standard text message
+  if (selectedMsg) {
+    return `<section class="career-section">
+      <header style="flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; width: 100%; margin-bottom: 0.5rem;">
+          <button type="button" class="career-secondary-btn" data-back-inbox style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+            ← Back to Inbox
+          </button>
+          <button type="button" class="career-swap-btn" data-delete-message="${escapeHtml(selectedMsg.id)}" style="color: #f87171; font-size: 0.75rem; padding: 0.35rem 0.65rem; margin-left: auto;">
+            🗑 Delete Message
+          </button>
+        </div>
+        <div>
+          <span class="career-kicker">Club Communication</span>
+          <h2>${escapeHtml(selectedMsg.title)}</h2>
+        </div>
+      </header>
+
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgb(255 255 255 / 10%); border-radius: 0.55rem; padding: 1.5rem; font-size: 0.95rem; color: #f8fafc; line-height: 1.6;">
+        <p style="margin: 0;">${escapeHtml(selectedMsg.message)}</p>
+      </div>
+    </section>`;
+  }
+
+  const unreadCount = career.inbox.filter((message) => !message.read).length;
+  const readCount = career.inbox.length - unreadCount;
+
   return `<section class="career-section">
-    <header>
+    <header style="flex-wrap: wrap;">
       <div>
         <span class="career-kicker">Club communications</span>
         <h2>Inbox</h2>
       </div>
-      <span>${career.inbox.filter((message) => !message.read).length} unread</span>
+      <div style="display: flex; gap: 0.6rem; align-items: center;">
+        <span style="font-size: 0.78rem; color: #94a3b8;">${unreadCount} unread · ${career.inbox.length} total</span>
+        ${
+          readCount > 0
+            ? `<button type="button" class="career-secondary-btn" data-clear-read-inbox style="font-size: 0.72rem; padding: 0.3rem 0.6rem;">
+                Clear Read
+              </button>`
+            : ""
+        }
+      </div>
     </header>
     <div class="career-inbox">
-      ${career.inbox
-        .map(
-          (message) =>
-            `<button type="button" data-message-id="${escapeHtml(message.id)}" class="${message.read ? "read" : ""}"><i></i><span><strong>${escapeHtml(message.title)}</strong><small>${escapeHtml(message.message)}</small></span></button>`,
-        )
-        .join("")}
+      ${
+        career.inbox.length === 0
+          ? `<div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.9rem; background: rgba(0,0,0,0.2); border-radius: 0.45rem;">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">📭</div>
+              Your inbox is clean. No messages to display.
+            </div>`
+          : career.inbox
+              .map(
+                (message) =>
+                  `<div style="display: flex; gap: 0.4rem; align-items: stretch;">
+                    <button type="button" data-message-id="${escapeHtml(message.id)}" class="${message.read ? "read" : ""}" style="flex: 1;">
+                      <i></i><span><strong>${escapeHtml(message.title)}</strong><small>${escapeHtml(message.message)}</small></span>
+                    </button>
+                    <button type="button" class="career-swap-btn" data-delete-message="${escapeHtml(message.id)}" title="Delete message" style="padding: 0 0.75rem; color: #94a3b8; font-size: 0.85rem;">
+                      🗑
+                    </button>
+                  </div>`,
+              )
+              .join("")
+      }
     </div>
   </section>`;
 };
