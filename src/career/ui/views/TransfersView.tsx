@@ -416,6 +416,7 @@ export const TransfersView: React.FC = () => {
                         )}
                       </td>
                       <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{p.role}</td>
+                      <td style={{ textAlign: 'center' }}>{p.age}</td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`player-ovr-badge ${getOvrClass(ovr)}`}>{ovr}</span>
                       </td>

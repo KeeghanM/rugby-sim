@@ -23,6 +23,10 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
   if (!club) return null
 
   const unread = career.inbox.filter((message) => !message.read).length
+  const clubInitials = club.name
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
   const isSimulating = simulationProgress !== null
   const isAdvanceDisabled = Boolean(career.pendingEvent) || career.checkpoint === 'seasonEnd' || isSimulating
 
@@ -36,7 +40,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     <main className="career-shell" style={{ ['--club' as string]: club.color } as React.CSSProperties}>
       <aside className="career-sidebar">
         <div className="career-club-mark">
-          <i />
+          <i>{clubInitials}</i>
           <span>{club.name}</span>
           <small>{career.manager.name}, Manager</small>
         </div>
@@ -58,14 +62,14 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
 
       <section className="career-main">
         <header className="career-topbar">
-          <div>
+          <div className="career-topbar-date">
             <span>{formatDate(career.currentDate)}</span>
             <strong>{checkpointLabels[career.checkpoint]}</strong>
           </div>
 
           <TopbarFixture career={career} />
 
-          <div>
+          <div className="career-topbar-action">
             <span>Round {career.currentRound} of 10</span>
             <button type="button" onClick={advance} disabled={isAdvanceDisabled}>
               {career.pendingEvent ? 'Resolve event' : advanceLabels[career.checkpoint]}

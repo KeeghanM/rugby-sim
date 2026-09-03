@@ -2,7 +2,7 @@ import type React from 'react'
 import type { Club, Player } from '../../domain/index.ts'
 import { roleName } from '../../domain/index.ts'
 import { Modal } from '../components/Modal.tsx'
-import { formatDist, getOvrClass, getPlayerOverall } from '../formatters.ts'
+import { formatDist, getOvrClass, getPlayerOverall, positionGroupClass } from '../formatters.ts'
 import { useCareerStore } from '../store.ts'
 import { SLOT_NAMES } from '../types.ts'
 
@@ -14,6 +14,7 @@ export interface SkillBarProps {
 
 export const SkillBar: React.FC<SkillBarProps> = ({ label, value, color = '#38bdf8' }) => (
   <div
+    className="player-skill-row"
     style={{
       display: 'grid',
       gridTemplateColumns: '140px 1fr 36px',
@@ -24,6 +25,7 @@ export const SkillBar: React.FC<SkillBarProps> = ({ label, value, color = '#38bd
   >
     <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{label}</span>
     <div
+      className="player-skill-track"
       style={{
         height: '6px',
         background: '#334155',
@@ -32,6 +34,7 @@ export const SkillBar: React.FC<SkillBarProps> = ({ label, value, color = '#38bd
       }}
     >
       <div
+        className="player-skill-fill"
         style={{
           width: `${value}%`,
           height: '100%',
@@ -105,7 +108,7 @@ export const PlayerCardModal: React.FC = () => {
   const kickPct = rec.totalKicks > 0 ? Math.round((rec.successfulKicks / rec.totalKicks) * 100) : 0
 
   const customHeader = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+    <div className="player-profile-header" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
       <div
         className="player-shirt"
         style={
@@ -145,20 +148,27 @@ export const PlayerCardModal: React.FC = () => {
             marginTop: '0.2rem',
           }}
         >
-          <span style={{ color: '#38bdf8', fontWeight: 700 }}>{slotInfo}</span>
+          <span className={`group-tag position-tag ${positionGroupClass(foundPlayer.role)}`}>{slotInfo}</span>
           <span>·</span>
           <span>Age {foundPlayer.age}</span>
           <span>·</span>
           <span>
             Natural: <strong>{roleName(foundPlayer.role)}</strong>
           </span>
+          <span>·</span>
+          <span className="player-potential">Potential {foundPlayer.potential}</span>
         </div>
       </div>
     </div>
   )
 
   return (
-    <Modal maxWidth="620px" customHeader={customHeader} onClose={() => setViewPlayerId(null)}>
+    <Modal
+      className="player-profile-modal"
+      maxWidth="620px"
+      customHeader={customHeader}
+      onClose={() => setViewPlayerId(null)}
+    >
       <div
         style={{
           display: 'grid',
@@ -199,6 +209,7 @@ export const PlayerCardModal: React.FC = () => {
         )}
 
         <div
+          className="player-physical-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
@@ -206,6 +217,7 @@ export const PlayerCardModal: React.FC = () => {
           }}
         >
           <div
+            className="player-physical-stat pace"
             style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgb(255 255 255 / 10%)',
@@ -237,6 +249,7 @@ export const PlayerCardModal: React.FC = () => {
             </strong>
           </div>
           <div
+            className="player-physical-stat power"
             style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgb(255 255 255 / 10%)',
@@ -268,6 +281,7 @@ export const PlayerCardModal: React.FC = () => {
             </strong>
           </div>
           <div
+            className="player-physical-stat condition"
             style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgb(255 255 255 / 10%)',

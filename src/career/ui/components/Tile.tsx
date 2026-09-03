@@ -43,7 +43,7 @@ export const Tile: React.FC<TileProps> = ({
       ) : kicker || title || action ? (
         <div className="ui-tile-header">
           {kicker && <span className="career-kicker">{kicker}</span>}
-          {title && <strong style={{ color: '#f8fafc', fontSize: '0.95rem' }}>{title}</strong>}
+          {title && <strong className="ui-tile-title">{title}</strong>}
           {action &&
             (React.isValidElement(action) ? (
               action
@@ -52,11 +52,7 @@ export const Tile: React.FC<TileProps> = ({
                 type="button"
                 className={action.className ?? 'career-link-btn'}
                 onClick={action.onClick}
-                style={{
-                  fontSize: '0.72rem',
-                  color: '#38bdf8',
-                  ...action.style,
-                }}
+                style={action.style}
               >
                 {action.label}
               </button>
@@ -86,31 +82,11 @@ export const Tile: React.FC<TileProps> = ({
         </div>
       )}
 
-      {subtitle && (
-        <p
-          style={{
-            marginTop: '0.35rem',
-            fontSize: '0.78rem',
-            color: '#cbd5e1',
-          }}
-        >
-          {subtitle}
-        </p>
-      )}
+      {subtitle && <p className="ui-tile-subtitle">{subtitle}</p>}
 
       {content}
 
-      {footer && (
-        <p
-          style={{
-            marginTop: '0.25rem',
-            fontSize: '0.72rem',
-            color: '#94a3b8',
-          }}
-        >
-          {footer}
-        </p>
-      )}
+      {footer && <p className="ui-tile-footer">{footer}</p>}
     </section>
   )
 }

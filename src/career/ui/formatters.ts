@@ -1,4 +1,4 @@
-import type { Career, Fixture } from '../domain/index.ts'
+import { type Career, type Fixture, type PlayerRole, ROLE_GROUPS } from '../domain/index.ts'
 
 export { getOvrClass, getPlayerOverall } from '../domain/index.ts'
 
@@ -30,3 +30,8 @@ export const fixtureTeams = (career: Career, fixture: Fixture) => ({
   home: clubById(career, fixture.homeClubId),
   away: clubById(career, fixture.awayClubId),
 })
+
+export const positionGroupClass = (role: PlayerRole): string => `position-${ROLE_GROUPS[role]}`
+
+export const fitnessClass = (fitness: number): string =>
+  fitness >= 90 ? 'fitness-fresh' : fitness >= 75 ? 'fitness-ready' : fitness >= 60 ? 'fitness-tired' : 'fitness-risk'

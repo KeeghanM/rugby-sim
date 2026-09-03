@@ -1,7 +1,7 @@
 import type React from 'react'
 import type { Player } from '../../domain/index.ts'
 import { roleName } from '../../domain/index.ts'
-import { getOvrClass, getPlayerOverall } from '../formatters.ts'
+import { fitnessClass, getOvrClass, getPlayerOverall, positionGroupClass } from '../formatters.ts'
 import { useCareerStore } from '../store.ts'
 import { SLOT_NAMES } from '../types.ts'
 
@@ -36,9 +36,7 @@ export const SelectionView: React.FC = () => {
             <button type="button" className="career-link-btn" onClick={() => setViewPlayerId(player.id)}>
               {player.name}
             </button>
-            <span className="group-tag" style={{ fontSize: '0.65rem' }}>
-              {slotName}
-            </span>
+            <span className={`group-tag position-tag ${positionGroupClass(player.role)}`}>{slotName}</span>
             {player.injury && (
               <span
                 className="group-tag"
@@ -64,7 +62,7 @@ export const SelectionView: React.FC = () => {
         <td style={{ textAlign: 'center' }}>{player.speed}</td>
         <td style={{ textAlign: 'center' }}>{player.strength}</td>
         <td style={{ textAlign: 'center' }}>
-          <span className="fitness">
+          <span className={`fitness ${fitnessClass(player.fitness)}`}>
             <i style={{ width: `${player.fitness}%` }} />
           </span>
           {player.fitness}%

@@ -21,7 +21,7 @@ export const StaffView: React.FC = () => {
   const club = career.season.clubs.find((c) => c.id === career.managedClubId)
   if (!club) return null
 
-  const facilityKeys: FacilityType[] = ['gym', 'trainingGround', 'medicalRoom']
+  const facilityKeys: FacilityType[] = ['gym', 'trainingGround', 'medicalRoom', 'academy']
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem' }}>

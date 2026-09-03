@@ -13,51 +13,14 @@ export const TopbarFixture: React.FC<TopbarFixtureProps> = ({ career }) => {
   const { home, away } = fixtureTeams(career, upcoming)
 
   return (
-    <div
-      className="topbar-fixture-pill"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        background: 'rgba(0,0,0,0.3)',
-        border: '1px solid rgb(255 255 255 / 10%)',
-        borderRadius: '0.4rem',
-        padding: '0.35rem 0.75rem',
-        fontSize: '0.78rem',
-      }}
-    >
-      <span
-        style={{
-          color: '#38bdf8',
-          fontWeight: 800,
-          fontSize: '0.7rem',
-          textTransform: 'uppercase',
-        }}
-      >
-        Next Rd {upcoming.round}:
-      </span>
-      <span
-        style={{
-          display: 'inline-block',
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: home.color,
-        }}
-      />
-      <span style={{ fontWeight: 700, color: '#f8fafc' }}>{home.name}</span>
-      <span style={{ color: '#64748b', fontWeight: 600 }}>v</span>
-      <span
-        style={{
-          display: 'inline-block',
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: away.color,
-        }}
-      />
-      <span style={{ fontWeight: 700, color: '#f8fafc' }}>{away.name}</span>
-      <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>({formatDate(upcoming.date)})</span>
+    <div className="topbar-fixture-pill">
+      <span className="topbar-fixture-round">Next · Rd {upcoming.round}</span>
+      <span className="topbar-club-dot" style={{ background: home.color }} />
+      <strong>{home.name}</strong>
+      <span className="topbar-versus">v</span>
+      <span className="topbar-club-dot" style={{ background: away.color }} />
+      <strong>{away.name}</strong>
+      <time>{formatDate(upcoming.date)}</time>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { roleName } from '../../domain/index.ts'
-import { getOvrClass, getPlayerOverall } from '../formatters.ts'
+import { fitnessClass, getOvrClass, getPlayerOverall, positionGroupClass } from '../formatters.ts'
 import { useCareerStore } from '../store.ts'
 
 export const SquadView: React.FC = () => {
@@ -72,7 +72,11 @@ export const SquadView: React.FC = () => {
                     )}
                   </td>
                   <td style={{ textAlign: 'center' }}>{player.age}</td>
-                  <td>{roleName(player.role)}</td>
+                  <td>
+                    <span className={`group-tag position-tag ${positionGroupClass(player.role)}`}>
+                      {roleName(player.role)}
+                    </span>
+                  </td>
                   <td style={{ textAlign: 'center' }}>
                     <button
                       type="button"
@@ -85,7 +89,7 @@ export const SquadView: React.FC = () => {
                   <td style={{ textAlign: 'center' }}>{player.speed}</td>
                   <td style={{ textAlign: 'center' }}>{player.strength}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <span className="fitness">
+                    <span className={`fitness ${fitnessClass(player.fitness)}`}>
                       <i style={{ width: `${player.fitness}%` }} />
                     </span>
                     {player.fitness}%

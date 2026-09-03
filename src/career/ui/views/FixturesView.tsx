@@ -15,9 +15,15 @@ export const FixturesView: React.FC = () => {
     return (
       <div key={fixture.id} className={`career-fixture ${managed ? 'managed' : ''}`}>
         <time>{formatDate(fixture.date)}</time>
-        <span className="fixture-club home">{home.name}</span>
+        <span className="fixture-club home">
+          {home.name}
+          <i style={{ background: home.color }} />
+        </span>
         <strong>{fixture.result ? `${fixture.result.homeScore} - ${fixture.result.awayScore}` : 'v'}</strong>
-        <span className="fixture-club">{away.name}</span>
+        <span className="fixture-club">
+          <i style={{ background: away.color }} />
+          {away.name}
+        </span>
       </div>
     )
   }

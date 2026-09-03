@@ -42,9 +42,11 @@ export function getPlayerOverall(player: Player): number {
 }
 
 export function getOvrClass(ovr: number): string {
-  if (ovr >= 78) return 'ovr-elite'
-  if (ovr >= 68) return 'ovr-good'
-  return 'ovr-solid'
+  if (ovr >= 90) return 'ovr-elite'
+  if (ovr >= 80) return 'ovr-good'
+  if (ovr >= 70) return 'ovr-solid'
+  if (ovr >= 60) return 'ovr-mid'
+  return 'ovr-low'
 }
 
 export function optimizeSquadSelection(career: Career, clubId: string, criteria: 'ovr' | 'fitness'): Career {

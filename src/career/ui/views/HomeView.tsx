@@ -37,6 +37,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
   const avgOvr = Math.round(club.squad.reduce((sum, p) => sum + getPlayerOverall(p), 0) / club.squad.length)
   const avgFitness = Math.round(club.squad.reduce((sum, p) => sum + p.fitness, 0) / club.squad.length)
   const injuredPlayers = club.squad.filter((p) => p.injury !== null)
+  const injuredMatchdayPlayers = club.squad.slice(0, 23).filter((p) => p.injury !== null).length
+  const tiredMatchdayPlayers = club.squad.slice(0, 23).filter((p) => p.fitness < 70).length
   const unreadMessages = career.inbox.filter((m) => !m.read).length
 
   const latestFixture = [...career.season.fixtures]
@@ -198,7 +200,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
           const isHome = upcoming.homeClubId === club.id
           return (
             <section
-              className="career-metric"
+              className="career-metric matchday-tile"
               style={{
                 borderColor: 'rgba(56, 189, 248, 0.4)',
                 background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%)',
@@ -235,6 +237,16 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
               >
                 {isHome ? 'Home Stadium' : 'Away Stadium'}
               </p>
+              <div className="matchday-readiness">
+                <span className="ready">15 starters</span>
+                <span className="ready">8 reserves</span>
+                <span className={injuredMatchdayPlayers > 0 ? 'alert' : 'ready'}>
+                  {injuredMatchdayPlayers > 0 ? `${injuredMatchdayPlayers} injured` : 'No injuries'}
+                </span>
+                <span className={tiredMatchdayPlayers > 0 ? 'warn' : 'ready'}>
+                  {tiredMatchdayPlayers > 0 ? `${tiredMatchdayPlayers} fatigued` : 'Squad ready'}
+                </span>
+              </div>
               <div
                 style={{
                   display: 'flex',
@@ -281,6 +293,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
           return (
             <Tile
+              className="result-tile"
               kicker="Latest Result"
               action={{
                 label: 'Report →',
@@ -296,6 +309,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Manager Profile Tile */}
       <Tile
+        className="manager-tile"
         kicker="Manager Profile"
         action={{
           label: 'Playbook →',
@@ -324,6 +338,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Transfers Tile */}
       <Tile
+        className="recruitment-tile"
         kicker="Transfers & Scouting"
         action={{
           label: 'Market →',
@@ -355,6 +370,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Squad Profile Tile */}
       <Tile
+        className="squad-tile"
         kicker="Squad Profile"
         action={{
           label: 'Team Sheet →',
@@ -385,6 +401,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Medical & Rehab Tile */}
       <Tile
+        className="medical-tile"
         kicker="Medical & Rehab"
         action={{
           label: 'Rehab Wing →',
@@ -447,6 +464,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Training Regimen Tile */}
       <Tile
+        className="training-tile"
         kicker="Training Regimen"
         action={{
           label: 'Training Center →',
@@ -473,6 +491,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Finances Tile */}
       <Tile
+        className="finance-tile"
         kicker="Club Finances"
         action={{
           label: 'Finances →',
@@ -505,6 +524,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onWatchMatch }) => {
 
       {/* Communications Tile */}
       <Tile
+        className="inbox-tile"
         kicker="Communications"
         action={{
           label: 'Open Inbox →',

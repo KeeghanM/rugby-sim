@@ -91,6 +91,7 @@ export const InboxView: React.FC = () => {
 
         {/* Scoreboard Display */}
         <div
+          className={`match-report-scoreboard ${won ? 'win' : drawn ? 'draw' : 'loss'}`}
           style={{
             background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
             border: '1px solid rgb(255 255 255 / 15%)',
@@ -101,6 +102,7 @@ export const InboxView: React.FC = () => {
           }}
         >
           <div
+            className="match-report-score-label"
             style={{
               fontSize: '0.75rem',
               color: '#94a3b8',
@@ -112,6 +114,7 @@ export const InboxView: React.FC = () => {
             FULL TIME SCORE
           </div>
           <div
+            className="match-report-scoreline"
             style={{
               display: 'flex',
               justifyContent: 'center',
@@ -140,6 +143,7 @@ export const InboxView: React.FC = () => {
         {/* Contest & Set Piece Comparison */}
         {hStats && aStats && (
           <div
+            className="match-report-comparison"
             style={{
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgb(255 255 255 / 10%)',
@@ -176,7 +180,13 @@ export const InboxView: React.FC = () => {
                 >
                   RUCKS WON
                 </span>
-                <strong>{hStats.rucksWon}</strong> vs <strong>{aStats.rucksWon}</strong>
+                <strong>
+                  {hStats.rucksWon}/{hStats.rucksWon + hStats.rucksLost}
+                </strong>{' '}
+                vs{' '}
+                <strong>
+                  {aStats.rucksWon}/{aStats.rucksWon + aStats.rucksLost}
+                </strong>
               </div>
               <div
                 style={{
@@ -194,7 +204,13 @@ export const InboxView: React.FC = () => {
                 >
                   SCRUMS WON
                 </span>
-                <strong>{hStats.scrumsWon}</strong> vs <strong>{aStats.scrumsWon}</strong>
+                <strong>
+                  {hStats.scrumsWon}/{hStats.scrumsWon + hStats.scrumsLost}
+                </strong>{' '}
+                vs{' '}
+                <strong>
+                  {aStats.scrumsWon}/{aStats.scrumsWon + aStats.scrumsLost}
+                </strong>
               </div>
               <div
                 style={{
@@ -212,7 +228,13 @@ export const InboxView: React.FC = () => {
                 >
                   LINEOUTS WON
                 </span>
-                <strong>{hStats.lineoutsWon}</strong> vs <strong>{aStats.lineoutsWon}</strong>
+                <strong>
+                  {hStats.lineoutsWon}/{hStats.lineoutsWon + hStats.lineoutsLost}
+                </strong>{' '}
+                vs{' '}
+                <strong>
+                  {aStats.lineoutsWon}/{aStats.lineoutsWon + aStats.lineoutsLost}
+                </strong>
               </div>
               <div
                 style={{
@@ -230,7 +252,13 @@ export const InboxView: React.FC = () => {
                 >
                   MAULS WON
                 </span>
-                <strong>{hStats.maulsWon}</strong> vs <strong>{aStats.maulsWon}</strong>
+                <strong>
+                  {hStats.maulsWon}/{hStats.maulsWon + hStats.maulsLost}
+                </strong>{' '}
+                vs{' '}
+                <strong>
+                  {aStats.maulsWon}/{aStats.maulsWon + aStats.maulsLost}
+                </strong>
               </div>
             </div>
           </div>
@@ -311,7 +339,7 @@ export const InboxView: React.FC = () => {
                             color: s.penaltiesConceded > 0 ? '#f87171' : 'inherit',
                           }}
                         >
-                          {s.penaltiesConceded}p / {s.knockOns}k
+                          {s.penaltiesConceded}p / {s.knockOns}k / {s.forwardPasses}f
                         </td>
                       </tr>
                     )

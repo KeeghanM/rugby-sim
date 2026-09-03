@@ -21,6 +21,8 @@ export const Table: React.FC<TableProps> = ({ career, limit }) => {
             <th>W</th>
             <th>D</th>
             <th>L</th>
+            <th>PF</th>
+            <th>PA</th>
             <th>Diff</th>
             <th>Pts</th>
           </tr>
@@ -31,11 +33,18 @@ export const Table: React.FC<TableProps> = ({ career, limit }) => {
             return (
               <tr key={row.clubId} className={isManaged ? 'managed' : ''}>
                 <td>{index + 1}</td>
-                <td>{row.clubName}</td>
+                <td>
+                  <span className="standings-club">
+                    <i style={{ background: career.season.clubs.find((club) => club.id === row.clubId)?.color }} />
+                    {row.clubName}
+                  </span>
+                </td>
                 <td>{row.played}</td>
                 <td>{row.won}</td>
                 <td>{row.drawn}</td>
                 <td>{row.lost}</td>
+                <td>{row.pointsFor}</td>
+                <td>{row.pointsAgainst}</td>
                 <td>
                   {row.pointsDifference > 0 ? '+' : ''}
                   {row.pointsDifference}

@@ -8,7 +8,7 @@ export const SimulationModal: React.FC = () => {
   if (!simulationProgress) return null
 
   const customHeader = (
-    <div style={{ flex: 1, textAlign: 'center' }}>
+    <div className="simulation-header" style={{ flex: 1, textAlign: 'center' }}>
       <span className="career-kicker">Match Simulation Engine</span>
       <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.25rem', color: '#f8fafc' }}>
         ⚡ Simulating Round {simulationProgress.round}
@@ -17,7 +17,13 @@ export const SimulationModal: React.FC = () => {
   )
 
   return (
-    <Modal maxWidth="520px" customHeader={customHeader} onClose={() => {}}>
+    <Modal
+      className="simulation-modal"
+      maxWidth="520px"
+      customHeader={customHeader}
+      onClose={() => {}}
+      dismissible={false}
+    >
       <div style={{ padding: '0.5rem 0', display: 'grid', gap: '1.25rem' }}>
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           <div
@@ -43,6 +49,7 @@ export const SimulationModal: React.FC = () => {
         </div>
 
         <div
+          className="simulation-fixtures"
           style={{
             background: 'rgba(0, 0, 0, 0.35)',
             border: '1px solid rgb(255 255 255 / 8%)',

@@ -10,6 +10,7 @@ export interface ModalProps {
   footer?: React.ReactNode
   className?: string
   dialogStyle?: React.CSSProperties
+  dismissible?: boolean
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -22,6 +23,7 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   className = '',
   dialogStyle,
+  dismissible = true,
 }) => {
   return (
     /* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click-to-dismiss */
@@ -29,7 +31,7 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       className={`career-modal-backdrop ${className}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (dismissible && e.target === e.currentTarget) {
           onClose()
         }
       }}
@@ -62,9 +64,11 @@ export const Modal: React.FC<ModalProps> = ({
               )}
             </div>
           )}
-          <button type="button" className="career-modal-close" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
+          {dismissible && (
+            <button type="button" className="career-modal-close" onClick={onClose} aria-label="Close">
+              ✕
+            </button>
+          )}
         </div>
         <div className="career-modal-body">{children}</div>
         {footer && (
