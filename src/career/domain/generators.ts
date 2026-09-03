@@ -269,7 +269,7 @@ export function createFreeAgents(count = 24): Player[] {
   ]
 
   return Array.from({ length: count }, (_, i) => {
-    const role = sampleRoles[i % sampleRoles.length]!
+    const role = sampleRoles[i % sampleRoles.length] ?? 'hooker'
     const stats = generatePlayerStats(role, i + 10, i + 2)
     const age = 19 + ((i * 3 + 7) % 16)
     const wage = Math.round(650 + (stats.strength + stats.speed) * 5.5)

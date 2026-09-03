@@ -49,10 +49,12 @@ assert(upgradedClub.facilities.gym === initialGym + 1, 'Gym upgrade failed')
 assert(upgradedClub.balance < initialBalance, 'Upgrade cost was not deducted')
 assert(upgradedClub.ledger.length === 1, 'Ledger entry was not recorded')
 
-const initialHeadCoach = upgradedClub.staff.find((s) => s.role === 'headCoach')!
+const initialHeadCoach = upgradedClub.staff.find((s) => s.role === 'headCoach')
+assert(initialHeadCoach !== undefined, 'Initial head coach not found')
 career = upgradeStaff(career, 'harbour-sharks', 'headCoach')
 const staffUpgradedClub = career.season.clubs[0]
-const newHeadCoach = staffUpgradedClub.staff.find((s) => s.role === 'headCoach')!
+const newHeadCoach = staffUpgradedClub.staff.find((s) => s.role === 'headCoach')
+assert(newHeadCoach !== undefined, 'New head coach not found')
 assert(newHeadCoach.level === initialHeadCoach.level + 1, 'Staff upgrade failed')
 assert(staffUpgradedClub.ledger.length === 2, 'Staff ledger entry missing')
 

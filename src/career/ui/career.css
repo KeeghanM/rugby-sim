@@ -174,8 +174,22 @@
   background: #1e293b;
 }
 
-.career-club-options button i,
-.career-club-mark i {
+.career-club-mark > i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--club);
+  box-shadow: 0 0 8px var(--club);
+  flex-shrink: 0;
+}
+
+.fitness > i {
+  display: block;
+  height: 100%;
+  background: #22c55e;
+}
+
+.career-club-options button > i {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -366,11 +380,6 @@
   padding-bottom: 1rem;
 }
 
-.career-club-mark i {
-  width: 14px;
-  height: 14px;
-}
-
 .career-club-mark span {
   font-size: 1rem;
   font-weight: 750;
@@ -410,6 +419,13 @@
 .career-sidebar nav button:hover {
   background: rgba(255, 255, 255, 0.05);
   color: #f1f5f9;
+}
+
+.transfers-nav-tabs button.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
 }
 
 .career-sidebar nav button.active {
@@ -703,12 +719,6 @@
   background: #334155;
   vertical-align: middle;
   overflow: hidden;
-}
-
-.fitness i {
-  display: block;
-  height: 100%;
-  background: #22c55e;
 }
 
 .career-inbox {
@@ -1070,13 +1080,6 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
-}
-
-.transfers-nav-tabs button.active {
-  background: #0284c7;
-  border-color: #38bdf8;
-  color: #ffffff;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
 }
 
 .transfers-nav-tabs button:hover:not(.active) {

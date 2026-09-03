@@ -48,7 +48,8 @@ export function getManagerLevel(xp: number): {
 } {
   let level = 1
   for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
-    if (xp >= LEVEL_THRESHOLDS[i]!) {
+    const threshold = LEVEL_THRESHOLDS[i]
+    if (threshold !== undefined && xp >= threshold) {
       level = i + 1
     } else {
       break
@@ -70,7 +71,7 @@ export function getManagerLevel(xp: number): {
 
 export function getManagerReputationTier(reputation: number) {
   const tier = MANAGER_REPUTATION_TIERS.find((t) => reputation >= t.min)
-  return tier ?? MANAGER_REPUTATION_TIERS[MANAGER_REPUTATION_TIERS.length - 1]!
+  return tier ?? MANAGER_REPUTATION_TIERS[MANAGER_REPUTATION_TIERS.length - 1]
 }
 
 export function getUnlockedTactics(manager: ManagerProfile) {

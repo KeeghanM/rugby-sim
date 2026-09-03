@@ -87,7 +87,8 @@ export function executeSeasonRollover(career: Career): Career {
     const academyLvl = club.facilities.academy ?? 1
 
     for (let i = 0; i < club.squad.length; i++) {
-      const player = club.squad[i]!
+      const player = club.squad[i]
+      if (!player) continue
       const { player: progressed, retired } = processPlayerYearProgression(player, clubFacilityLvl, academyLvl)
 
       if (retired) {
@@ -124,12 +125,14 @@ export function executeSeasonRollover(career: Career): Career {
     const remainingAcademy = [...progressedAcademy]
 
     while (currentSenior.length < 35 && remainingAcademy.length > 0) {
-      const promoted = remainingAcademy.shift()!
-      currentSenior.push({
-        ...promoted,
-        wage: 850,
-        contractYears: 3,
-      })
+      const promoted = remainingAcademy.shift()
+      if (promoted) {
+        currentSenior.push({
+          ...promoted,
+          wage: 850,
+          contractYears: 3,
+        })
+      }
     }
 
     // Generate fresh annual Youth Intake

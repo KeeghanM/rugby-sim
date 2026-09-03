@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import type React from 'react'
+import { useState } from 'react'
 import { CareerApp, useCareerStore } from './career/ui/index.tsx'
 import { advanceCareer, type Career, type Fixture } from './career/domain/index.ts'
 import type { MatchResult } from './simulation/domain.ts'

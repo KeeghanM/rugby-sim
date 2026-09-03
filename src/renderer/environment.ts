@@ -415,7 +415,7 @@ export const createEnvironment = (scene: Scene) => {
     ctx.font = "bold 44px 'Courier New', monospace"
     ctx.fillText(`${mins}:${secs}`, 240, 422)
 
-    const p: any = game.phase
+    const p = game.phase
     let statusText = p.kind.toUpperCase()
     if (p.kind === 'openPlay') {
       statusText =

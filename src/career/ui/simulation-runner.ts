@@ -40,10 +40,12 @@ export const runRoundSimulation = async (callbacks: SimulationRunnerCallbacks): 
       results:
         recordedResultsMap.size > 0
           ? Array.from(recordedResultsMap.entries()).map(([fId, sc]) => {
-              const fix = career.season.fixtures.find((f) => f.id === fId)!
+              const fix = career.season.fixtures.find((f) => f.id === fId)
+              const homeClubId = fix?.homeClubId ?? ''
+              const awayClubId = fix?.awayClubId ?? ''
               return {
-                homeName: clubById(career, fix.homeClubId).name,
-                awayName: clubById(career, fix.awayClubId).name,
+                homeName: homeClubId ? clubById(career, homeClubId).name : '',
+                awayName: awayClubId ? clubById(career, awayClubId).name : '',
                 score: `${sc.homeScore} - ${sc.awayScore}`,
               }
             })
@@ -58,10 +60,12 @@ export const runRoundSimulation = async (callbacks: SimulationRunnerCallbacks): 
     recordedResultsMap.set(fixture.id, { ...score, resultObj: result })
 
     const updatedResults = Array.from(recordedResultsMap.entries()).map(([fId, sc]) => {
-      const fix = career.season.fixtures.find((f) => f.id === fId)!
+      const fix = career.season.fixtures.find((f) => f.id === fId)
+      const homeClubId = fix?.homeClubId ?? ''
+      const awayClubId = fix?.awayClubId ?? ''
       return {
-        homeName: clubById(career, fix.homeClubId).name,
-        awayName: clubById(career, fix.awayClubId).name,
+        homeName: homeClubId ? clubById(career, homeClubId).name : '',
+        awayName: awayClubId ? clubById(career, awayClubId).name : '',
         score: `${sc.homeScore} - ${sc.awayScore}`,
       }
     })

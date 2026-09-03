@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react'
+import type React from 'react'
+import { useEffect, useRef } from 'react'
 import { Engine } from '@babylonjs/core/Engines/engine'
 import type { Career, Fixture } from '../career/domain/index.ts'
 import { createMatchInputForFixture } from '../career/domain/match-input.ts'
@@ -196,7 +197,7 @@ export const MatchView: React.FC<MatchViewProps> = ({ career, fixture, onFinish 
             </button>
           </div>
           <div className="manager-tabs">
-            <div className="manager-team-tabs" role="group" aria-label="Team">
+            <fieldset className="manager-team-tabs" aria-label="Team" style={{ border: 0, padding: 0, margin: 0 }}>
               <button type="button" className="team-tab-btn active" data-team="0" id="tab-team-0" aria-pressed="true">
                 <span className="team-tab-swatch" id="tab-team-0-swatch" />
                 <span id="tab-team-0-label">Team 1</span>
@@ -205,15 +206,15 @@ export const MatchView: React.FC<MatchViewProps> = ({ career, fixture, onFinish 
                 <span className="team-tab-swatch" id="tab-team-1-swatch" />
                 <span id="tab-team-1-label">Team 2</span>
               </button>
-            </div>
-            <div className="manager-subtabs" role="group" aria-label="View">
+            </fieldset>
+            <fieldset className="manager-subtabs" aria-label="View" style={{ border: 0, padding: 0, margin: 0 }}>
               <button type="button" className="manager-subtab-btn active" id="subtab-roster" aria-pressed="true">
                 👥 Squad & Condition
               </button>
               <button type="button" className="manager-subtab-btn" id="subtab-stats" aria-pressed="false">
                 📊 Game Stats
               </button>
-            </div>
+            </fieldset>
           </div>
           <div className="manager-body">
             <div className="team-summary-card" id="manager-team-summary" />

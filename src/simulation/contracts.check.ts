@@ -9,7 +9,7 @@ import { separatedVelocity } from './movement/collisions.ts'
 import { updateSubstitutions } from './movement/substitutions.ts'
 import { attemptTackle, startPenalty, updateKickoff, updatePenalty } from './phases.ts'
 
-const check = (condition: boolean, message: string) => {
+function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 const currentPhase = (game: GameState): GameState['phase'] => game.phase
@@ -26,7 +26,8 @@ const input = createMatchInput(teams, {
   },
 })
 const state = createGame(input, () => 0.5)
-const starter = state.players.find((player) => player.team === 0 && player.number === 1)!
+const starter = state.players.find((player) => player.team === 0 && player.number === 1)
+check(starter !== undefined, 'Starter player not found')
 starter.stamina = 0
 starter.stats.triesScored = 2
 state.matchClockSeconds = 2700
@@ -42,7 +43,8 @@ state.phase = {
 updateSubstitutions(state)
 
 check(starter.playerId === 'club-a-17', 'Replacement identity was not activated')
-const replaced = state.substitutes.find((player) => player.playerId === 'club-a-1')!
+const replaced = state.substitutes.find((player) => player.playerId === 'club-a-1')
+check(replaced !== undefined, 'Replaced player not found')
 check(replaced.stats.triesScored === 2, 'Outgoing player stats were lost')
 check(starter.stats.triesScored === 0, 'Replacement inherited starter stats')
 
@@ -108,13 +110,17 @@ check(
   penaltyState.phase.kind === 'penalty' && penaltyState.phase.stage === 'decision',
   'Penalty started before players formed',
 )
-for (const command of getPenaltyCommands(penaltyState, penaltyState.players)!) {
-  const player = penaltyState.players.find(({ id }) => id === command.playerId)!
+const penaltyCommands = getPenaltyCommands(penaltyState, penaltyState.players)
+check(penaltyCommands !== null, 'Penalty commands not generated')
+for (const command of penaltyCommands) {
+  const player = penaltyState.players.find(({ id }) => id === command.playerId)
+  check(player !== undefined, 'Penalty player not found')
   player.position = { ...command.target }
   player.intentTarget = { ...command.target }
   player.intentKind = command.intentKind
 }
-const legalDrifter = penaltyState.players.find((player) => player.team === 0 && player.id !== penaltyKickerId)!
+const legalDrifter = penaltyState.players.find((player) => player.team === 0 && player.id !== penaltyKickerId)
+check(legalDrifter !== undefined, 'Legal drifter player not found')
 legalDrifter.position.x = -30
 updatePenalty(penaltyState, 0.1, () => 0.5)
 updatePenalty(penaltyState, 0.1, () => 0.5)
@@ -137,8 +143,9 @@ check(
 
 const tackleState = createGame(input, () => 0.5)
 for (const player of tackleState.players) player.position = { x: 30, z: -50 }
-const carrier = tackleState.players.find((player) => player.team === 0)!
-const tackler = tackleState.players.find((player) => player.team === 1)!
+const carrier = tackleState.players.find((player) => player.team === 0)
+const tackler = tackleState.players.find((player) => player.team === 1)
+check(carrier !== undefined && tackler !== undefined, 'Tackle players not found')
 carrier.position = { x: 0, z: 9.8 }
 tackler.position = { x: 0, z: 9.4 }
 tackleState.phase = { kind: 'openPlay' }
@@ -149,13 +156,17 @@ attemptTackle(tackleState, () => tackleRolls.shift() ?? 0.5)
 check(tackler.stats.tacklesMade === 1 && carrier.position.z > 9.8, 'Tactical defensive line prevented a legal tackle')
 const tacklePhase = currentPhase(tackleState)
 if (tacklePhase.kind !== 'ruck') throw new Error('Tackle did not start ruck')
-const firstTacklerTarget = getRuckCommands(tackleState, tackleState.players)!.find(
+const firstTacklerCmd = getRuckCommands(tackleState, tackleState.players)?.find(
   ({ playerId }) => playerId === tackler.id,
-)!.target
+)
+if (!firstTacklerCmd) throw new Error('First tackler command missing')
+const firstTacklerTarget = firstTacklerCmd.target
 tackler.position.x += 5
-const secondTacklerTarget = getRuckCommands(tackleState, tackleState.players)!.find(
+const secondTacklerCmd = getRuckCommands(tackleState, tackleState.players)?.find(
   ({ playerId }) => playerId === tackler.id,
-)!.target
+)
+if (!secondTacklerCmd) throw new Error('Second tackler command missing')
+const secondTacklerTarget = secondTacklerCmd.target
 check(
   firstTacklerTarget.x === secondTacklerTarget.x &&
     firstTacklerTarget.z === secondTacklerTarget.z &&

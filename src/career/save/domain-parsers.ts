@@ -17,8 +17,11 @@ import {
   type LedgerEntry,
   type ManagerProfile,
   type ManagerStats,
+  type MatchReportData,
+  type MatchResult,
   type PlaybookTactics,
   type ScoutingReport,
+  type SeasonArchive,
   type StaffMember,
   type TransferOffer,
 } from '../domain/index.ts'
@@ -112,9 +115,9 @@ export function parseFixture(value: unknown, path: string): Fixture {
     return {
       homeScore: integer(parsed.homeScore, `${path}.result.homeScore`),
       awayScore: integer(parsed.awayScore, `${path}.result.awayScore`),
-      homeTeamStats: parsed.homeTeamStats as any,
-      awayTeamStats: parsed.awayTeamStats as any,
-      players: parsed.players as any,
+      homeTeamStats: parsed.homeTeamStats as unknown as MatchResult['homeTeamStats'],
+      awayTeamStats: parsed.awayTeamStats as unknown as MatchResult['awayTeamStats'],
+      players: parsed.players as unknown as MatchResult['players'],
     }
   })
   if ((status === 'played') !== (result !== null)) {
@@ -137,7 +140,7 @@ export function parseInboxMessage(value: unknown, path: string): InboxMessage {
   return {
     ...parseEvent(value, path),
     read: boolean(input.read, `${path}.read`),
-    matchReport: input.matchReport as any,
+    matchReport: input.matchReport as unknown as MatchReportData,
   }
 }
 
@@ -160,31 +163,41 @@ export function parseManagerProfile(value: unknown, path: string): ManagerProfil
 
   let activeCourse: ActiveCoachingCourse | null = null
   if (input.activeCourse && typeof input.activeCourse === 'object') {
-    const ac = input.activeCourse as any
+    const ac = input.activeCourse as Record<string, unknown>
     if (typeof ac.courseId === 'string' && ac.courseId in COACHING_COURSES && typeof ac.roundsRemaining === 'number') {
       activeCourse = {
-        courseId: ac.courseId,
+        courseId: ac.courseId as CoachingCourseId,
         roundsRemaining: Math.max(1, Math.round(ac.roundsRemaining)),
       }
     }
   }
 
-  const playbookInput = input.playbook && typeof input.playbook === 'object' ? (input.playbook as any) : {}
+  const playbookInput = (input.playbook && typeof input.playbook === 'object' ? input.playbook : {}) as Record<
+    string,
+    unknown
+  >
   const playbook: PlaybookTactics = {
     attackStructure:
-      typeof playbookInput.attackStructure === 'string' ? playbookInput.attackStructure : base.playbook.attackStructure,
+      typeof playbookInput.attackStructure === 'string'
+        ? (playbookInput.attackStructure as PlaybookTactics['attackStructure'])
+        : base.playbook.attackStructure,
     defenseStructure:
       typeof playbookInput.defenseStructure === 'string'
-        ? playbookInput.defenseStructure
+        ? (playbookInput.defenseStructure as PlaybookTactics['defenseStructure'])
         : base.playbook.defenseStructure,
     setPieceFocus:
-      typeof playbookInput.setPieceFocus === 'string' ? playbookInput.setPieceFocus : base.playbook.setPieceFocus,
+      typeof playbookInput.setPieceFocus === 'string'
+        ? (playbookInput.setPieceFocus as PlaybookTactics['setPieceFocus'])
+        : base.playbook.setPieceFocus,
     kickPressure:
-      typeof playbookInput.kickPressure === 'string' ? playbookInput.kickPressure : base.playbook.kickPressure,
-    tempo: typeof playbookInput.tempo === 'string' ? playbookInput.tempo : base.playbook.tempo,
+      typeof playbookInput.kickPressure === 'string'
+        ? (playbookInput.kickPressure as PlaybookTactics['kickPressure'])
+        : base.playbook.kickPressure,
+    tempo:
+      typeof playbookInput.tempo === 'string' ? (playbookInput.tempo as PlaybookTactics['tempo']) : base.playbook.tempo,
   }
 
-  const statsInput = input.stats && typeof input.stats === 'object' ? (input.stats as any) : {}
+  const statsInput = (input.stats && typeof input.stats === 'object' ? input.stats : {}) as Record<string, unknown>
   const stats: ManagerStats = {
     matchesManaged:
       typeof statsInput.matchesManaged === 'number' ? Math.max(0, Math.round(statsInput.matchesManaged)) : 0,
@@ -231,7 +244,7 @@ export function parseCareer(value: unknown): Career {
         parseFixture(item, `career.season.fixtures[${index}]`),
       ),
     },
-    history: Array.isArray(input.history) ? (input.history as any) : [],
+    history: Array.isArray(input.history) ? (input.history as unknown as SeasonArchive[]) : [],
     freeAgents: Array.isArray(input.freeAgents)
       ? array(input.freeAgents, 'career.freeAgents').map((item, index) =>
           parsePlayer(item, `career.freeAgents[${index}]`),

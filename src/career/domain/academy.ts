@@ -22,7 +22,7 @@ export function generateYouthIntake(club: Club, year: number, count = 6): Player
   ]
 
   return Array.from({ length: count }, (_, i) => {
-    const role = sampleRoles[(i + year) % sampleRoles.length]!
+    const role = sampleRoles[(i + year) % sampleRoles.length] ?? 'hooker'
     const stats = generatePlayerStats(role, i + year * 3, i + 5)
     const age = 17 + (i % 3) // 17, 18, 19
     const potentialBonus = Math.round(academyLvl * 2.5 + dirLvl * 2.0)
