@@ -1,11 +1,8 @@
-import type { GameState, MatchResult } from "../domain.ts";
+import type { GameState, MatchResult } from './domain.ts'
 
-export const SIMULATION_VERSION = 1;
+export const SIMULATION_VERSION = 1
 
-export const createMatchResult = (
-  state: GameState,
-  seed: number,
-): MatchResult => ({
+export const createMatchResult = (state: GameState, seed: number): MatchResult => ({
   simulationVersion: SIMULATION_VERSION,
   seed,
   score: [...state.scores],
@@ -19,5 +16,5 @@ export const createMatchResult = (
   })),
   teamStats: state.teamStats.map((stats) => ({
     ...stats,
-  })) as MatchResult["teamStats"],
-});
+  })) as MatchResult['teamStats'],
+})

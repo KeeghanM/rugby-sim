@@ -1,218 +1,141 @@
-import {
-  attackDirection,
-  type GameState,
-  otherTeam,
-  PITCH,
-  type Player,
-  type Position,
-  ROLES,
-  type Team,
-} from "../../../domain.ts";
-import {
-  getKickoffTarget,
-  getLineoutTarget,
-  getScrumTarget,
-  isForward,
-  LINEOUT_MEMBER_VARIANTS,
-} from "../../../formations/index.ts";
-import { carryBall, launchBall, startGoalLineDropout } from "../../ball.ts";
-import { scoreTry } from "../conversion.ts";
-import { startPenalty } from "../penalty.ts";
-import { groupStrength, teamDecision } from "../utils.ts";
-import {
-  clamp,
-  contactStrength,
-  distance,
-  effectiveSkill,
-  GRAVITY,
-  insideOwnTwentyTwo,
-  overallSkill,
-} from "../../math.ts";
-import type { Random } from "../../types.ts";
+import { otherTeam, PITCH, type Player, type Position, ROLES, type GameState } from '../../domain.ts'
+import { startPenalty } from '../penalty.ts'
+import { groupStrength, teamDecision } from '../utils.ts'
+import { clamp, distance } from '../../math.ts'
+import type { Random } from '../../types.ts'
 
-import { executeRuckPlay } from "./execute.ts";
-import { chooseRuckPlay } from "./helpers.ts";
+import { executeRuckPlay } from './execute.ts'
+import { chooseRuckPlay } from './helpers.ts'
 
-export const updateRuck = (
-  state: GameState,
-  deltaSeconds: number,
-  random: Random,
-) => {
-  const phase = state.phase;
-  if (phase.kind !== "ruck") return;
-  phase.elapsed += deltaSeconds;
+export const updateRuck = (state: GameState, deltaSeconds: number, random: Random) => {
+  const phase = state.phase
+  if (phase.kind !== 'ruck') return
+  phase.elapsed += deltaSeconds
 
-  const joinedCount =
-    phase.joinedAttackers.length + phase.joinedDefenders.length;
+  const joinedCount = phase.joinedAttackers.length + phase.joinedDefenders.length
 
   for (const player of state.players) {
-    if (player.id === phase.tackledPlayerId || player.id === phase.tacklerId)
-      continue;
-    const distToRuck = distance(player.position, phase.position);
+    if (player.id === phase.tackledPlayerId || player.id === phase.tacklerId) continue
+    const distToRuck = distance(player.position, phase.position)
 
-    const isAttacking = player.team === phase.attackingTeam;
-    const isTargeting = isAttacking
-      ? phase.attackers.includes(player.id)
-      : phase.defenders.includes(player.id);
+    const isAttacking = player.team === phase.attackingTeam
+    const isTargeting = isAttacking ? phase.attackers.includes(player.id) : phase.defenders.includes(player.id)
     const isAlreadyJoined = isAttacking
       ? phase.joinedAttackers.includes(player.id)
-      : phase.joinedDefenders.includes(player.id);
+      : phase.joinedDefenders.includes(player.id)
 
     // Players within 1.6 m may fill a sparse ruck even without prior targeting.
-    const shouldJoin =
-      !isAlreadyJoined && distToRuck <= 1.6 && (isTargeting || joinedCount < 3);
+    const shouldJoin = !isAlreadyJoined && distToRuck <= 1.6 && (isTargeting || joinedCount < 3)
 
     if (shouldJoin) {
       if (isAttacking) {
-        phase.joinedAttackers.push(player.id);
-        if (!phase.attackers.includes(player.id))
-          phase.attackers.push(player.id);
+        phase.joinedAttackers.push(player.id)
+        if (!phase.attackers.includes(player.id)) phase.attackers.push(player.id)
       } else {
-        phase.joinedDefenders.push(player.id);
-        if (!phase.defenders.includes(player.id))
-          phase.defenders.push(player.id);
+        phase.joinedDefenders.push(player.id)
+        if (!phase.defenders.includes(player.id)) phase.defenders.push(player.id)
       }
-      phase.joinOrder.push(player.id);
-      player.ruckRecoverySeconds = 999;
+      phase.joinOrder.push(player.id)
+      player.ruckRecoverySeconds = 999
     }
   }
 
-  if (phase.stage === "arrivals") {
-    const attackersArrived = phase.joinedAttackers.filter(
-      (id) => id !== phase.tackledPlayerId,
-    ).length;
-    const defendersArrived = phase.joinedDefenders.filter(
-      (id) => id !== phase.tacklerId,
-    ).length;
-    const arrivalsTimeout =
-      phase.elapsed >= (phase.tempo === "quick" ? 1.0 : 2.2);
+  if (phase.stage === 'arrivals') {
+    const attackersArrived = phase.joinedAttackers.filter((id) => id !== phase.tackledPlayerId).length
+    const defendersArrived = phase.joinedDefenders.filter((id) => id !== phase.tacklerId).length
+    const arrivalsTimeout = phase.elapsed >= (phase.tempo === 'quick' ? 1.0 : 2.2)
 
     if (arrivalsTimeout || (attackersArrived >= 1 && defendersArrived >= 1)) {
       // Decision deficits approximate Law 14 release and Law 15 hands/offside infringements.
-      const attackError =
-        0.01 + (1 - teamDecision(state, phase.attackingTeam)) * 0.045;
-      const defenceError =
-        0.01 +
-        (1 - teamDecision(state, otherTeam(phase.attackingTeam))) * 0.045;
+      const attackError = 0.01 + (1 - teamDecision(state, phase.attackingTeam)) * 0.045
+      const defenceError = 0.01 + (1 - teamDecision(state, otherTeam(phase.attackingTeam))) * 0.045
       if (random() < (attackError + defenceError) / 2) {
-        const isAttackerInfraction =
-          random() < attackError / (attackError + defenceError);
+        const isAttackerInfraction = random() < attackError / (attackError + defenceError)
         if (isAttackerInfraction) {
-          const carrier = state.players.find(
-            (p) => p.id === phase.tackledPlayerId,
-          );
-          startPenalty(
-            state,
-            otherTeam(phase.attackingTeam),
-            phase.position,
-            carrier,
-            random,
-          );
+          const carrier = state.players.find((p) => p.id === phase.tackledPlayerId)
+          startPenalty(state, otherTeam(phase.attackingTeam), phase.position, carrier, random)
         } else {
-          const tackler = state.players.find((p) => p.id === phase.tacklerId);
-          startPenalty(
-            state,
-            phase.attackingTeam,
-            phase.position,
-            tackler,
-            random,
-          );
+          const tackler = state.players.find((p) => p.id === phase.tacklerId)
+          startPenalty(state, phase.attackingTeam, phase.position, tackler, random)
         }
-        return;
+        return
       }
 
-      const isolatedCarrier = defendersArrived > 0 && attackersArrived === 0;
-      const jackleMultiplier = isolatedCarrier ? 1.85 : 1.0;
+      const isolatedCarrier = defendersArrived > 0 && attackersArrived === 0
+      const jackleMultiplier = isolatedCarrier ? 1.85 : 1.0
       // First defender over isolated carrier receives jackal advantage before cleaners arrive.
-      const originalAttackingTeam = phase.attackingTeam;
-      const attackWeight = groupStrength(state, phase.joinedAttackers);
-      const defenceWeight =
-        groupStrength(state, phase.joinedDefenders) * jackleMultiplier;
-      const defensivePressure = defenceWeight / Math.max(1, attackWeight);
+      const originalAttackingTeam = phase.attackingTeam
+      const attackWeight = groupStrength(state, phase.joinedAttackers)
+      const defenceWeight = groupStrength(state, phase.joinedDefenders) * jackleMultiplier
+      const defensivePressure = defenceWeight / Math.max(1, attackWeight)
       const turnoverChance = clamp(
         0.035 + Math.max(0, defensivePressure - 0.8) * 0.2,
         0.02,
         isolatedCarrier ? 0.22 : 0.18,
-      );
-      phase.counterRuck = random() < turnoverChance;
-      phase.winningTeam = phase.counterRuck
-        ? otherTeam(phase.attackingTeam)
-        : phase.attackingTeam;
+      )
+      phase.counterRuck = random() < turnoverChance
+      phase.winningTeam = phase.counterRuck ? otherTeam(phase.attackingTeam) : phase.attackingTeam
 
-      state.teamStats[phase.winningTeam].rucksWon += 1;
-      state.teamStats[otherTeam(phase.winningTeam)].rucksLost += 1;
+      state.teamStats[phase.winningTeam].rucksWon += 1
+      state.teamStats[otherTeam(phase.winningTeam)].rucksLost += 1
 
       if (phase.winningTeam !== originalAttackingTeam) {
-        phase.attackingTeam = phase.winningTeam;
-        phase.play = chooseRuckPlay(
-          state,
-          phase.attackingTeam,
-          phase.position,
-          random,
-        );
+        phase.attackingTeam = phase.winningTeam
+        phase.play = chooseRuckPlay(state, phase.attackingTeam, phase.position, random)
       }
-      phase.stage = "secure";
-      phase.elapsed = 0;
+      phase.stage = 'secure'
+      phase.elapsed = 0
     }
-    return;
+    return
   }
 
-  const winningTeam = phase.winningTeam ?? phase.attackingTeam;
+  const winningTeam = phase.winningTeam ?? phase.attackingTeam
   const isAvailable = (p: Player) =>
     !phase.joinedAttackers.includes(p.id) &&
     !phase.joinedDefenders.includes(p.id) &&
     p.id !== phase.tackledPlayerId &&
-    p.id !== phase.tacklerId;
+    p.id !== phase.tacklerId
 
   const preferredHalf = state.players.find(
-    (p) =>
-      p.team === winningTeam && p.role === ROLES.ScrumHalf && isAvailable(p),
-  );
+    (p) => p.team === winningTeam && p.role === ROLES.ScrumHalf && isAvailable(p),
+  )
   const distributor =
     preferredHalf ??
     state.players
       .filter((p) => p.team === winningTeam && isAvailable(p))
-      .sort(
-        (a, b) =>
-          distance(a.position, phase.position) -
-          distance(b.position, phase.position),
-      )[0];
+      .sort((a, b) => distance(a.position, phase.position) - distance(b.position, phase.position))[0]
 
-  if (!distributor) return;
+  if (!distributor) return
 
-  const teamDir = attackDirection(winningTeam);
+  const teamDir = winningTeam === 0 ? 1 : -1
   const ruckBasePos: Position = {
     x: clamp(phase.position.x, -32, 32),
-    z: clamp(
-      phase.position.z - teamDir * 1.1,
-      PITCH.deadBallLines.south + 1,
-      PITCH.deadBallLines.north - 1,
-    ),
-  };
+    z: clamp(phase.position.z - teamDir * 1.1, PITCH.deadBallLines.south + 1, PITCH.deadBallLines.north - 1),
+  }
 
-  const distributorAtBase = distance(distributor.position, ruckBasePos) <= 1.4;
+  const distributorAtBase = distance(distributor.position, ruckBasePos) <= 1.4
 
-  if (phase.stage === "secure") {
+  if (phase.stage === 'secure') {
     if (distributorAtBase || phase.elapsed >= 3.5) {
-      phase.stage = "available";
-      phase.elapsed = 0;
+      phase.stage = 'available'
+      phase.elapsed = 0
       // Possession transfers only when distributor reaches base or anti-stall timeout expires.
-      state.ball.carrierId = distributor.id;
-      state.ball.flight = null;
+      state.ball.carrierId = distributor.id
+      state.ball.flight = null
       state.ball.position = {
         x: distributor.position.x,
         y: 0.5,
         z: distributor.position.z,
-      };
+      }
     }
-    return;
+    return
   }
 
-  if (phase.stage === "available") {
+  if (phase.stage === 'available') {
     // Tempo controls simulated scan time before distributor commits to selected play.
-    const pauseTime = phase.tempo === "quick" ? 0.45 : 0.95;
+    const pauseTime = phase.tempo === 'quick' ? 0.45 : 0.95
     if (phase.elapsed >= pauseTime) {
-      executeRuckPlay(state, random);
+      executeRuckPlay(state, random)
     }
   }
-};
+}

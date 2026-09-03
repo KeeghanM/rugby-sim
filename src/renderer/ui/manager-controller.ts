@@ -1,113 +1,99 @@
-import type { Team } from "../../domain.ts";
-import { isEditableTarget } from "../../dom.ts";
+import type { Team } from '../../simulation/domain.ts'
+import { isEditableTarget } from '../../lib/dom.ts'
 
-export type ManagerView = "roster" | "stats";
+export type ManagerView = 'roster' | 'stats'
 
 type ManagerElements = {
-  dialog: HTMLDialogElement;
-  opener: HTMLButtonElement;
-  closeButton: HTMLButtonElement;
-  teamTabs: [HTMLButtonElement, HTMLButtonElement];
-  viewTabs: Record<ManagerView, HTMLButtonElement>;
-};
+  dialog: HTMLDialogElement
+  opener: HTMLButtonElement
+  closeButton: HTMLButtonElement
+  teamTabs: [HTMLButtonElement, HTMLButtonElement]
+  viewTabs: Record<ManagerView, HTMLButtonElement>
+}
 
-export const createManagerController = (
-  elements: ManagerElements,
-  signal: AbortSignal,
-) => {
-  let selectedTeam: Team = 0;
-  let selectedView: ManagerView = "roster";
-  let restoreFocus: HTMLElement | null = null;
-  let dirty = true;
-  let lastRenderAt = -Infinity;
+export const createManagerController = (elements: ManagerElements, signal: AbortSignal) => {
+  let selectedTeam: Team = 0
+  let selectedView: ManagerView = 'roster'
+  let restoreFocus: HTMLElement | null = null
+  let dirty = true
+  let lastRenderAt = -Infinity
 
   const markSelection = () => {
     elements.teamTabs.forEach((tab, team) => {
-      const selected = team === selectedTeam;
-      tab.classList.toggle("active", selected);
-      tab.setAttribute("aria-pressed", String(selected));
-    });
-    for (const [view, tab] of Object.entries(elements.viewTabs) as [
-      ManagerView,
-      HTMLButtonElement,
-    ][]) {
-      const selected = view === selectedView;
-      tab.classList.toggle("active", selected);
-      tab.setAttribute("aria-pressed", String(selected));
+      const selected = team === selectedTeam
+      tab.classList.toggle('active', selected)
+      tab.setAttribute('aria-pressed', String(selected))
+    })
+    for (const [view, tab] of Object.entries(elements.viewTabs) as [ManagerView, HTMLButtonElement][]) {
+      const selected = view === selectedView
+      tab.classList.toggle('active', selected)
+      tab.setAttribute('aria-pressed', String(selected))
     }
-    dirty = true;
-  };
+    dirty = true
+  }
 
   const open = () => {
-    if (elements.dialog.open) return;
-    restoreFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : elements.opener;
-    elements.opener.setAttribute("aria-expanded", "true");
-    dirty = true;
-    elements.dialog.showModal();
-    elements.closeButton.focus();
-  };
+    if (elements.dialog.open) return
+    restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : elements.opener
+    elements.opener.setAttribute('aria-expanded', 'true')
+    dirty = true
+    elements.dialog.showModal()
+    elements.closeButton.focus()
+  }
 
   const close = () => {
-    if (elements.dialog.open) elements.dialog.close();
-  };
+    if (elements.dialog.open) elements.dialog.close()
+  }
 
-  elements.opener.addEventListener("click", open, { signal });
-  elements.closeButton.addEventListener("click", close, { signal });
+  elements.opener.addEventListener('click', open, { signal })
+  elements.closeButton.addEventListener('click', close, { signal })
   elements.dialog.addEventListener(
-    "click",
+    'click',
     (event) => {
-      if (event.target === elements.dialog) close();
+      if (event.target === elements.dialog) close()
     },
     { signal },
-  );
+  )
   elements.dialog.addEventListener(
-    "cancel",
+    'cancel',
     (event) => {
-      event.preventDefault();
-      close();
+      event.preventDefault()
+      close()
     },
     { signal },
-  );
+  )
   elements.dialog.addEventListener(
-    "close",
+    'close',
     () => {
-      elements.opener.setAttribute("aria-expanded", "false");
-      const focusTarget = restoreFocus?.isConnected
-        ? restoreFocus
-        : elements.opener;
-      restoreFocus = null;
-      focusTarget.focus();
+      elements.opener.setAttribute('aria-expanded', 'false')
+      const focusTarget = restoreFocus?.isConnected ? restoreFocus : elements.opener
+      restoreFocus = null
+      focusTarget.focus()
     },
     { signal },
-  );
+  )
   elements.teamTabs.forEach((tab, team) => {
     tab.addEventListener(
-      "click",
+      'click',
       () => {
-        selectedTeam = team as Team;
-        markSelection();
+        selectedTeam = team as Team
+        markSelection()
       },
       { signal },
-    );
-  });
-  for (const [view, tab] of Object.entries(elements.viewTabs) as [
-    ManagerView,
-    HTMLButtonElement,
-  ][]) {
+    )
+  })
+  for (const [view, tab] of Object.entries(elements.viewTabs) as [ManagerView, HTMLButtonElement][]) {
     tab.addEventListener(
-      "click",
+      'click',
       () => {
-        selectedView = view;
-        markSelection();
+        selectedView = view
+        markSelection()
       },
       { signal },
-    );
+    )
   }
   window.addEventListener(
-    "keydown",
+    'keydown',
     (event) => {
       if (
         !elements.dialog.open &&
@@ -116,32 +102,32 @@ export const createManagerController = (
         !event.ctrlKey &&
         !event.metaKey &&
         !isEditableTarget(event.target) &&
-        (event.key === "m" || event.key === "M")
+        (event.key === 'm' || event.key === 'M')
       ) {
-        open();
+        open()
       }
     },
     { signal },
-  );
+  )
 
-  markSelection();
+  markSelection()
 
   return {
     isOpen: () => elements.dialog.open,
     getSelectedTeam: () => selectedTeam,
     getSelectedView: () => selectedView,
     shouldRender(now: number) {
-      if (!elements.dialog.open) return false;
-      if (!dirty && now - lastRenderAt < 250) return false;
-      dirty = false;
-      lastRenderAt = now;
-      return true;
+      if (!elements.dialog.open) return false
+      if (!dirty && now - lastRenderAt < 250) return false
+      dirty = false
+      lastRenderAt = now
+      return true
     },
     dispose() {
-      restoreFocus = null;
-      if (elements.dialog.open) elements.dialog.close();
+      restoreFocus = null
+      if (elements.dialog.open) elements.dialog.close()
     },
-  };
-};
+  }
+}
 
-export type ManagerController = ReturnType<typeof createManagerController>;
+export type ManagerController = ReturnType<typeof createManagerController>

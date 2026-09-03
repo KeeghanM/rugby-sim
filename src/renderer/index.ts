@@ -1,66 +1,44 @@
-import { Color3, HemisphericLight, Vector3 } from "@babylonjs/core";
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
-import type { GameState } from "../domain.ts";
-import { createPitch } from "./pitch.ts";
-import { createEnvironment } from "./environment.ts";
-import { createPlayerViews, syncPlayers } from "./players.ts";
-import { createCameras } from "./cameras.ts";
-import { createUI, syncUI } from "./ui.ts";
+import { Color3, HemisphericLight, Vector3 } from '@babylonjs/core'
+import type { Engine } from '@babylonjs/core/Engines/engine'
+import { Scene } from '@babylonjs/core/scene'
+import type { GameState } from '../simulation/domain.ts'
+import { createPitch } from './pitch.ts'
+import { createEnvironment } from './environment.ts'
+import { createPlayerViews, syncPlayers } from './players.ts'
+import { createCameras } from './cameras.ts'
+import { createUI } from './ui/create.ts'
+import { syncUI } from './ui/sync.ts'
 
-export const createRenderer = (
-  engine: Engine,
-  canvas: HTMLCanvasElement,
-  state: GameState,
-  onExit?: () => void,
-) => {
-  const scene = new Scene(engine);
-  const env = createEnvironment(scene);
-  createPitch(scene);
+export const createRenderer = (engine: Engine, canvas: HTMLCanvasElement, state: GameState, onExit?: () => void) => {
+  const scene = new Scene(engine)
+  const env = createEnvironment(scene)
+  createPitch(scene)
 
-  const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
-  light.intensity = 0.92;
-  light.groundColor = Color3.FromHexString("#dbeafe");
+  const light = new HemisphericLight('light', new Vector3(0, 1, 0), scene)
+  light.intensity = 0.92
+  light.groundColor = Color3.FromHexString('#dbeafe')
 
-  const {
-    views,
-    refMesh,
-    ar1Mesh,
-    ar2Mesh,
-    carrierMarker,
-    gainLinePlane,
-    ball,
-  } = createPlayerViews(scene, state);
-  const ui = createUI(state, onExit);
-  const cameras = createCameras(scene, canvas, ui.manager.isOpen);
-  let disposed = false;
+  const { views, refMesh, ar1Mesh, ar2Mesh, carrierMarker, gainLinePlane, ball } = createPlayerViews(scene, state)
+  const ui = createUI(state, onExit)
+  const cameras = createCameras(scene, canvas, ui.manager.isOpen)
+  let disposed = false
 
   return {
     scene,
     getSimulationSpeed: ui.getSimulationSpeed,
     sync(game: GameState) {
-      cameras.sync(game);
-      const isRefCam = cameras.getCurrentShot() === "refCam";
-      syncPlayers(
-        game,
-        views,
-        refMesh,
-        ar1Mesh,
-        ar2Mesh,
-        carrierMarker,
-        gainLinePlane,
-        ball,
-        isRefCam,
-      );
-      env.updateScoreboards(game);
-      syncUI(game, ui, scene, engine);
+      cameras.sync(game)
+      const isRefCam = cameras.getCurrentShot() === 'refCam'
+      syncPlayers(game, views, refMesh, ar1Mesh, ar2Mesh, carrierMarker, gainLinePlane, ball, isRefCam)
+      env.updateScoreboards(game)
+      syncUI(game, ui, scene, engine)
     },
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      cameras.dispose();
-      ui.dispose();
-      scene.dispose();
+      if (disposed) return
+      disposed = true
+      cameras.dispose()
+      ui.dispose()
+      scene.dispose()
     },
-  };
-};
+  }
+}

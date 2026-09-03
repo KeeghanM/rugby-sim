@@ -1,2 +1,2 @@
-export * from "./domain.ts";
-export * from "./save.ts";
+export * from './domain/index.ts'
+export * from './save/index.ts'

@@ -7,15 +7,10 @@ import {
   type PlayerStats,
   type TeamMatchStats,
   otherTeam,
-} from "../domain.ts";
-import { ATTACK_FORMATION } from "../formations.ts";
-import {
-  BENCH_SLOTS,
-  createMatchConfig,
-  getPlayerProfile,
-  rollTeamTactics,
-} from "../teams/index.ts";
-import type { Random } from "./types.ts";
+} from './domain.ts'
+import { ATTACK_FORMATION } from './formations.ts'
+import { BENCH_SLOTS, createMatchConfig, getPlayerProfile, rollTeamTactics } from './teams/index.ts'
+import type { Random } from './types.ts'
 
 const createInitialStats = (): PlayerStats => ({
   distanceCovered: 0,
@@ -31,7 +26,7 @@ const createInitialStats = (): PlayerStats => ({
   penaltiesConceded: 0,
   knockOns: 0,
   forwardPasses: 0,
-});
+})
 
 const createTeamStats = (): TeamMatchStats => ({
   rucksWon: 0,
@@ -42,56 +37,50 @@ const createTeamStats = (): TeamMatchStats => ({
   scrumsLost: 0,
   lineoutsWon: 0,
   lineoutsLost: 0,
-});
+})
 
 const defaultEntrants = (team: 0 | 1): MatchTeamEntrants => ({
-  starters: ATTACK_FORMATION.map(
-    (_, index) => `team-${team}-player-${index + 1}`,
-  ),
+  starters: ATTACK_FORMATION.map((_, index) => `team-${team}-player-${index + 1}`),
   substitutes: BENCH_SLOTS.map((bench) => `team-${team}-sub-${bench.number}`),
-});
+})
 
 export const createMatchInput = (
   teams: MatchConfig = createMatchConfig(),
-  entrants: MatchInput["entrants"] = {
+  entrants: MatchInput['entrants'] = {
     0: defaultEntrants(0),
     1: defaultEntrants(1),
   },
-): MatchInput => ({ teams, entrants });
+): MatchInput => ({ teams, entrants })
 
 const validateEntrants = (input: MatchInput) => {
   const ids = ([0, 1] as const).flatMap((team) => {
-    const entrants = input.entrants[team];
+    const entrants = input.entrants[team]
     if (entrants.starters.length !== ATTACK_FORMATION.length) {
-      throw new RangeError(`Team ${team} must provide 15 starters`);
+      throw new RangeError(`Team ${team} must provide 15 starters`)
     }
     if (entrants.substitutes.length !== BENCH_SLOTS.length) {
-      throw new RangeError(`Team ${team} must provide 8 substitutes`);
+      throw new RangeError(`Team ${team} must provide 8 substitutes`)
     }
-    return [...entrants.starters, ...entrants.substitutes];
-  });
-  if (ids.some((id) => !id.trim()))
-    throw new RangeError("Player IDs are required");
+    return [...entrants.starters, ...entrants.substitutes]
+  })
+  if (ids.some((id) => !id.trim())) throw new RangeError('Player IDs are required')
   if (new Set(ids).size !== ids.length) {
-    throw new RangeError("Player IDs must be unique within a match");
+    throw new RangeError('Player IDs must be unique within a match')
   }
-};
+}
 
-export const createGame = (
-  input: MatchInput = createMatchInput(),
-  random: Random = Math.random,
-): GameState => {
-  validateEntrants(input);
-  const gameTeams = createMatchConfig(input.teams);
-  const team0Tactics = rollTeamTactics(0, random, gameTeams);
-  const team1Tactics = rollTeamTactics(1, random, gameTeams);
-  const firstHalfKickingTeam = random() < 0.5 ? 0 : 1;
+export const createGame = (input: MatchInput = createMatchInput(), random: Random = Math.random): GameState => {
+  validateEntrants(input)
+  const gameTeams = createMatchConfig(input.teams)
+  const team0Tactics = rollTeamTactics(0, random, gameTeams)
+  const team1Tactics = rollTeamTactics(1, random, gameTeams)
+  const firstHalfKickingTeam = random() < 0.5 ? 0 : 1
   return {
     teams: gameTeams,
     players: ([0, 1] as const).flatMap((team) =>
       ATTACK_FORMATION.map((slot, index) => {
-        const position = { x: slot.x, z: slot.z * attackDirection(team) };
-        const profile = getPlayerProfile(team, index + 1, slot.role, gameTeams);
+        const position = { x: slot.x, z: slot.z * attackDirection(team) }
+        const profile = getPlayerProfile(team, index + 1, slot.role, gameTeams)
         return {
           id: `team-${team}-player-${index + 1}`,
           playerId: input.entrants[team].starters[index],
@@ -105,7 +94,7 @@ export const createGame = (
           laneX: position.x,
           velocity: { x: 0, z: 0 },
           intentTarget: { ...position },
-          intentKind: "kickoff-forming",
+          intentKind: 'kickoff-forming',
           intentForSeconds: 0,
           decisionForSeconds: 0,
           speed: profile.speed,
@@ -121,17 +110,12 @@ export const createGame = (
           pendingBallAction: null,
           skills: profile.skills,
           stats: createInitialStats(),
-        };
+        }
       }),
     ),
     substitutes: ([0, 1] as const).flatMap((team) =>
       BENCH_SLOTS.map((bench, index) => {
-        const profile = getPlayerProfile(
-          team,
-          bench.number,
-          bench.role,
-          gameTeams,
-        );
+        const profile = getPlayerProfile(team, bench.number, bench.role, gameTeams)
         return {
           id: `team-${team}-sub-${bench.number}`,
           playerId: input.entrants[team].substitutes[index],
@@ -146,7 +130,7 @@ export const createGame = (
           skills: profile.skills,
           stats: createInitialStats(),
           isUsed: false,
-        };
+        }
       }),
     ),
     recentSubstitution: null,
@@ -164,11 +148,11 @@ export const createGame = (
     },
     scores: [0, 0],
     phase: {
-      kind: "kickoff",
-      stage: "forming",
+      kind: 'kickoff',
+      stage: 'forming',
       kickingTeam: firstHalfKickingTeam,
       readyForSeconds: 0,
-      reason: "matchStart",
+      reason: 'matchStart',
     },
     pendingClearanceKickerId: null,
     pendingLineoutTeam: null,
@@ -192,9 +176,9 @@ export const createGame = (
         {
           position: { x: -36.2, z: 0 },
           velocity: { x: 0, z: 0 },
-          side: "west",
+          side: 'west',
         },
-        { position: { x: 36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: "east" },
+        { position: { x: 36.2, z: 0 }, velocity: { x: 0, z: 0 }, side: 'east' },
       ],
     },
     phaseCount: 1,
@@ -203,5 +187,5 @@ export const createGame = (
     possessionOriginZ: 0,
     distanceGained: 0,
     teamStats: [createTeamStats(), createTeamStats()],
-  };
-};
+  }
+}

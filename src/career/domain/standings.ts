@@ -1,4 +1,4 @@
-import type { Career, Fixture, Standing } from "./types.ts";
+import type { Career, Fixture, Standing } from './types.ts'
 
 export function deriveStandings(career: Career): Standing[] {
   const table = new Map(
@@ -17,33 +17,32 @@ export function deriveStandings(career: Career): Standing[] {
         tablePoints: 0,
       },
     ]),
-  );
+  )
 
   for (const fixture of career.season.fixtures) {
-    if (fixture.status !== "played" || fixture.result === null) continue;
-    const home = table.get(fixture.homeClubId);
-    const away = table.get(fixture.awayClubId);
-    if (home === undefined || away === undefined)
-      throw new Error("Fixture references unknown club");
-    home.played += 1;
-    away.played += 1;
-    home.pointsFor += fixture.result.homeScore;
-    home.pointsAgainst += fixture.result.awayScore;
-    away.pointsFor += fixture.result.awayScore;
-    away.pointsAgainst += fixture.result.homeScore;
+    if (fixture.status !== 'played' || fixture.result === null) continue
+    const home = table.get(fixture.homeClubId)
+    const away = table.get(fixture.awayClubId)
+    if (home === undefined || away === undefined) throw new Error('Fixture references unknown club')
+    home.played += 1
+    away.played += 1
+    home.pointsFor += fixture.result.homeScore
+    home.pointsAgainst += fixture.result.awayScore
+    away.pointsFor += fixture.result.awayScore
+    away.pointsAgainst += fixture.result.homeScore
     if (fixture.result.homeScore > fixture.result.awayScore) {
-      home.won += 1;
-      away.lost += 1;
-      home.tablePoints += 4;
+      home.won += 1
+      away.lost += 1
+      home.tablePoints += 4
     } else if (fixture.result.homeScore < fixture.result.awayScore) {
-      away.won += 1;
-      home.lost += 1;
-      away.tablePoints += 4;
+      away.won += 1
+      home.lost += 1
+      away.tablePoints += 4
     } else {
-      home.drawn += 1;
-      away.drawn += 1;
-      home.tablePoints += 2;
-      away.tablePoints += 2;
+      home.drawn += 1
+      away.drawn += 1
+      home.tablePoints += 2
+      away.tablePoints += 2
     }
   }
 
@@ -58,16 +57,15 @@ export function deriveStandings(career: Career): Standing[] {
         b.pointsDifference - a.pointsDifference ||
         b.pointsFor - a.pointsFor ||
         a.clubId.localeCompare(b.clubId),
-    );
+    )
 }
 
 export function getUpcomingManagedFixture(career: Career): Fixture | null {
   return (
     career.season.fixtures.find(
       (fixture) =>
-        fixture.status === "scheduled" &&
-        (fixture.homeClubId === career.managedClubId ||
-          fixture.awayClubId === career.managedClubId),
+        fixture.status === 'scheduled' &&
+        (fixture.homeClubId === career.managedClubId || fixture.awayClubId === career.managedClubId),
     ) ?? null
-  );
+  )
 }

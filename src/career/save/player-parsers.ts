@@ -9,160 +9,91 @@ import {
   type PlayerCareerRecord,
   type PlayerInjury,
   type TrainingPlan,
-} from "../domain/index.ts";
-import {
-  boundedInteger,
-  integer,
-  nullable,
-  number,
-  record,
-  string,
-} from "./primitives.ts";
+} from '../domain/index.ts'
+import { boundedInteger, integer, nullable, number, record, string } from './primitives.ts'
 
 export function parsePlayerInjury(value: unknown, path: string): PlayerInjury {
-  const input = record(value, path);
-  const rawSeverity = string(input.severity, `${path}.severity`);
-  if (
-    rawSeverity !== "minor" &&
-    rawSeverity !== "moderate" &&
-    rawSeverity !== "severe"
-  ) {
-    throw new Error(`Invalid career save: ${path}.severity is unsupported`);
+  const input = record(value, path)
+  const rawSeverity = string(input.severity, `${path}.severity`)
+  if (rawSeverity !== 'minor' && rawSeverity !== 'moderate' && rawSeverity !== 'severe') {
+    throw new Error(`Invalid career save: ${path}.severity is unsupported`)
   }
   return {
     type: string(input.type, `${path}.type`),
-    weeksRemaining: boundedInteger(
-      input.weeksRemaining,
-      `${path}.weeksRemaining`,
-      1,
-      20,
-    ),
+    weeksRemaining: boundedInteger(input.weeksRemaining, `${path}.weeksRemaining`, 1, 20),
     severity: rawSeverity,
-  };
+  }
 }
 
-export function parsePlayerCareerRecord(
-  value: unknown,
-  path: string,
-): PlayerCareerRecord {
+export function parsePlayerCareerRecord(value: unknown, path: string): PlayerCareerRecord {
   if (value === undefined || value === null) {
-    return createInitialCareerRecord();
+    return createInitialCareerRecord()
   }
-  const input = record(value, path);
+  const input = record(value, path)
   return {
     appearances: integer(input.appearances ?? 0, `${path}.appearances`),
     starts: integer(input.starts ?? 0, `${path}.starts`),
-    subAppearances: integer(
-      input.subAppearances ?? 0,
-      `${path}.subAppearances`,
-    ),
+    subAppearances: integer(input.subAppearances ?? 0, `${path}.subAppearances`),
     tries: integer(input.tries ?? 0, `${path}.tries`),
     lineBreaks: integer(input.lineBreaks ?? 0, `${path}.lineBreaks`),
     tacklesMade: integer(input.tacklesMade ?? 0, `${path}.tacklesMade`),
     tacklesMissed: integer(input.tacklesMissed ?? 0, `${path}.tacklesMissed`),
-    distanceCovered: number(
-      input.distanceCovered ?? 0,
-      `${path}.distanceCovered`,
-    ),
-    distanceCarried: number(
-      input.distanceCarried ?? 0,
-      `${path}.distanceCarried`,
-    ),
-    successfulPasses: integer(
-      input.successfulPasses ?? 0,
-      `${path}.successfulPasses`,
-    ),
+    distanceCovered: number(input.distanceCovered ?? 0, `${path}.distanceCovered`),
+    distanceCarried: number(input.distanceCarried ?? 0, `${path}.distanceCarried`),
+    successfulPasses: integer(input.successfulPasses ?? 0, `${path}.successfulPasses`),
     totalPasses: integer(input.totalPasses ?? 0, `${path}.totalPasses`),
-    successfulKicks: integer(
-      input.successfulKicks ?? 0,
-      `${path}.successfulKicks`,
-    ),
+    successfulKicks: integer(input.successfulKicks ?? 0, `${path}.successfulKicks`),
     totalKicks: integer(input.totalKicks ?? 0, `${path}.totalKicks`),
-    penaltiesConceded: integer(
-      input.penaltiesConceded ?? 0,
-      `${path}.penaltiesConceded`,
-    ),
+    penaltiesConceded: integer(input.penaltiesConceded ?? 0, `${path}.penaltiesConceded`),
     knockOns: integer(input.knockOns ?? 0, `${path}.knockOns`),
-  };
+  }
 }
 
-function parsePlayerSkills(
-  value: unknown,
-  path: string,
-  fallbackAttack?: number,
-  fallbackDefence?: number,
-) {
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    const input = value as Record<string, unknown>;
+function parsePlayerSkills(value: unknown, path: string, fallbackAttack?: number, fallbackDefence?: number) {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const input = value as Record<string, unknown>
     return {
       decision: boundedInteger(input.decision, `${path}.decision`, 0, 100),
       handling: boundedInteger(input.handling, `${path}.handling`, 0, 100),
       passing: boundedInteger(input.passing, `${path}.passing`, 0, 100),
       kicking: boundedInteger(input.kicking, `${path}.kicking`, 0, 100),
       tackling: boundedInteger(input.tackling, `${path}.tackling`, 0, 100),
-    };
+    }
   }
-  const atk = fallbackAttack ?? 65;
-  const def = fallbackDefence ?? 65;
+  const atk = fallbackAttack ?? 65
+  const def = fallbackDefence ?? 65
   return {
     decision: Math.round(Math.min(99, atk * 0.5 + def * 0.5)),
     handling: Math.round(Math.min(99, atk * 0.9)),
     passing: Math.round(Math.min(99, atk * 0.85)),
     kicking: Math.round(Math.min(99, atk * 0.7 + 10)),
     tackling: Math.round(Math.min(99, def * 0.95)),
-  };
+  }
 }
 
 export function parsePlayer(value: unknown, path: string): Player {
-  const input = record(value, path);
-  const rawRole = string(input.role, `${path}.role`);
-  const role = PLAYER_ROLES.find((candidate) => candidate === rawRole);
+  const input = record(value, path)
+  const rawRole = string(input.role, `${path}.role`)
+  const role = PLAYER_ROLES.find((candidate) => candidate === rawRole)
   if (role === undefined) {
-    throw new Error(`Invalid career save: ${path}.role is unsupported`);
+    throw new Error(`Invalid career save: ${path}.role is unsupported`)
   }
   const rawAttack =
-    typeof input.attack === "number"
-      ? boundedInteger(input.attack, `${path}.attack`, 0, 100)
-      : undefined;
+    typeof input.attack === 'number' ? boundedInteger(input.attack, `${path}.attack`, 0, 100) : undefined
   const rawDefence =
-    typeof input.defence === "number"
-      ? boundedInteger(input.defence, `${path}.defence`, 0, 100)
-      : undefined;
+    typeof input.defence === 'number' ? boundedInteger(input.defence, `${path}.defence`, 0, 100) : undefined
 
-  const skills = parsePlayerSkills(
-    input.skills,
-    `${path}.skills`,
-    rawAttack,
-    rawDefence,
-  );
-  const speed = boundedInteger(
-    input.speed ?? rawAttack ?? 70,
-    `${path}.speed`,
-    0,
-    100,
-  );
-  const strength = boundedInteger(
-    input.strength ?? rawDefence ?? 70,
-    `${path}.strength`,
-    0,
-    100,
-  );
-  const age = boundedInteger(input.age, `${path}.age`, 17, 45);
-  const wage = integer(input.wage ?? 1250, `${path}.wage`);
+  const skills = parsePlayerSkills(input.skills, `${path}.skills`, rawAttack, rawDefence)
+  const speed = boundedInteger(input.speed ?? rawAttack ?? 70, `${path}.speed`, 0, 100)
+  const strength = boundedInteger(input.strength ?? rawDefence ?? 70, `${path}.strength`, 0, 100)
+  const age = boundedInteger(input.age, `${path}.age`, 17, 45)
+  const wage = integer(input.wage ?? 1250, `${path}.wage`)
   const contractYears =
-    typeof input.contractYears === "number"
-      ? boundedInteger(input.contractYears, `${path}.contractYears`, 0, 5)
-      : 2;
+    typeof input.contractYears === 'number' ? boundedInteger(input.contractYears, `${path}.contractYears`, 0, 5) : 2
   const potential =
-    typeof input.potential === "number"
+    typeof input.potential === 'number'
       ? boundedInteger(input.potential, `${path}.potential`, 40, 99)
-      : Math.min(
-          99,
-          Math.round(
-            (speed + strength + skills.tackling) / 3 +
-              Math.max(0, 31 - age) * 0.8,
-          ),
-        );
+      : Math.min(99, Math.round((speed + strength + skills.tackling) / 3 + Math.max(0, 31 - age) * 0.8))
 
   const partialPlayer: Player = {
     id: string(input.id, `${path}.id`),
@@ -177,54 +108,42 @@ export function parsePlayer(value: unknown, path: string): Player {
     contractYears,
     marketValue: 0,
     potential,
-    injury: nullable(input.injury, (item) =>
-      parsePlayerInjury(item, `${path}.injury`),
-    ),
-    careerRecord: parsePlayerCareerRecord(
-      input.careerRecord,
-      `${path}.careerRecord`,
-    ),
-  };
+    injury: nullable(input.injury, (item) => parsePlayerInjury(item, `${path}.injury`)),
+    careerRecord: parsePlayerCareerRecord(input.careerRecord, `${path}.careerRecord`),
+  }
 
   const marketValue =
-    typeof input.marketValue === "number" && input.marketValue > 0
+    typeof input.marketValue === 'number' && input.marketValue > 0
       ? integer(input.marketValue, `${path}.marketValue`)
-      : calculatePlayerMarketValue(partialPlayer);
+      : calculatePlayerMarketValue(partialPlayer)
 
   return {
     ...partialPlayer,
     marketValue,
-  };
+  }
 }
 
 export function parseFacilities(value: unknown, path: string): Facilities {
-  const input = record(value, path);
+  const input = record(value, path)
   return {
     gym: boundedInteger(input.gym, `${path}.gym`, 1, 5),
-    trainingGround: boundedInteger(
-      input.trainingGround,
-      `${path}.trainingGround`,
-      1,
-      5,
-    ),
+    trainingGround: boundedInteger(input.trainingGround, `${path}.trainingGround`, 1, 5),
     medicalRoom: boundedInteger(input.medicalRoom, `${path}.medicalRoom`, 1, 5),
     academy: boundedInteger(input.academy ?? 1, `${path}.academy`, 1, 5),
-  };
+  }
 }
 
 export function parseTrainingPlan(value: unknown, path: string): TrainingPlan {
-  const input = record(value, path);
-  const rawFocus = string(input.focus, `${path}.focus`);
-  const focus = TRAINING_FOCUSES.find((candidate) => candidate === rawFocus);
+  const input = record(value, path)
+  const rawFocus = string(input.focus, `${path}.focus`)
+  const focus = TRAINING_FOCUSES.find((candidate) => candidate === rawFocus)
   if (focus === undefined) {
-    throw new Error(`Invalid career save: ${path}.focus is unsupported`);
+    throw new Error(`Invalid career save: ${path}.focus is unsupported`)
   }
-  const rawIntensity = string(input.intensity, `${path}.intensity`);
-  const intensity = TRAINING_INTENSITIES.find(
-    (candidate) => candidate === rawIntensity,
-  );
+  const rawIntensity = string(input.intensity, `${path}.intensity`)
+  const intensity = TRAINING_INTENSITIES.find((candidate) => candidate === rawIntensity)
   if (intensity === undefined) {
-    throw new Error(`Invalid career save: ${path}.intensity is unsupported`);
+    throw new Error(`Invalid career save: ${path}.intensity is unsupported`)
   }
-  return { focus, intensity };
+  return { focus, intensity }
 }

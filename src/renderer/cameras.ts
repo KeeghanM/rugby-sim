@@ -1,162 +1,128 @@
-import { FreeCamera, Matrix, UniversalCamera, Vector3 } from "@babylonjs/core";
-import { Scene } from "@babylonjs/core/scene";
-import type { GameState } from "../domain.ts";
-import { attackDirection, PITCH, ROLES } from "../domain.ts";
-import { isEditableTarget, requiredElement } from "../dom.ts";
-import { clamp, distance } from "../simulation/math.ts";
+import { FreeCamera, Matrix, UniversalCamera, Vector3 } from '@babylonjs/core'
+import type { Scene } from '@babylonjs/core/scene'
+import type { GameState } from '../simulation/domain.ts'
+import { attackDirection, PITCH } from '../simulation/domain.ts'
+import { isEditableTarget, requiredElement } from '../lib/dom.ts'
 
-export type CameraMode = "dynamic" | "free";
-type DynamicShotType =
-  | "broadcast"
-  | "goalLine"
-  | "refCam"
-  | "flyOver"
-  | "sidelineTight"
-  | "breakawayChase";
+export type CameraMode = 'dynamic' | 'free'
+type DynamicShotType = 'broadcast' | 'goalLine' | 'refCam' | 'flyOver' | 'sidelineTight' | 'breakawayChase'
 
-export const createCameras = (
-  scene: Scene,
-  canvas: HTMLCanvasElement,
-  isInputSuppressed: () => boolean,
-) => {
-  const lifecycle = new AbortController();
-  const { signal } = lifecycle;
-  const broadcastCam = new FreeCamera(
-    "broadcastCam",
-    new Vector3(52, 21, 0),
-    scene,
-  );
-  broadcastCam.setTarget(Vector3.Zero());
-  broadcastCam.inputs.removeByType("FreeCameraKeyboardMoveInput");
+export const createCameras = (scene: Scene, canvas: HTMLCanvasElement, isInputSuppressed: () => boolean) => {
+  const lifecycle = new AbortController()
+  const { signal } = lifecycle
+  const broadcastCam = new FreeCamera('broadcastCam', new Vector3(52, 21, 0), scene)
+  broadcastCam.setTarget(Vector3.Zero())
+  broadcastCam.inputs.removeByType('FreeCameraKeyboardMoveInput')
 
-  const freeCam = new UniversalCamera(
-    "freeCam",
-    new Vector3(0, 45, -75),
-    scene,
-  );
-  freeCam.setTarget(Vector3.Zero());
-  freeCam.speed = 2.2;
-  freeCam.angularSensibility = 3000;
-  freeCam.keysUp = [87];
-  freeCam.keysDown = [83];
-  freeCam.keysLeft = [65];
-  freeCam.keysRight = [68];
-  (freeCam as unknown as { inertia: number }).inertia = 0.5;
+  const freeCam = new UniversalCamera('freeCam', new Vector3(0, 45, -75), scene)
+  freeCam.setTarget(Vector3.Zero())
+  freeCam.speed = 2.2
+  freeCam.angularSensibility = 3000
+  freeCam.keysUp = [87]
+  freeCam.keysDown = [83]
+  freeCam.keysLeft = [65]
+  freeCam.keysRight = [68]
+  ;(freeCam as unknown as { inertia: number }).inertia = 0.5
 
-  let cameraMode: CameraMode = "dynamic";
-  let zoom = 1;
-  const ZOOM_MIN = 0.5;
-  const ZOOM_MAX = 2.3;
-  const BASE_FREE_FOV = 0.8;
+  let cameraMode: CameraMode = 'dynamic'
+  let zoom = 1
+  const ZOOM_MIN = 0.5
+  const ZOOM_MAX = 2.3
+  const BASE_FREE_FOV = 0.8
 
-  scene.activeCamera = broadcastCam;
+  scene.activeCamera = broadcastCam
 
-  let currentShot: DynamicShotType = "broadcast";
-  let shotDuration = 0;
-  let lastPhaseKind = "";
-  let ballOutOfViewTimer = 0;
-  const desiredCamPos = new Vector3(52, 21, 0);
-  const desiredTarget = new Vector3(0, 0, 0);
-  const ballPosVec = new Vector3();
-  const identityMat = Matrix.Identity();
+  let currentShot: DynamicShotType = 'broadcast'
+  let _shotDuration = 0
+  let lastPhaseKind = ''
+  let ballOutOfViewTimer = 0
+  const desiredCamPos = new Vector3(52, 21, 0)
+  const desiredTarget = new Vector3(0, 0, 0)
+  const ballPosVec = new Vector3()
+  const identityMat = Matrix.Identity()
 
-  const FREE_BASE_SPEED = 2.2;
-  const FREE_MAX_SPEED = 15.0;
-  let moveHoldTime = 0;
-  const moveKeys = new Set([
-    "w",
-    "a",
-    "s",
-    "d",
-    "q",
-    "e",
-    "arrowup",
-    "arrowdown",
-    "arrowleft",
-    "arrowright",
-  ]);
+  const FREE_BASE_SPEED = 2.2
+  const FREE_MAX_SPEED = 15.0
+  let moveHoldTime = 0
+  const moveKeys = new Set(['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
 
-  const heldKeys = new Set<string>();
+  const heldKeys = new Set<string>()
   window.addEventListener(
-    "keydown",
+    'keydown',
     (event) => {
       if (!isInputSuppressed() && !isEditableTarget(event.target)) {
-        heldKeys.add(event.key.toLowerCase());
+        heldKeys.add(event.key.toLowerCase())
       }
     },
     { signal },
-  );
-  window.addEventListener(
-    "keyup",
-    (event) => heldKeys.delete(event.key.toLowerCase()),
-    { signal },
-  );
+  )
+  window.addEventListener('keyup', (event) => heldKeys.delete(event.key.toLowerCase()), { signal })
 
   const updateCameraControls = () => {
-    broadcastCam.detachControl();
-    freeCam.detachControl();
-    if (cameraMode === "free" && !isInputSuppressed()) {
-      freeCam.attachControl(canvas, true);
+    broadcastCam.detachControl()
+    freeCam.detachControl()
+    if (cameraMode === 'free' && !isInputSuppressed()) {
+      freeCam.attachControl(canvas, true)
     }
-  };
+  }
 
   const camButtons = [
-    requiredElement("camera-dynamic-btn", HTMLButtonElement),
-    requiredElement("camera-free-btn", HTMLButtonElement),
-  ];
+    requiredElement('camera-dynamic-btn', HTMLButtonElement),
+    requiredElement('camera-free-btn', HTMLButtonElement),
+  ]
 
   const updateCamButtons = () => {
     for (const b of camButtons) {
-      b.classList.toggle("active", b.dataset.cam === cameraMode);
+      b.classList.toggle('active', b.dataset.cam === cameraMode)
     }
-  };
+  }
 
   const applyZoomImmediate = () => {
-    if (cameraMode === "free") {
-      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
-      freeCam.fov = fov;
+    if (cameraMode === 'free') {
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom))
+      freeCam.fov = fov
     }
-  };
+  }
 
   const setCameraMode = (mode: CameraMode) => {
-    if (mode === cameraMode) return;
-    cameraMode = mode;
-    scene.activeCamera = mode === "free" ? freeCam : broadcastCam;
-    if (mode === "free") {
-      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom));
-      freeCam.fov = fov;
+    if (mode === cameraMode) return
+    cameraMode = mode
+    scene.activeCamera = mode === 'free' ? freeCam : broadcastCam
+    if (mode === 'free') {
+      const fov = Math.max(0.25, Math.min(1.4, BASE_FREE_FOV / zoom))
+      freeCam.fov = fov
     } else {
-      shotDuration = 0;
+      _shotDuration = 0
     }
-    updateCameraControls();
-    updateCamButtons();
-  };
+    updateCameraControls()
+    updateCamButtons()
+  }
 
   for (const btn of camButtons) {
     btn.addEventListener(
-      "click",
+      'click',
       () => {
-        const mode = btn.dataset.cam;
-        if (mode === "dynamic" || mode === "free") setCameraMode(mode);
+        const mode = btn.dataset.cam
+        if (mode === 'dynamic' || mode === 'free') setCameraMode(mode)
       },
       { signal },
-    );
+    )
   }
 
   canvas.addEventListener(
-    "wheel",
+    'wheel',
     (e) => {
-      if (isInputSuppressed()) return;
-      e.preventDefault();
-      const delta = -e.deltaY * 0.0012;
-      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta));
-      applyZoomImmediate();
+      if (isInputSuppressed()) return
+      e.preventDefault()
+      const delta = -e.deltaY * 0.0012
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + delta))
+      applyZoomImmediate()
     },
     { passive: false, signal },
-  );
+  )
 
   window.addEventListener(
-    "keydown",
+    'keydown',
     (event) => {
       if (
         !isInputSuppressed() &&
@@ -165,58 +131,53 @@ export const createCameras = (
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey &&
-        (event.key === "c" || event.key === "C")
+        (event.key === 'c' || event.key === 'C')
       ) {
-        setCameraMode(cameraMode === "dynamic" ? "free" : "dynamic");
+        setCameraMode(cameraMode === 'dynamic' ? 'free' : 'dynamic')
       }
     },
     { signal },
-  );
+  )
 
-  updateCamButtons();
-  updateCameraControls();
-  applyZoomImmediate();
-  let wasInputSuppressed = false;
+  updateCamButtons()
+  updateCameraControls()
+  applyZoomImmediate()
+  let wasInputSuppressed = false
 
   return {
-    getCurrentShot: () => (cameraMode === "dynamic" ? currentShot : "free"),
+    getCurrentShot: () => (cameraMode === 'dynamic' ? currentShot : 'free'),
     sync: (game: GameState) => {
-      const inputSuppressed = isInputSuppressed();
+      const inputSuppressed = isInputSuppressed()
       if (inputSuppressed !== wasInputSuppressed) {
-        heldKeys.clear();
-        moveHoldTime = 0;
-        updateCameraControls();
-        wasInputSuppressed = inputSuppressed;
+        heldKeys.clear()
+        moveHoldTime = 0
+        updateCameraControls()
+        wasInputSuppressed = inputSuppressed
       }
-      if (cameraMode === "dynamic") {
-        shotDuration += 0.016;
+      if (cameraMode === 'dynamic') {
+        _shotDuration += 0.016
 
-        const phase = game.phase;
-        const ball = game.ball;
-        const carrier = game.players.find((p) => p.id === ball.carrierId);
-        const possessionTeam = game.possessionTeam;
-        const attackDir = attackDirection(possessionTeam);
-        const ballZ = ball.position.z;
-        const ballX = ball.position.x;
-        const ballY = ball.position.y;
-        const hSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
+        const phase = game.phase
+        const ball = game.ball
+        const _carrier = game.players.find((p) => p.id === ball.carrierId)
+        const possessionTeam = game.possessionTeam
+        const attackDir = attackDirection(possessionTeam)
+        const ballZ = ball.position.z
+        const ballX = ball.position.x
+        const ballY = ball.position.y
+        const _hSpeed = Math.hypot(ball.velocity.x, ball.velocity.z)
 
-        const phaseChanged = phase.kind !== lastPhaseKind;
-        lastPhaseKind = phase.kind;
+        const phaseChanged = phase.kind !== lastPhaseKind
+        lastPhaseKind = phase.kind
 
-        ballPosVec.set(ballX, ballY, ballZ);
-        const engine = scene.getEngine();
-        const renderW = engine.getRenderWidth();
-        const renderH = engine.getRenderHeight();
+        ballPosVec.set(ballX, ballY, ballZ)
+        const engine = scene.getEngine()
+        const renderW = engine.getRenderWidth()
+        const renderH = engine.getRenderHeight()
 
         if (renderW > 0 && renderH > 0) {
-          const viewport = broadcastCam.viewport.toGlobal(renderW, renderH);
-          const projected = Vector3.Project(
-            ballPosVec,
-            identityMat,
-            scene.getTransformMatrix(),
-            viewport,
-          );
+          const viewport = broadcastCam.viewport.toGlobal(renderW, renderH)
+          const projected = Vector3.Project(ballPosVec, identityMat, scene.getTransformMatrix(), viewport)
 
           // Exclude outer 4% because a ball near the viewport edge may already be clipped.
           const isBallInView =
@@ -225,112 +186,97 @@ export const createCameras = (
             projected.x >= viewport.width * 0.04 &&
             projected.x <= viewport.width * 0.96 &&
             projected.y >= viewport.height * 0.04 &&
-            projected.y <= viewport.height * 0.96;
+            projected.y <= viewport.height * 0.96
 
           if (!isBallInView) {
-            ballOutOfViewTimer += 0.016;
+            ballOutOfViewTimer += 0.016
           } else {
-            ballOutOfViewTimer = Math.max(0, ballOutOfViewTimer - 0.032);
+            ballOutOfViewTimer = Math.max(0, ballOutOfViewTimer - 0.032)
           }
         }
 
-        let chosenShot: DynamicShotType = "broadcast";
-        let lerpRate = 0.06;
+        let chosenShot: DynamicShotType = 'broadcast'
+        let lerpRate = 0.06
 
         // Fall back to the wide shot when the ball stays lost for one second.
-        const isBallLost = ballOutOfViewTimer >= 1.0;
+        const isBallLost = ballOutOfViewTimer >= 1.0
 
-        const isGoalKickPhase =
-          phase.kind === "conversion" ||
-          (phase.kind === "penalty" && phase.choice === "goal");
+        const isGoalKickPhase = phase.kind === 'conversion' || (phase.kind === 'penalty' && phase.choice === 'goal')
 
-        const isSetPieceSetup =
-          (phase.kind === "scrum" || phase.kind === "lineout") &&
-          phase.stage === "forming";
+        const isSetPieceSetup = (phase.kind === 'scrum' || phase.kind === 'lineout') && phase.stage === 'forming'
 
         if (isBallLost) {
-          chosenShot = "broadcast";
-          lerpRate = 0.14;
-        } else if (isGoalKickPhase && phase.stage === "inFlight") {
-          chosenShot = "goalLine";
+          chosenShot = 'broadcast'
+          lerpRate = 0.14
+        } else if (isGoalKickPhase && phase.stage === 'inFlight') {
+          chosenShot = 'goalLine'
         } else if (isSetPieceSetup) {
           if (phaseChanged) {
-            currentShot = Math.random() < 0.35 ? "refCam" : "broadcast";
-            shotDuration = 0;
+            currentShot = Math.random() < 0.35 ? 'refCam' : 'broadcast'
+            _shotDuration = 0
           }
-          chosenShot = currentShot;
+          chosenShot = currentShot
         } else {
-          chosenShot = "broadcast";
+          chosenShot = 'broadcast'
         }
 
         if (chosenShot !== currentShot) {
-          currentShot = chosenShot;
-          shotDuration = 0;
+          currentShot = chosenShot
+          _shotDuration = 0
         }
 
-        if (currentShot === "refCam") {
+        if (currentShot === 'refCam') {
           // Match camera height to the referee's eye line.
-          const refPos = game.referee.position;
-          desiredCamPos.set(refPos.x, 1.76, refPos.z);
-          desiredTarget.set(ballX, Math.max(0.6, ballY), ballZ);
-          lerpRate = 0.16;
-        } else if (currentShot === "goalLine") {
-          const targetTryLine =
-            attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south;
-          const endPosZ = targetTryLine + attackDir * 15.0;
-          desiredCamPos.set(
-            28.0,
-            Math.min(23.0, 20.0 / Math.sqrt(zoom)),
-            endPosZ,
-          );
-          desiredTarget.set(0, 2.0, targetTryLine - attackDir * 6.0);
-          lerpRate = 0.06;
+          const refPos = game.referee.position
+          desiredCamPos.set(refPos.x, 1.76, refPos.z)
+          desiredTarget.set(ballX, Math.max(0.6, ballY), ballZ)
+          lerpRate = 0.16
+        } else if (currentShot === 'goalLine') {
+          const targetTryLine = attackDir === 1 ? PITCH.tryLines.north : PITCH.tryLines.south
+          const endPosZ = targetTryLine + attackDir * 15.0
+          desiredCamPos.set(28.0, Math.min(23.0, 20.0 / Math.sqrt(zoom)), endPosZ)
+          desiredTarget.set(0, 2.0, targetTryLine - attackDir * 6.0)
+          lerpRate = 0.06
         } else {
-          const gantryX = 58.0 / Math.sqrt(zoom);
-          const gantryY = Math.min(23.5, 22.5 / Math.sqrt(zoom));
-          desiredCamPos.set(gantryX, gantryY, ballZ * 0.78);
-          desiredTarget.set(0, 0, ballZ);
-          lerpRate = 0.06;
+          const gantryX = 58.0 / Math.sqrt(zoom)
+          const gantryY = Math.min(23.5, 22.5 / Math.sqrt(zoom))
+          desiredCamPos.set(gantryX, gantryY, ballZ * 0.78)
+          desiredTarget.set(0, 0, ballZ)
+          lerpRate = 0.06
         }
 
-        broadcastCam.position = Vector3.Lerp(
-          broadcastCam.position,
-          desiredCamPos,
-          lerpRate,
-        );
-        const curTarget = broadcastCam.getTarget();
-        const nextTarget = Vector3.Lerp(curTarget, desiredTarget, lerpRate);
-        broadcastCam.setTarget(nextTarget);
-      } else if (cameraMode === "free") {
-        const isMoving = Array.from(heldKeys).some((k) => moveKeys.has(k));
+        broadcastCam.position = Vector3.Lerp(broadcastCam.position, desiredCamPos, lerpRate)
+        const curTarget = broadcastCam.getTarget()
+        const nextTarget = Vector3.Lerp(curTarget, desiredTarget, lerpRate)
+        broadcastCam.setTarget(nextTarget)
+      } else if (cameraMode === 'free') {
+        const isMoving = Array.from(heldKeys).some((k) => moveKeys.has(k))
         if (isMoving) {
-          moveHoldTime = Math.min(2.5, moveHoldTime + 0.035);
+          moveHoldTime = Math.min(2.5, moveHoldTime + 0.035)
         } else {
-          moveHoldTime = Math.max(0, moveHoldTime - 0.12);
+          moveHoldTime = Math.max(0, moveHoldTime - 0.12)
         }
 
         // Ramp base to maximum speed over 2.5 seconds; exponent keeps short taps precise.
-        const ramp = Math.pow(moveHoldTime / 2.5, 1.4);
-        const shiftBoost = heldKeys.has("shift") ? 1.8 : 1.0;
-        const currentSpeed =
-          (FREE_BASE_SPEED + (FREE_MAX_SPEED - FREE_BASE_SPEED) * ramp) *
-          shiftBoost;
-        freeCam.speed = currentSpeed;
+        const ramp = (moveHoldTime / 2.5) ** 1.4
+        const shiftBoost = heldKeys.has('shift') ? 1.8 : 1.0
+        const currentSpeed = (FREE_BASE_SPEED + (FREE_MAX_SPEED - FREE_BASE_SPEED) * ramp) * shiftBoost
+        freeCam.speed = currentSpeed
 
-        const vertSpeed = (0.35 + ramp * 1.5) * shiftBoost;
-        if (heldKeys.has("q")) {
-          freeCam.position.y = Math.max(1.5, freeCam.position.y - vertSpeed);
+        const vertSpeed = (0.35 + ramp * 1.5) * shiftBoost
+        if (heldKeys.has('q')) {
+          freeCam.position.y = Math.max(1.5, freeCam.position.y - vertSpeed)
         }
-        if (heldKeys.has("e")) {
-          freeCam.position.y = Math.min(220, freeCam.position.y + vertSpeed);
+        if (heldKeys.has('e')) {
+          freeCam.position.y = Math.min(220, freeCam.position.y + vertSpeed)
         }
       }
     },
     dispose() {
-      lifecycle.abort();
-      heldKeys.clear();
-      broadcastCam.detachControl();
-      freeCam.detachControl();
+      lifecycle.abort()
+      heldKeys.clear()
+      broadcastCam.detachControl()
+      freeCam.detachControl()
     },
-  };
-};
+  }
+}
